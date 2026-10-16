@@ -173,12 +173,11 @@ int re_cmd_cont(re_ctx_t *ctx, const char *path, int argc, char **argv) {
 }
 
 int re_cmd_step(re_ctx_t *ctx, const char *path, int argc, char **argv) {
-    re_err_code_t c;
     (void)path;
     (void)argc;
     (void)argv;
-    c = sess(ctx)->backend->vt->step(sess(ctx)->backend);
-    return finish(ctx, "step", c, "step is not implemented yet; waiting on OS backends");
+    return finish(ctx, "step", re_dbg_session_step(sess(ctx)),
+                  "step is not implemented yet; waiting on OS backends");
 }
 
 int re_cmd_regs(re_ctx_t *ctx, const char *path, int argc, char **argv) {
@@ -187,7 +186,7 @@ int re_cmd_regs(re_ctx_t *ctx, const char *path, int argc, char **argv) {
     (void)path;
     (void)argc;
     (void)argv;
-    c = sess(ctx)->backend->vt->get_regs(sess(ctx)->backend, sess(ctx)->tid, &regs);
+    c = re_dbg_session_get_regs(sess(ctx), &regs);
     return finish(ctx, "regs", c, "regs is not implemented yet; waiting on OS backends");
 }
 

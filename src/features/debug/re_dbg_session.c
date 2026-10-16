@@ -1,13 +1,32 @@
 // re_dbg_session.c - long-lived debug session arena and control API.
 // Module: feature (C11).
 // Owns: session init/reset/free, global handle, and session-to-backend wiring.
-// Depends: re_dbg.h. Session arena is not the per-command arena.
+// Depends: re_dbg.h, re_dbg_db. Session arena is not the per-command arena.
 #include "features/debug/re_dbg.h"
 
 #include <string.h>
 
 static re_dbg_session_t g_session;
 static bool g_ready;
+
+static void save_db_if_dirty(re_dbg_session_t *s) {
+    re_arena_t scratch;
+    if (!s || !s->db.dirty || !s->db.db_path[0])
+        return;
+    re_arena_init(&scratch, 64u * 1024u);
+    if (re_dbg_db_save(&s->db, &scratch) == RE_OK)
+        s->db.dirty = false;
+    re_arena_free(&scratch);
+}
+
+static void load_db_for_path(re_dbg_session_t *s, const char *path) {
+    re_arena_t scratch;
+    if (!s || !path || !path[0])
+        return;
+    re_arena_init(&scratch, 64u * 1024u);
+    (void)re_dbg_db_load(&s->db, &scratch, path);
+    re_arena_free(&scratch);
+}
 
 static void clear_target(re_dbg_session_t *s) {
     s->attached = false;
@@ -53,21 +72,26 @@ void re_dbg_session_init(re_dbg_session_t *s) {
     re_arena_init(&s->arena, 64u * 1024u);
     s->backend = re_dbg_backend_create(&s->arena);
     s->last_err.code = RE_OK;
+    re_dbg_db_init(&s->db);
 }
 
 void re_dbg_session_reset(re_dbg_session_t *s) {
+    save_db_if_dirty(s);
     if (s->backend && s->backend->vt && s->backend->vt->detach && s->attached)
         s->backend->vt->detach(s->backend);
     clear_target(s);
+    re_dbg_db_clear(&s->db);
     RE_ERR_OK(&s->last_err);
     re_arena_reset(&s->arena);
     s->backend = re_dbg_backend_create(&s->arena);
 }
 
 void re_dbg_session_free(re_dbg_session_t *s) {
+    save_db_if_dirty(s);
     if (s->backend && s->backend->vt && s->backend->vt->destroy)
         s->backend->vt->destroy(s->backend);
     s->backend = NULL;
+    re_dbg_db_clear(&s->db);
     re_arena_free(&s->arena);
 }
 
@@ -90,9 +114,11 @@ re_err_code_t re_dbg_session_launch(re_dbg_session_t *s, const char *path, const
     c = s->backend->vt->launch(s->backend, path, args);
     if (c != RE_OK)
         return note(s, c, "launch failed or is not implemented");
+    save_db_if_dirty(s);
     clear_target(s);
     s->attached = true;
     copy_path(s, path);
+    load_db_for_path(s, path);
     return note(s, RE_OK, NULL);
 }
 
@@ -119,6 +145,7 @@ re_err_code_t re_dbg_session_detach(re_dbg_session_t *s) {
         return c;
     if (!s->backend->vt->detach)
         return note(s, RE_E_UNSUPPORTED, "detach is not available on this backend");
+    save_db_if_dirty(s);
     c = s->backend->vt->detach(s->backend);
     if (c != RE_OK)
         return note(s, c, "detach failed or is not implemented");
@@ -132,6 +159,7 @@ re_err_code_t re_dbg_session_kill(re_dbg_session_t *s) {
         return c;
     if (!s->backend->vt->kill)
         return note(s, RE_E_UNSUPPORTED, "kill is not available on this backend");
+    save_db_if_dirty(s);
     c = s->backend->vt->kill(s->backend);
     if (c != RE_OK)
         return note(s, c, "kill failed or is not implemented");
@@ -148,6 +176,32 @@ re_err_code_t re_dbg_session_cont(re_dbg_session_t *s) {
     c = s->backend->vt->cont(s->backend);
     if (c != RE_OK)
         return note(s, c, "continue failed or is not implemented");
+    return note(s, RE_OK, NULL);
+}
+
+re_err_code_t re_dbg_session_step(re_dbg_session_t *s) {
+    re_err_code_t c = need_backend(s);
+    if (c != RE_OK)
+        return c;
+    if (!s->backend->vt->step)
+        return note(s, RE_E_UNSUPPORTED, "step is not available on this backend");
+    c = s->backend->vt->step(s->backend);
+    if (c != RE_OK)
+        return note(s, c, "step failed or is not implemented");
+    return note(s, RE_OK, NULL);
+}
+
+re_err_code_t re_dbg_session_get_regs(re_dbg_session_t *s, re_dbg_regs_t *out) {
+    re_err_code_t c = need_backend(s);
+    if (c != RE_OK)
+        return c;
+    if (!out)
+        return note(s, RE_E_USAGE, "get_regs needs an output buffer");
+    if (!s->backend->vt->get_regs)
+        return note(s, RE_E_UNSUPPORTED, "get_regs is not available on this backend");
+    c = s->backend->vt->get_regs(s->backend, s->tid, out);
+    if (c != RE_OK)
+        return note(s, c, "get_regs failed or is not implemented");
     return note(s, RE_OK, NULL);
 }
 
