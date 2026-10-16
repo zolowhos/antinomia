@@ -2,7 +2,8 @@
 # mcp_tools_check.py - validate MCP stdio frames for tools/list and tools/call.
 # Module: test (Python 3).
 # Owns: schema antinomia/1 and Phase 1-2 tool surface checks without CMake lists.
-# Depends: stdlib json only.
+# Depends: stdlib json only. Reads a file path (not argv payload) so Windows
+# CreateProcess command-line length limits do not truncate tools/list (~40KB).
 import json
 import sys
 
@@ -117,8 +118,10 @@ def check_call(raw: str) -> None:
 
 def main() -> None:
     if len(sys.argv) != 3:
-        raise SystemExit("usage: mcp_tools_check.py list|call <jsonl-output>")
-    mode, raw = sys.argv[1], sys.argv[2]
+        raise SystemExit("usage: mcp_tools_check.py list|call <capture-file>")
+    mode, path = sys.argv[1], sys.argv[2]
+    with open(path, "r", encoding="utf-8", newline="") as f:
+        raw = f.read()
     if mode == "list":
         check_list(raw)
     elif mode == "call":
