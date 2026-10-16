@@ -1,0 +1,12 @@
+# phase3_ai_demo.re - Phase 3 Pack E local AI helpers demo.
+# Module: demo (antinomia script).
+# Owns: explain / suggest_bp / summarize_ex sequencing for CI.
+# Depends: antinomia CLI. @INFERIOR@ substituted at configure time.
+
+init @INFERIOR@
+wait_event 5000
+wait_event 5000
+explain
+summarize_ex 11
+suggest_bp --limit 8
+kill
