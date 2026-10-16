@@ -6,6 +6,7 @@
 #include "features/debug/re_dbg.h"
 #include "features/debug/re_dbg_bp.h"
 #include "features/disasm/re_disasm_annot.h"
+#include "features/sess/re_dbg_lock.h"
 #include "features/trace/re_dbg_trace.h"
 
 #include <string.h>
@@ -361,7 +362,10 @@ re_err_code_t re_dbg_session_wait_event(re_dbg_session_t *s, re_dbg_event_t *ev,
     if (!s->backend->vt->wait_event)
         return note(s, RE_E_UNSUPPORTED, "wait_event is not available on this backend");
     for (;;) {
+        /* Unlock across the OS wait so MCP can queue without stalling it. */
+        re_dbg_lock_before_wait();
         c = s->backend->vt->wait_event(s->backend, ev, timeout_ms);
+        re_dbg_lock_after_wait();
         if (c != RE_OK)
             return note(s, c, "wait_event failed or is not implemented");
         post_event(s, ev);

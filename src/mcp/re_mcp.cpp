@@ -29,6 +29,7 @@ constexpr const char *kInstructions =
     "antinomia debugger MCP (protocol 2025-06-18). Every debug verb is a tool "
     "aligned with the CLI command table. Responses use schema antinomia/1. "
     "Errors use stable error.code slugs: usage, privilege, unsupported, io. "
+    "Stdio or side-channel attach (ANTINOMIA_MCP / mcp --attach). "
     "Prefer status, then init or attach, then bp, run, sti, regs.";
 constexpr int kFrameMax = 1 << 20;
 constexpr int kErrParse = -32700;

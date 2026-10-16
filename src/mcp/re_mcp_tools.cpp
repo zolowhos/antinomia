@@ -5,6 +5,7 @@
 #include "mcp/re_mcp_tools.h"
 
 #include "features/debug/re_dbg.h"
+#include "features/sess/re_dbg_lock.h"
 #include "utils/json/re_jr.h"
 #include "cli/cmds/re_cmds.h"
 
@@ -235,35 +236,62 @@ void mcp_tool_error(re_strbuf_t *out, re_err_code_t code, const char *msg, bool 
     *is_error = true;
 }
 
-void mcp_run_tool(const re_cmd_t *cmd, const char *path, const re_jr_t *args, re_arena_t *a,
-                  re_strbuf_t *out, bool *is_error) {
+namespace {
+
+struct ToolJob {
+    const re_cmd_t *cmd;
+    const char *path;
+    const re_jr_t *args;
+    re_arena_t *a;
+    re_strbuf_t *out;
+    bool *is_error;
+};
+
+void tool_job_run(void *ctx) {
+    ToolJob *j = (ToolJob *)ctx;
     char *argv_store[16];
     int argc = 0;
     int first = 0;
     FILE *tmp = std::tmpfile();
     re_err_t err{};
-    re_ctx_t ctx{};
+    re_ctx_t c{};
     if (!tmp) {
-        mcp_tool_error(out, RE_E_IO, "could not open temp capture", is_error);
+        mcp_tool_error(j->out, RE_E_IO, "could not open temp capture", j->is_error);
         return;
     }
-    argc = fill_argv(a, args, argv_store);
+    argc = fill_argv(j->a, j->args, argv_store);
     err.code = RE_OK;
-    ctx.arena = a;
-    ctx.err = &err;
-    ctx.stream = tmp;
-    ctx.session = re_dbg_session_global();
-    if (!re_cmd_parse(&ctx, argc, argv_store, &first, &err)) {
+    c.arena = j->a;
+    c.err = &err;
+    c.stream = tmp;
+    c.session = re_dbg_session_global();
+    if (!re_cmd_parse(&c, argc, argv_store, &first, &err)) {
         std::fclose(tmp);
-        mcp_tool_error(out, err.code != RE_OK ? err.code : RE_E_USAGE, re_err_msg(&err), is_error);
+        mcp_tool_error(j->out, err.code != RE_OK ? err.code : RE_E_USAGE, re_err_msg(&err),
+                       j->is_error);
         return;
     }
-    (void)cmd->fn(&ctx, path, argc - first, argv_store + first);
-    if (!capture_out(tmp, a, cmd, out, is_error)) {
+    (void)j->cmd->fn(&c, j->path, argc - first, argv_store + first);
+    if (!capture_out(tmp, j->a, j->cmd, j->out, j->is_error)) {
         std::fclose(tmp);
         return;
     }
     std::fclose(tmp);
     if (err.code != RE_OK)
-        *is_error = true;
+        *j->is_error = true;
+}
+
+} // namespace
+
+void mcp_run_tool(const re_cmd_t *cmd, const char *path, const re_jr_t *args, re_arena_t *a,
+                  re_strbuf_t *out, bool *is_error) {
+    ToolJob job;
+    job.cmd = cmd;
+    job.path = path;
+    job.args = args;
+    job.a = a;
+    job.out = out;
+    job.is_error = is_error;
+    /* Queue into the TUI owner thread when present; never block wait_event. */
+    re_dbg_lock_submit(tool_job_run, &job);
 }
