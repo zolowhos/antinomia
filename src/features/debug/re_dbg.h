@@ -169,6 +169,7 @@ typedef struct {
 
 typedef struct re_dbg_bps re_dbg_bps_t;
 typedef struct re_dbg_advbp re_dbg_advbp_t;
+typedef struct re_dbg_trace re_dbg_trace_t;
 typedef struct re_dbg_backend re_dbg_backend_t;
 
 // Stable OS backend contract. Parallel Linux/Windows PRs implement these ops;
@@ -227,7 +228,8 @@ typedef struct re_dbg_session {
     re_disasm_cache_t disasm_cache;
     re_dbg_bps_t *bps;
     re_dbg_advbp_t *advbp;
-    re_dbg_db_t db; /* per-module annotations; load on launch, save on exit */
+    re_dbg_trace_t *trace; /* insn stream + regs; Pack G */
+    re_dbg_db_t db;        /* per-module annotations; load on launch, save on exit */
     re_dbg_var_t vars[RE_DBG_MAX_VARS];
     re_dbg_watch_t watches[RE_DBG_MAX_WATCH];
     char bp_log[RE_DBG_BP_LOG_MAX][RE_DBG_BP_COND_MAX];

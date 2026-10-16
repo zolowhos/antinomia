@@ -310,6 +310,7 @@ void re_cpu_refresh(re_cpu_view_t *v, re_dbg_session_t *s) {
     re_cpu_fill_threads(v, s);
     fill_bps(v);
     fill_graph(v, s);
+    re_cpu_fill_trace(v, s);
     re_cpu_fill_watches(v, s);
     maybe_log_event(v, s);
     if (v->n_log == 0)
@@ -365,7 +366,7 @@ static void paint_pane(re_screen_t *s, re_cpu_view_t *v, re_cpu_pane_t pane, re_
 
 static void layout_rects(uint16_t rows, uint16_t cols, re_cpu_rect_t out[RE_CPU_PANE_COUNT]) {
     uint16_t mid_x = (uint16_t)(cols / 2u);
-    uint16_t q = (uint16_t)(cols / 5u);
+    uint16_t q = (uint16_t)(cols / 6u);
     uint16_t top_h;
     uint16_t mid_h;
     uint16_t bot_h;
@@ -373,11 +374,11 @@ static void layout_rects(uint16_t rows, uint16_t cols, re_cpu_rect_t out[RE_CPU_
     uint16_t y2;
     if (rows < 14u)
         rows = 14u;
-    if (cols < 50u)
-        cols = 50u;
-    if (q < 10u)
-        q = 10u;
-    /* title(1) + body + status(1). Bottom: maps/threads/bp/graph/log. */
+    if (cols < 60u)
+        cols = 60u;
+    if (q < 8u)
+        q = 8u;
+    /* title(1) + body + status(1). Bottom: maps/threads/bp/graph/log/trace. */
     top_h = (uint16_t)((rows - 2u) * 36u / 100u);
     if (top_h < 4u)
         top_h = 4u;
@@ -402,8 +403,9 @@ static void layout_rects(uint16_t rows, uint16_t cols, re_cpu_rect_t out[RE_CPU_
     out[RE_CPU_PANE_THREADS] = (re_cpu_rect_t){y2, q, q, bot_h};
     out[RE_CPU_PANE_BP] = (re_cpu_rect_t){y2, (uint16_t)(q * 2u), q, bot_h};
     out[RE_CPU_PANE_GRAPH] = (re_cpu_rect_t){y2, (uint16_t)(q * 3u), q, bot_h};
-    out[RE_CPU_PANE_LOG] =
-        (re_cpu_rect_t){y2, (uint16_t)(q * 4u), (uint16_t)(cols - q * 4u), bot_h};
+    out[RE_CPU_PANE_LOG] = (re_cpu_rect_t){y2, (uint16_t)(q * 4u), q, bot_h};
+    out[RE_CPU_PANE_TRACE] =
+        (re_cpu_rect_t){y2, (uint16_t)(q * 5u), (uint16_t)(cols - q * 5u), bot_h};
 }
 
 void re_cpu_paint(re_screen_t *s, re_cpu_view_t *v) {
@@ -433,5 +435,7 @@ void re_cpu_paint(re_screen_t *s, re_cpu_view_t *v) {
     paint_pane(s, v, RE_CPU_PANE_GRAPH, R[RE_CPU_PANE_GRAPH], "graph", v->graph, v->n_graph,
                (size_t)-1);
     paint_pane(s, v, RE_CPU_PANE_LOG, R[RE_CPU_PANE_LOG], "log", v->log, v->n_log, (size_t)-1);
+    paint_pane(s, v, RE_CPU_PANE_TRACE, R[RE_CPU_PANE_TRACE], "trace", v->trace_lines, v->n_trace,
+               (size_t)-1);
     re_screen_status(s, (uint16_t)(s->rows - 1u), 0, s->cols, v->status_left, v->status_right);
 }
