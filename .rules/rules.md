@@ -122,9 +122,11 @@ Before writing any function past 60 lines or 4 nesting levels, read
 1. **C11 core, C++17 shell.** `src/utils` and `src/features` are pure C11.
    `src/cli` and `src/mcp` are C++17 and never reinterpret binary data themselves.
 2. **Opaque `re_dbg_backend` vtable.** OS APIs (`ptrace`, Windows Debug API) live only
-   behind backend .c files. CLI/MCP/TUI call the session API only.
-3. **Session arena != per-command arena.** A debug session outlives one CLI/MCP call.
-   Command handlers still get a short-lived arena for JSON and temporary buffers.
+   behind backend .c files. CLI/MCP/TUI call `re_dbg_session_*` only (never raw OS APIs).
+3. **Session arena != per-command arena.** `re_dbg_session_t.arena` owns the backend and
+   outlives one CLI/MCP call. Command handlers get a short-lived `re_ctx_t` arena for
+   JSON and scratch only; resetting it must not free session state. Session fields
+   `pid`, `tid`, and `last_event` are the status surface.
 4. **One command table drives both the CLI and MCP.** A single table feeds argv and
    `tools/list`, so the two surfaces cannot drift.
 5. **No third-party C++ libraries.** The streaming writer in `src/utils/json/re_json.h`
@@ -154,7 +156,7 @@ Before writing any function past 60 lines or 4 nesting levels, read
 | Capability | Verdict | Where |
 |---|---|---|
 | Opaque debug backend vtable | **Build** | feature/debug |
-| Launch / attach / detach / wait / cont / step | Build (live Phase 1+) | feature/debug |
+| Launch(init) / attach / detach / kill / wait / run(g) / step | Build (live Phase 1+) | feature/debug |
 | Regs / mem R/W / threads / modules | Build (live Phase 1+) | feature/debug |
 | Custom terminal TUI (CPU-like panes) | **Build** | cli/screen, utils/tui |
 | MCP stdio + `ANTINOMIA_MCP` side-channel | Build (attach Phase 3) | mcp |

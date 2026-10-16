@@ -25,8 +25,8 @@ string(JSON tool_count ERROR_VARIABLE json_error LENGTH "${tools_frame}" result 
 if(NOT json_error STREQUAL "NOTFOUND")
     message(FATAL_ERROR "tools/list response is not valid JSON: ${json_error}")
 endif()
-set(required_tools status launch attach detach wait_event cont step regs set_regs mem_read
-    mem_write threads modules)
+set(required_tools status init launch attach detach kill wait_event run g cont step regs
+    set_regs mem_read mem_write threads modules)
 foreach(want IN LISTS required_tools)
     set(found 0)
     math(EXPR last_index "${tool_count} - 1")
