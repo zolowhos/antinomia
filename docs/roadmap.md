@@ -40,7 +40,10 @@ map/threads/graph/trace panes, PE/ELF patch write-back.
 
 ### Phase 3
 
-Every debug verb as MCP tool; side-channel attach; bounded `state` snapshots; `triage-live`; headless script mode; native plugin ABI decision gate (SDK vs “MCP is the plugin API”).
+Every debug verb as MCP tool; side-channel attach; bounded `state` snapshots
+(regs + disasm window + open BPs + last N log lines); `trace.query` / `mem.page`
+with hard limits and `next_cursor`; `triage-live`; headless script mode; native
+plugin ABI decision gate (SDK vs “MCP is the plugin API”).
 
 ### Phase 4
 

@@ -39,6 +39,8 @@ int re_cmd_dump(re_ctx_t *ctx, const char *path, int argc, char **argv);
 int re_cmd_disasm(re_ctx_t *ctx, const char *path, int argc, char **argv);
 int re_cmd_mem_read(re_ctx_t *ctx, const char *path, int argc, char **argv);
 int re_cmd_mem_write(re_ctx_t *ctx, const char *path, int argc, char **argv);
+int re_cmd_mem_page(re_ctx_t *ctx, const char *path, int argc, char **argv);
+int re_cmd_state(re_ctx_t *ctx, const char *path, int argc, char **argv);
 int re_cmd_threads(re_ctx_t *ctx, const char *path, int argc, char **argv);
 int re_cmd_thread(re_ctx_t *ctx, const char *path, int argc, char **argv);
 int re_cmd_suspend(re_ctx_t *ctx, const char *path, int argc, char **argv);

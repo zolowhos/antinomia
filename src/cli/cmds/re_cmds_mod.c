@@ -7,8 +7,23 @@
 #include "features/debug/re_dbg.h"
 #include "utils/json/re_json.h"
 #include "utils/text/re_str.h"
+#include "utils/text/re_strbuf.h"
 
 #include <string.h>
+
+static void emit_page_cursor(re_jw_t *w, re_arena_t *a, size_t next, bool trunc) {
+    re_strbuf_t cur;
+    re_jw_kbool(w, "truncated", trunc);
+    if (!trunc) {
+        re_jw_knull(w, "next_offset");
+        re_jw_knull(w, "next_cursor");
+        return;
+    }
+    re_jw_ku64(w, "next_offset", next);
+    re_strbuf_init(&cur, a);
+    re_strbuf_put_u64(&cur, next);
+    re_jw_kcstr(w, "next_cursor", cur.p ? cur.p : "");
+}
 
 static re_dbg_session_t *sess(re_ctx_t *ctx) {
     if (ctx->session)
@@ -65,7 +80,7 @@ int re_cmd_modules(re_ctx_t *ctx, const char *path, int argc, char **argv) {
     re_jw_ku64(&w, "count", n);
     re_jw_ku64(&w, "offset", start);
     re_jw_ku64(&w, "limit", lim);
-    re_jw_kbool(&w, "truncated", trunc);
+    emit_page_cursor(&w, ctx->arena, start + lim, trunc);
     re_jw_key(&w, "modules");
     re_jw_arr(&w);
     for (i = 0; i < lim; i++) {
@@ -204,7 +219,7 @@ static int maps_list(re_ctx_t *ctx) {
     re_jw_ku64(&w, "count", n);
     re_jw_ku64(&w, "offset", start);
     re_jw_ku64(&w, "limit", lim);
-    re_jw_kbool(&w, "truncated", trunc);
+    emit_page_cursor(&w, ctx->arena, start + lim, trunc);
     re_jw_khex(&w, "follow_dump", sess(ctx)->follow_dump, 16);
     re_jw_key(&w, "maps");
     re_jw_arr(&w);

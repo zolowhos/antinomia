@@ -59,6 +59,13 @@ int fill_argv(re_arena_t *a, const re_jr_t *args, char **argv) {
     push_flag_i64(a, argv, &argc, "--offset", re_jr_i64(re_jr_get(args, "offset"), -1));
     push_flag_i64(a, argv, &argc, "--len", re_jr_i64(re_jr_get(args, "len"), -1));
     push_flag_i64(a, argv, &argc, "--off", re_jr_i64(re_jr_get(args, "off"), -1));
+    {
+        re_str_t cursor = re_jr_str(re_jr_get(args, "cursor"), "");
+        if (cursor.n && argc + 1 < 15) {
+            argv[argc++] = (char *)re_arena_strdup(a, "--cursor");
+            argv[argc++] = (char *)re_arena_strndup(a, cursor.p, cursor.n);
+        }
+    }
     return argc;
 }
 
@@ -101,10 +108,19 @@ void mcp_tool_schema(const re_cmd_t *cmd, re_strbuf_t *b) {
         prop(b, &first, "pid", "string", "Process id to attach");
     if (re_str_eq_cstr(re_str(cmd->name), "mem_read") ||
         re_str_eq_cstr(re_str(cmd->name), "mem_write") ||
+        re_str_eq_cstr(re_str(cmd->name), "mem.page") ||
+        re_str_eq_cstr(re_str(cmd->name), "mem_page") ||
         re_str_eq_cstr(re_str(cmd->name), "graph") || re_str_eq_cstr(re_str(cmd->name), "cfg") ||
         re_str_eq_cstr(re_str(cmd->name), "u") || re_str_eq_cstr(re_str(cmd->name), "d")) {
         prop(b, &first, "addr", "string", "Target address (hex or decimal)");
         prop(b, &first, "len", "integer", "Byte count");
+    }
+    if (re_str_eq_cstr(re_str(cmd->name), "trace.query") ||
+        re_str_eq_cstr(re_str(cmd->name), "mem.page") ||
+        re_str_eq_cstr(re_str(cmd->name), "mem_page") ||
+        re_str_eq_cstr(re_str(cmd->name), "maps") || re_str_eq_cstr(re_str(cmd->name), "modules") ||
+        re_str_eq_cstr(re_str(cmd->name), "state")) {
+        prop(b, &first, "cursor", "string", "Opaque page cursor (same as offset decimal)");
     }
     if (re_str_eq_cstr(re_str(cmd->name), "find") || re_str_eq_cstr(re_str(cmd->name), "search")) {
         prop(b, &first, "pattern", "string", "Hex, quoted ASCII, or u32:value pattern");
