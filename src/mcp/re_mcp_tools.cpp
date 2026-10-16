@@ -170,12 +170,10 @@ void schema_common(re_strbuf_t *b, bool *first) {
 
 void schema_props(const re_cmd_t *cmd, re_strbuf_t *b, bool *first) {
     static const char *kAddr[] = {
-        "bp",       "bc",        "be",        "bd",           "bph",
-        "bphw",     "bphc",      "bpm",       "bpmc",         "bpc",
-        "bpfr",     "d",         "u",         "graph",        "cfg",
-        "mem_read", "mem_write", "get_bytes", "src",          "a",
-        "asm",      "bm",        "decompile", "get_xrefs_to", "explain",
-        "ai.explain", NULL};
+        "bp",  "bc",        "be",           "bd",        "bph",        "bphw", "bphc",
+        "bpm", "bpmc",      "bpc",          "bpfr",      "d",          "u",    "graph",
+        "cfg", "mem_read",  "mem_write",    "get_bytes", "src",        "a",    "asm",
+        "bm",  "decompile", "get_xrefs_to", "explain",   "ai.explain", NULL};
     static const char *kExpr[] = {"expr", "?", "watch", "wa", "bplogc", "bpcmdc", NULL};
     static const char *kText[] = {"note", "log", "bplog", "bpcmd", NULL};
     static const char *kTid[] = {"thread", "switch", "suspend", "resume", NULL};
