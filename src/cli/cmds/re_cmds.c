@@ -325,13 +325,3 @@ int re_cmd_threads(re_ctx_t *ctx, const char *path, int argc, char **argv) {
     c = sess(ctx)->backend->vt->enum_threads(sess(ctx)->backend, NULL, 0, &n);
     return finish(ctx, "threads", c, "threads is not implemented yet; waiting on OS backends");
 }
-
-int re_cmd_modules(re_ctx_t *ctx, const char *path, int argc, char **argv) {
-    size_t n = 0;
-    re_err_code_t c;
-    (void)path;
-    (void)argc;
-    (void)argv;
-    c = sess(ctx)->backend->vt->enum_modules(sess(ctx)->backend, NULL, 0, &n);
-    return finish(ctx, "modules", c, "modules is not implemented yet; waiting on OS backends");
-}

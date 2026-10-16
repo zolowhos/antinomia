@@ -35,6 +35,8 @@ int re_cmd_mem_read(re_ctx_t *ctx, const char *path, int argc, char **argv);
 int re_cmd_mem_write(re_ctx_t *ctx, const char *path, int argc, char **argv);
 int re_cmd_threads(re_ctx_t *ctx, const char *path, int argc, char **argv);
 int re_cmd_modules(re_ctx_t *ctx, const char *path, int argc, char **argv);
+int re_cmd_sym(re_ctx_t *ctx, const char *path, int argc, char **argv);
+int re_cmd_bt(re_ctx_t *ctx, const char *path, int argc, char **argv);
 
 #ifdef __cplusplus
 }

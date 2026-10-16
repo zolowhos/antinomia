@@ -98,7 +98,9 @@ vtable so both OSes link.
 | `mem_read` | Read target memory as hex |
 | `mem_write` | Write hex bytes; invalidates disasm cache |
 | `threads` | List threads (stub) |
-| `modules` | List loaded modules (stub) |
+| `modules` / `lm` | List loaded modules (maps / load events) |
+| `sym` | Resolve `module:symbol` via PE export / ELF dynsym |
+| `bt` | Stack walk v0 (frame pointer or RSP dump) |
 | `help` | Print usage |
 | `version` | Print version and schema |
 | `mcp` | Run the MCP server over stdio |

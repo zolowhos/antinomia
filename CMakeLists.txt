@@ -105,6 +105,7 @@ add_executable(antinomia
     src/cli/app/re_shell.c
     src/cli/cmds/re_cmds.c
     src/cli/cmds/re_cmds_inspect.c
+    src/cli/cmds/re_cmds_mod.c
     src/cli/screen/re_input.c
     src/cli/screen/re_focus.c
     src/cli/screen/re_draw.c

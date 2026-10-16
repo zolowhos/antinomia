@@ -62,6 +62,20 @@ typedef struct {
     bool temporary;
 } re_dbg_bp_info_t;
 
+typedef struct {
+    uint64_t addr;
+    char name[128];
+    char module[64];
+} re_dbg_symbol_t;
+
+typedef struct {
+    uint64_t ip;
+    uint64_t sp;
+    uint64_t fp;
+    char module[64];
+    char symbol[128];
+} re_dbg_frame_t;
+
 typedef struct re_dbg_bps re_dbg_bps_t;
 typedef struct re_dbg_backend re_dbg_backend_t;
 
@@ -144,6 +158,16 @@ re_err_code_t re_dbg_session_bp_list(re_dbg_session_t *s, re_dbg_bp_info_t *out,
 
 const char *re_dbg_event_kind_str(re_dbg_event_kind_t kind);
 const char *re_dbg_backend_name(void);
+
+// Module list, symbol resolve v0 (PE export / ELF dynsym), and stack walk v0.
+re_err_code_t re_dbg_session_enum_modules(re_dbg_session_t *s, re_dbg_module_t *out, size_t cap,
+                                          size_t *n_out);
+re_err_code_t re_dbg_sym_resolve_file(re_arena_t *a, const char *path, uint64_t base,
+                                      const char *name, uint64_t *addr_out);
+re_err_code_t re_dbg_session_resolve(re_dbg_session_t *s, const char *query, uint64_t *addr_out,
+                                     re_dbg_symbol_t *info_out);
+re_err_code_t re_dbg_session_bt(re_dbg_session_t *s, re_dbg_frame_t *out, size_t cap,
+                                size_t *n_out);
 
 #ifdef __cplusplus
 }

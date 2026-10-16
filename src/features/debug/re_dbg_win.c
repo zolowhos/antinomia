@@ -233,15 +233,6 @@ static re_err_code_t win_kill(re_dbg_backend_t *b) {
     return RE_OK;
 }
 
-static re_err_code_t win_modules(re_dbg_backend_t *b, re_dbg_module_t *out, size_t cap,
-                                 size_t *n_out) {
-    (void)b;
-    (void)out;
-    (void)cap;
-    if (n_out)
-        *n_out = 0;
-    return RE_E_UNSUPPORTED;
-}
 
 static void win_destroy(re_dbg_backend_t *b) {
     re_dbg_win_impl_t *w = re_dbg_win_impl(b);
@@ -265,7 +256,7 @@ static const re_dbg_backend_vtbl_t kVtbl = {win_launch,
                                             re_dbg_win_read_mem,
                                             re_dbg_win_write_mem,
                                             re_dbg_win_enum_threads,
-                                            win_modules,
+                                            re_dbg_win_enum_modules,
                                             win_destroy};
 
 re_dbg_backend_t *re_dbg_backend_win_create(re_arena_t *a) {

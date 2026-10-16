@@ -10,11 +10,18 @@
 #include <windows.h>
 
 #define RE_DBG_WIN_MAX_THR 64
+#define RE_DBG_WIN_MAX_MOD 128
 
 typedef struct {
     DWORD tid;
     HANDLE handle;
 } re_dbg_win_thr_t;
+
+typedef struct {
+    uint64_t base;
+    uint64_t size;
+    char path[260];
+} re_dbg_win_mod_t;
 
 typedef struct {
     HANDLE process;
@@ -29,6 +36,8 @@ typedef struct {
     re_dbg_event_t stash;
     re_dbg_win_thr_t thr[RE_DBG_WIN_MAX_THR];
     size_t n_thr;
+    re_dbg_win_mod_t mods[RE_DBG_WIN_MAX_MOD];
+    size_t n_mod;
 } re_dbg_win_impl_t;
 
 static inline re_dbg_win_impl_t *re_dbg_win_impl(re_dbg_backend_t *b) {
@@ -52,3 +61,9 @@ re_err_code_t re_dbg_win_write_mem(re_dbg_backend_t *b, uint64_t addr, const voi
 re_err_code_t re_dbg_win_enum_threads(re_dbg_backend_t *b, re_dbg_thread_t *out, size_t cap,
                                       size_t *n_out);
 HANDLE re_dbg_win_thread_handle(re_dbg_win_impl_t *w, DWORD tid);
+re_err_code_t re_dbg_win_enum_modules(re_dbg_backend_t *b, re_dbg_module_t *out, size_t cap,
+                                      size_t *n_out);
+void re_dbg_win_mod_clear(re_dbg_win_impl_t *w);
+void re_dbg_win_mod_note(re_dbg_win_impl_t *w, uint64_t base, HANDLE file, const void *name_ptr,
+                         bool unicode);
+void re_dbg_win_mod_unload(re_dbg_win_impl_t *w, uint64_t base);
