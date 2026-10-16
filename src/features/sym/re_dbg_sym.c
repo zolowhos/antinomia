@@ -1,5 +1,5 @@
 // re_dbg_sym.c - symbol resolve v0 from PE exports and ELF dynsym.
-// Module: feature (C11).
+// Module: feature/sym (C11).
 // Owns: file-backed module:symbol lookup helpers for bp-style queries.
 // Depends: re_dbg.h, re_buf, re_path. No OS debug APIs; parses on-disk images.
 #include "features/debug/re_dbg.h"

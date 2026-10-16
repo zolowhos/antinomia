@@ -1,5 +1,5 @@
 // re_dbg_db.h - per-module JSON persistence for breakpoints, labels, comments.
-// Module: feature (C11).
+// Module: feature/persist (C11).
 // Owns: load-on-module and save-on-exit database for user annotations.
 // Depends: re_arena, re_err. No OS debug APIs; file I/O only.
 #pragma once

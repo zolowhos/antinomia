@@ -1,6 +1,6 @@
 // re_dbg_bp.h - software breakpoint table shared by session and backends.
 // Module: feature (C11).
-// Owns: int3 plant/restore/re-arm state and list helpers.
+// Owns: int3 plant/restore/re-arm state, list helpers, and x86 CALL length.
 // Depends: re_dbg.h. Backends supply mem and regs through the vtable.
 #pragma once
 
@@ -56,3 +56,7 @@ re_err_code_t re_dbg_bp_disarm_all(re_dbg_bps_t *bps, re_dbg_backend_t *b);
 #ifdef __cplusplus
 }
 #endif
+
+// Minimal x86_64 helpers for step-over (CALL length).
+bool re_dbg_x86_is_call(const uint8_t *buf, size_t cap, size_t *len_out);
+

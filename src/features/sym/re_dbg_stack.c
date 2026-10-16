@@ -1,5 +1,5 @@
 // re_dbg_stack.c - stack walk v0: frame-pointer chain or simple RSP dump.
-// Module: feature (C11).
+// Module: feature/sym (C11).
 // Owns: re_dbg_session_bt and best-effort module/symbol annotate per frame.
 // Depends: re_dbg.h. Uses backend get_regs and read_mem only.
 #include "features/debug/re_dbg.h"

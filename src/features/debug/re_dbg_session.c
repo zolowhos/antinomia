@@ -1,10 +1,9 @@
 // re_dbg_session.c - long-lived debug session arena and control API.
 // Module: feature (C11).
 // Owns: session init/reset/free, BP/regs/mem/disasm/db wrappers, wait post-process.
-// Depends: re_dbg.h, re_dbg_bp.h, re_dbg_x86.h, re_dbg_db, re_disasm.
+// Depends: re_dbg.h, re_dbg_bp.h, re_dbg_db, re_disasm.
 #include "features/debug/re_dbg.h"
 #include "features/debug/re_dbg_bp.h"
-#include "features/debug/re_dbg_x86.h"
 
 #include <string.h>
 

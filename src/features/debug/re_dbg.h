@@ -12,7 +12,7 @@ extern "C" {
 #include <stddef.h>
 #include <stdint.h>
 
-#include "features/debug/re_dbg_db.h"
+#include "features/persist/re_dbg_db.h"
 #include "features/disasm/re_disasm.h"
 #include "utils/mem/re_arena.h"
 #include "utils/sys/re_err.h"

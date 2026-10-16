@@ -1,8 +1,8 @@
 // re_dbg_db.c - load and save per-module annotation JSON (breakpoints/labels/comments).
-// Module: feature (C11).
+// Module: feature/persist (C11).
 // Owns: the on-disk schema and the in-memory annotation tables.
 // Depends: re_dbg_db.h, re_json, re_jr, re_buf. No malloc; arena scratch only.
-#include "features/debug/re_dbg_db.h"
+#include "features/persist/re_dbg_db.h"
 
 #include "utils/json/re_jr.h"
 #include "utils/json/re_json.h"
