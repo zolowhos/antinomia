@@ -12,8 +12,11 @@
 #    ifndef WIN32_LEAN_AND_MEAN
 #        define WIN32_LEAN_AND_MEAN
 #    endif
-#    include <dbghelp.h>
+/* windows.h must precede dbghelp.h (SortIncludes would reverse them). */
+/* clang-format off */
 #    include <windows.h>
+#    include <dbghelp.h>
+/* clang-format on */
 #endif
 
 typedef struct {
