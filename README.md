@@ -48,12 +48,13 @@ Three ways in, and the first is usually what you want:
 
 | | |
 |---|---|
-| **Run it** | Opens the empty debugger view |
-| **Drop a file on it** | Explorer passes the path; it opens the welcome onto that path |
+| **Run it** | Opens the CPU view (disasm, regs, dump, stack, breakpoints, log) |
+| **Drop a file on it** | Explorer passes the path; it opens the view onto that path |
 | **`antinomia shell`** | A prompt, for driving the debug commands one at a time |
 
-Inside the view: <kbd>q</kbd> or <kbd>Esc</kbd> leaves. Phase 1 fills the panes from a
-live inferior.
+Inside the view: <kbd>Tab</kbd> / <kbd>Shift-Tab</kbd> cycles pane focus, click selects a
+pane, <kbd>q</kbd> or <kbd>Esc</kbd> leaves. Panes bind to session state and degrade when
+regs/mem/disasm backends are still stubs.
 
 ## Building
 
@@ -74,6 +75,9 @@ presets: `clang-release`, `clang-debug`, `clang-asan`, `clang-cl-release`,
 
 Windows builds are covered by CI (`clang-cl-release` on `windows-2022`).
 
+Linux attach needs a workable Yama `ptrace_scope` (launch works on the common
+default of `1`). See [`docs/yama-ptrace.md`](docs/yama-ptrace.md).
+
 ## Commands
 
 Every command also works as a plain command, so nothing is locked inside a session.
@@ -91,12 +95,16 @@ vtable so both OSes link.
 | `wait_event` | Wait for the next debug event (stub) |
 | `cont` | Continue execution (stub) |
 | `step` | Single step (stub) |
-| `regs` | Read general purpose registers (stub) |
-| `set_regs` | Write general purpose registers (stub) |
-| `mem_read` | Read target memory (stub) |
-| `mem_write` | Write target memory (stub) |
+| `regs` | Read GPRs + RIP/RSP/RFLAGS |
+| `set_regs` | Write GPRs as `name=value` pairs |
+| `d [addr]` | Hex dump at address (default RIP) |
+| `u [addr]` | Disassemble at address (default RIP) |
+| `mem_read` | Read target memory as hex |
+| `mem_write` | Write hex bytes; invalidates disasm cache |
 | `threads` | List threads (stub) |
-| `modules` | List loaded modules (stub) |
+| `modules` / `lm` | List loaded modules (maps / load events) |
+| `sym` | Resolve `module:symbol` via PE export / ELF dynsym |
+| `bt` | Stack walk v0 (frame pointer or RSP dump) |
 | `help` | Print usage |
 | `version` | Print version and schema |
 | `mcp` | Run the MCP server over stdio |

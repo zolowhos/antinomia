@@ -1,7 +1,7 @@
-// re_dbg_backend.c - pick the host OS stub backend that still links.
+// re_dbg_backend.c - pick the host OS debug backend that still links.
 // Module: feature (C11).
-// Owns: backend factory. Real ptrace / WinDebug arrives in Phase 1.
-// Depends: re_dbg.h. Both stubs compile; only one is selected at runtime.
+// Owns: backend factory selecting the host OS debug implementation.
+// Depends: re_dbg.h. Both backends compile; only one is selected at runtime.
 #include "features/debug/re_dbg.h"
 
 #include <string.h>

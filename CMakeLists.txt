@@ -104,11 +104,14 @@ add_executable(antinomia
     src/cli/app/re_table.c
     src/cli/app/re_shell.c
     src/cli/cmds/re_cmds.c
+    src/cli/cmds/re_cmds_inspect.c
+    src/cli/cmds/re_cmds_mod.c
     src/cli/screen/re_input.c
     src/cli/screen/re_focus.c
     src/cli/screen/re_draw.c
     src/cli/screen/re_term.c
     src/cli/screen/re_gui.c
+    src/cli/screen/re_cpu.c
     src/mcp/re_mcp.cpp
     src/mcp/re_mcp_tools.cpp)
 target_link_libraries(antinomia PRIVATE re_core re_flags)
@@ -130,7 +133,8 @@ find_program(RE_PYTHON NAMES python3 python)
 file(GLOB_RECURSE RE_SOURCES CONFIGURE_DEPENDS
     ${CMAKE_SOURCE_DIR}/src/*.c
     ${CMAKE_SOURCE_DIR}/src/*.cpp
-    ${CMAKE_SOURCE_DIR}/src/*.h)
+    ${CMAKE_SOURCE_DIR}/src/*.h
+    ${CMAKE_SOURCE_DIR}/tests/fixtures/*.c)
 
 if(RE_CLANG_FORMAT)
     add_custom_target(re_format

@@ -1,10 +1,42 @@
-// re_dbg_linux.c - Linux ptrace backend stub (Phase 0: links, not live).
+// re_dbg_linux.c - Linux ptrace backend vtable (live on Linux, stub elsewhere).
 // Module: feature (C11).
-// Owns: the Linux stub vtable that returns RE_E_UNSUPPORTED for every op.
-// Depends: re_dbg.h. Real ptrace arrives in Phase 1.
+// Owns: backend factory and vtable wiring for launch/attach/detach/kill/wait.
+// Depends: re_dbg.h, re_dbg_linux_priv.h. OS headers stay in the linux .c units.
 #include "features/debug/re_dbg.h"
 
 #include <string.h>
+
+#if defined(__linux__)
+#    include "features/debug/re_dbg_linux_priv.h"
+#endif
+
+#if defined(__linux__)
+
+static void linux_destroy(re_dbg_backend_t *b) {
+    re_dbg_linux_t *st = re_dbg_linux(b);
+    if (st && st->attached)
+        (void)re_dbg_linux_detach(b);
+}
+
+static const re_dbg_backend_vtbl_t kVtbl = {
+    re_dbg_linux_launch,       re_dbg_linux_attach,       re_dbg_linux_detach,
+    re_dbg_linux_kill,         re_dbg_linux_wait,         re_dbg_linux_cont,
+    re_dbg_linux_step,         re_dbg_linux_pause,        re_dbg_linux_get_regs,
+    re_dbg_linux_set_regs,     re_dbg_linux_read_mem,     re_dbg_linux_write_mem,
+    re_dbg_linux_enum_threads, re_dbg_linux_enum_modules, linux_destroy};
+
+re_dbg_backend_t *re_dbg_backend_linux_create(re_arena_t *a) {
+    re_dbg_backend_t *b = (re_dbg_backend_t *)re_arena_alloc(a, sizeof(*b));
+    re_dbg_linux_t *st = (re_dbg_linux_t *)re_arena_calloc(a, 1, sizeof(*st));
+    if (!b || !st)
+        return NULL;
+    b->vt = &kVtbl;
+    b->impl = st;
+    RE_ERR_OK(&st->last_err);
+    return b;
+}
+
+#else /* !__linux__ */
 
 static re_err_code_t stub_launch(re_dbg_backend_t *b, const char *path, const char *args) {
     (void)b;
@@ -21,6 +53,10 @@ static re_err_code_t stub_detach(re_dbg_backend_t *b) {
     (void)b;
     return RE_E_UNSUPPORTED;
 }
+static re_err_code_t stub_kill(re_dbg_backend_t *b) {
+    (void)b;
+    return RE_E_UNSUPPORTED;
+}
 static re_err_code_t stub_wait(re_dbg_backend_t *b, re_dbg_event_t *ev, uint32_t timeout_ms) {
     (void)b;
     (void)timeout_ms;
@@ -33,6 +69,10 @@ static re_err_code_t stub_cont(re_dbg_backend_t *b) {
     return RE_E_UNSUPPORTED;
 }
 static re_err_code_t stub_step(re_dbg_backend_t *b) {
+    (void)b;
+    return RE_E_UNSUPPORTED;
+}
+static re_err_code_t stub_pause(re_dbg_backend_t *b) {
     (void)b;
     return RE_E_UNSUPPORTED;
 }
@@ -84,9 +124,10 @@ static re_err_code_t stub_modules(re_dbg_backend_t *b, re_dbg_module_t *out, siz
 static void stub_destroy(re_dbg_backend_t *b) {
     (void)b;
 }
-static const re_dbg_backend_vtbl_t kVtbl = {
-    stub_launch,   stub_attach, stub_detach, stub_wait,    stub_cont,    stub_step,   stub_get_regs,
-    stub_set_regs, stub_read,   stub_write,  stub_threads, stub_modules, stub_destroy};
+static const re_dbg_backend_vtbl_t kVtbl = {stub_launch,   stub_attach,   stub_detach, stub_kill,
+                                            stub_wait,     stub_cont,     stub_step,   stub_pause,
+                                            stub_get_regs, stub_set_regs, stub_read,   stub_write,
+                                            stub_threads,  stub_modules,  stub_destroy};
 
 re_dbg_backend_t *re_dbg_backend_linux_create(re_arena_t *a) {
     re_dbg_backend_t *b = (re_dbg_backend_t *)re_arena_alloc(a, sizeof(*b));
@@ -96,3 +137,5 @@ re_dbg_backend_t *re_dbg_backend_linux_create(re_arena_t *a) {
     b->impl = NULL;
     return b;
 }
+
+#endif /* __linux__ */
