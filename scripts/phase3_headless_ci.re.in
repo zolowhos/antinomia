@@ -1,0 +1,11 @@
+# phase3_headless_ci.re - Phase 3 Pack D headless CI gate.
+# Module: demo (antinomia script).
+# Owns: init -> wait -> triage-live -> kill via headless JSON exit.
+# Depends: antinomia CLI. @INFERIOR@ substituted at configure time.
+
+init @INFERIOR@
+wait_event 5000
+wait_event 5000
+triage-live --limit 8
+state --limit 4
+kill

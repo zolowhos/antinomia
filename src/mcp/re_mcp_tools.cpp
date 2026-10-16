@@ -169,8 +169,9 @@ void schema_common(re_strbuf_t *b, bool *first) {
 
 void schema_props(const re_cmd_t *cmd, re_strbuf_t *b, bool *first) {
     static const char *kAddr[] = {
-        "bp", "bc", "be",    "bd",  "bph",      "bphw",      "bphc", "bpm", "bpmc", "bpc", "bpfr",
-        "d",  "u",  "graph", "cfg", "mem_read", "mem_write", "src",  "a",   "asm",  "bm",  NULL};
+        "bp",        "bc", "be",    "bd",  "bph",      "bphw",      "bphc", "bpm", "bpmc",
+        "bpc",       "bpfr", "d",   "u",   "graph",    "cfg",       "mem_read", "mem_write",
+        "get_bytes", "src", "a",    "asm", "bm",       "decompile", "get_xrefs_to", NULL};
     static const char *kExpr[] = {"expr", "?", "watch", "wa", "bplogc", "bpcmdc", NULL};
     static const char *kText[] = {"note", "log", "bplog", "bpcmd", NULL};
     static const char *kTid[] = {"thread", "switch", "suspend", "resume", NULL};
@@ -221,8 +222,11 @@ void schema_props(const re_cmd_t *cmd, re_strbuf_t *b, bool *first) {
     if (name_is(cmd, "tracestep"))
         prop(b, first, "value", "string", "Step count while recording");
     if (name_is(cmd, "trace.query") || name_is(cmd, "mem.page") || name_is(cmd, "mem_page") ||
-        name_is(cmd, "maps") || name_is(cmd, "modules") || name_is(cmd, "state"))
+        name_is(cmd, "maps") || name_is(cmd, "modules") || name_is(cmd, "state") ||
+        name_is(cmd, "triage-live") || name_is(cmd, "triage_live"))
         prop(b, first, "cursor", "string", "Opaque page cursor (same as offset decimal)");
+    if (name_is(cmd, "get_bytes"))
+        prop(b, first, "len", "integer", "Byte count (maps to mem_read --len)");
     schema_common(b, first);
 }
 
