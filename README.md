@@ -169,6 +169,11 @@ $ antinomia mcp --attach           # or: antinomia mcp --attach tcp:127.0.0.1:52
 Headless listen for CI: `antinomia mcp --side-listen` (endpoint on stderr).
 MCP tool calls queue into the session owner thread so they never block `wait_event`.
 
+**Plugin ABI (frozen):** MCP is the plugin API - no in-process C SDK. See
+`docs/plugin-abi.md`. Local AI helpers on the same command table:
+`explain`, `suggest_bp`, `summarize_ex` (aliases `ai.explain` / `ai.suggest_bp` /
+`ai.ex`).
+
 ## Development
 
 ```console
