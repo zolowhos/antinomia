@@ -80,6 +80,9 @@ int re_cmd_tracestep(re_ctx_t *ctx, const char *path, int argc, char **argv);
 int re_cmd_tracesave(re_ctx_t *ctx, const char *path, int argc, char **argv);
 int re_cmd_traceload(re_ctx_t *ctx, const char *path, int argc, char **argv);
 int re_cmd_trace_query(re_ctx_t *ctx, const char *path, int argc, char **argv);
+int re_cmd_asm(re_ctx_t *ctx, const char *path, int argc, char **argv);
+int re_cmd_patchlist(re_ctx_t *ctx, const char *path, int argc, char **argv);
+int re_cmd_patchwrite(re_ctx_t *ctx, const char *path, int argc, char **argv);
 
 #ifdef __cplusplus
 }

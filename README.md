@@ -103,6 +103,9 @@ vtable so both OSes link.
 | `find` / `search` | Search memory for hex / `"str"` / `u32:value` patterns |
 | `mem_read` | Read target memory as hex |
 | `mem_write` | Write hex bytes; invalidates disasm cache |
+| `a` / `asm` | Assemble at address and patch memory |
+| `patchlist` | List live memory patches |
+| `patchwrite` / `writeback` | Write patches back to PE/ELF (`*.patched`) |
 | `threads` | List threads (stub) |
 | `modules` / `lm` | List loaded modules (maps / load events) |
 | `sym` | Resolve `module:symbol` via PE export / ELF dynsym |
