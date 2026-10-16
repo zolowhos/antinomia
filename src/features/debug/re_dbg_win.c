@@ -131,10 +131,9 @@ static void stub_destroy(re_dbg_backend_t *b) {
     (void)b;
 }
 static const re_dbg_backend_vtbl_t kVtbl = {
-    stub_launch,   stub_attach,  stub_detach,   stub_kill,     stub_wait,  stub_cont,
-    stub_step,     stub_pause,   stub_get_regs, stub_set_regs, stub_read,  stub_write,
-    stub_threads,  stub_modules, stub_hw_set,   stub_hw_clear, stub_hw_hit, stub_rend,
-    stub_set_pass, stub_destroy};
+    stub_launch, stub_attach,   stub_detach,   stub_kill, stub_wait,     stub_cont,    stub_step,
+    stub_pause,  stub_get_regs, stub_set_regs, stub_read, stub_write,    stub_threads, stub_modules,
+    stub_hw_set, stub_hw_clear, stub_hw_hit,   stub_rend, stub_set_pass, stub_destroy};
 
 re_dbg_backend_t *re_dbg_backend_win_create(re_arena_t *a) {
     re_dbg_backend_t *b = (re_dbg_backend_t *)re_arena_alloc(a, sizeof(*b));
@@ -304,9 +303,8 @@ static const re_dbg_backend_vtbl_t kVtbl = {win_launch,
 
 static const uint32_t kWinCaps = RE_DBG_CAP_SW_BP | RE_DBG_CAP_HW_BP | RE_DBG_CAP_MEM_BP |
                                  RE_DBG_CAP_STEP | RE_DBG_CAP_PAUSE | RE_DBG_CAP_ATTACH |
-                                 RE_DBG_CAP_MODULES | RE_DBG_CAP_THREADS |
-                                 RE_DBG_CAP_EXCEPTION_BP | RE_DBG_CAP_FIRST_CHANCE |
-                                 RE_DBG_CAP_LOAD_BP;
+                                 RE_DBG_CAP_MODULES | RE_DBG_CAP_THREADS | RE_DBG_CAP_EXCEPTION_BP |
+                                 RE_DBG_CAP_FIRST_CHANCE | RE_DBG_CAP_LOAD_BP;
 
 re_dbg_backend_t *re_dbg_backend_win_create(re_arena_t *a) {
     re_dbg_backend_t *b = (re_dbg_backend_t *)re_arena_alloc(a, sizeof(*b));

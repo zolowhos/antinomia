@@ -57,9 +57,9 @@ enum {
     RE_DBG_CAP_MODULES = 1u << 6,
     RE_DBG_CAP_THREADS = 1u << 7,
     RE_DBG_CAP_EXCEPTION_BP = 1u << 8,
-    RE_DBG_CAP_SIGNAL_PASS = 1u << 9,  /* Linux: PTRACE_CONT(sig) */
+    RE_DBG_CAP_SIGNAL_PASS = 1u << 9,   /* Linux: PTRACE_CONT(sig) */
     RE_DBG_CAP_FIRST_CHANCE = 1u << 10, /* Win: first- vs second-chance */
-    RE_DBG_CAP_LOAD_BP = 1u << 11      /* module-load BP (bpdll / LOAD_DLL) */
+    RE_DBG_CAP_LOAD_BP = 1u << 11       /* module-load BP (bpdll / LOAD_DLL) */
 };
 
 typedef struct {

@@ -322,6 +322,36 @@ int re_cmd_threads(re_ctx_t *ctx, const char *path, int argc, char **argv) {
     return finish(ctx, "threads", c, "threads is not implemented yet; waiting on OS backends");
 }
 
+static bool parse_u64_literal(const char *s, uint64_t *out) {
+    re_str_t v;
+    uint64_t base = 10, acc = 0;
+    size_t i = 0;
+    if (!s || !s[0] || !out)
+        return false;
+    v = re_str(s);
+    if (v.n > 2 && v.p[0] == '0' && (v.p[1] == 'x' || v.p[1] == 'X')) {
+        base = 16;
+        i = 2;
+    }
+    for (; i < v.n; i++) {
+        int d;
+        char c = v.p[i];
+        if (c >= '0' && c <= '9')
+            d = c - '0';
+        else if (c >= 'a' && c <= 'f')
+            d = 10 + (c - 'a');
+        else if (c >= 'A' && c <= 'F')
+            d = 10 + (c - 'A');
+        else
+            return false;
+        if ((uint64_t)d >= base)
+            return false;
+        acc = acc * base + (uint64_t)d;
+    }
+    *out = acc;
+    return true;
+}
+
 static bool parse_i32(const char *s, int32_t *out) {
     uint64_t u = 0;
     bool neg = false;
@@ -331,7 +361,7 @@ static bool parse_i32(const char *s, int32_t *out) {
         neg = true;
         s++;
     }
-    if (!parse_addr(s, &u))
+    if (!parse_u64_literal(s, &u))
         return false;
     *out = neg ? -(int32_t)u : (int32_t)u;
     return true;

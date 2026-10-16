@@ -453,7 +453,6 @@ re_err_code_t re_dbg_session_disasm(re_dbg_session_t *s, uint64_t addr, size_t c
     return note(s, RE_OK, NULL);
 }
 
-
 const char *re_dbg_backend_name(void) {
 #if defined(_WIN32)
     return "windows";

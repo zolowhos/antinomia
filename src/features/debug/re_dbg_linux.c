@@ -18,32 +18,21 @@ static void linux_destroy(re_dbg_backend_t *b) {
         (void)re_dbg_linux_detach(b);
 }
 
-static const re_dbg_backend_vtbl_t kVtbl = {re_dbg_linux_launch,
-                                            re_dbg_linux_attach,
-                                            re_dbg_linux_detach,
-                                            re_dbg_linux_kill,
-                                            re_dbg_linux_wait,
-                                            re_dbg_linux_cont,
-                                            re_dbg_linux_step,
-                                            re_dbg_linux_pause,
-                                            re_dbg_linux_get_regs,
-                                            re_dbg_linux_set_regs,
-                                            re_dbg_linux_read_mem,
-                                            re_dbg_linux_write_mem,
-                                            re_dbg_linux_enum_threads,
-                                            re_dbg_linux_enum_modules,
-                                            re_dbg_linux_hw_bp_set,
-                                            re_dbg_linux_hw_bp_clear,
-                                            re_dbg_linux_hw_bp_hit,
-                                            re_dbg_linux_rendezvous_addr,
-                                            re_dbg_linux_set_pass,
-                                            linux_destroy};
+static const re_dbg_backend_vtbl_t kVtbl = {re_dbg_linux_launch,       re_dbg_linux_attach,
+                                            re_dbg_linux_detach,       re_dbg_linux_kill,
+                                            re_dbg_linux_wait,         re_dbg_linux_cont,
+                                            re_dbg_linux_step,         re_dbg_linux_pause,
+                                            re_dbg_linux_get_regs,     re_dbg_linux_set_regs,
+                                            re_dbg_linux_read_mem,     re_dbg_linux_write_mem,
+                                            re_dbg_linux_enum_threads, re_dbg_linux_enum_modules,
+                                            re_dbg_linux_hw_bp_set,    re_dbg_linux_hw_bp_clear,
+                                            re_dbg_linux_hw_bp_hit,    re_dbg_linux_rendezvous_addr,
+                                            re_dbg_linux_set_pass,     linux_destroy};
 
-static const uint32_t kLinuxCaps = RE_DBG_CAP_SW_BP | RE_DBG_CAP_HW_BP | RE_DBG_CAP_MEM_BP |
-                                   RE_DBG_CAP_STEP | RE_DBG_CAP_PAUSE | RE_DBG_CAP_ATTACH |
-                                   RE_DBG_CAP_MODULES | RE_DBG_CAP_THREADS |
-                                   RE_DBG_CAP_EXCEPTION_BP | RE_DBG_CAP_SIGNAL_PASS |
-                                   RE_DBG_CAP_LOAD_BP;
+static const uint32_t kLinuxCaps =
+    RE_DBG_CAP_SW_BP | RE_DBG_CAP_HW_BP | RE_DBG_CAP_MEM_BP | RE_DBG_CAP_STEP | RE_DBG_CAP_PAUSE |
+    RE_DBG_CAP_ATTACH | RE_DBG_CAP_MODULES | RE_DBG_CAP_THREADS | RE_DBG_CAP_EXCEPTION_BP |
+    RE_DBG_CAP_SIGNAL_PASS | RE_DBG_CAP_LOAD_BP;
 
 re_dbg_backend_t *re_dbg_backend_linux_create(re_arena_t *a) {
     re_dbg_backend_t *b = (re_dbg_backend_t *)re_arena_alloc(a, sizeof(*b));
@@ -183,10 +172,9 @@ static void stub_destroy(re_dbg_backend_t *b) {
     (void)b;
 }
 static const re_dbg_backend_vtbl_t kVtbl = {
-    stub_launch,  stub_attach,   stub_detach,   stub_kill,    stub_wait,  stub_cont,
-    stub_step,    stub_pause,    stub_get_regs, stub_set_regs, stub_read, stub_write,
-    stub_threads, stub_modules,  stub_hw_set,   stub_hw_clear, stub_hw_hit, stub_rend,
-    stub_set_pass, stub_destroy};
+    stub_launch, stub_attach,   stub_detach,   stub_kill, stub_wait,     stub_cont,    stub_step,
+    stub_pause,  stub_get_regs, stub_set_regs, stub_read, stub_write,    stub_threads, stub_modules,
+    stub_hw_set, stub_hw_clear, stub_hw_hit,   stub_rend, stub_set_pass, stub_destroy};
 
 re_dbg_backend_t *re_dbg_backend_linux_create(re_arena_t *a) {
     re_dbg_backend_t *b = (re_dbg_backend_t *)re_arena_alloc(a, sizeof(*b));
