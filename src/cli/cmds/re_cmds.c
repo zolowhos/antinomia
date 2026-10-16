@@ -377,8 +377,7 @@ int re_cmd_exignore(re_ctx_t *ctx, const char *path, int argc, char **argv) {
         emit_result(ctx, "exignore", RE_E_USAGE, "exignore needs lo [hi]", false);
         return 2;
     }
-    return finish(ctx, "exignore",
-                  re_dbg_session_ex_set(sess(ctx), lo, hi, RE_DBG_EX_IGNORE, true),
+    return finish(ctx, "exignore", re_dbg_session_ex_set(sess(ctx), lo, hi, RE_DBG_EX_IGNORE, true),
                   "exignore failed");
 }
 
