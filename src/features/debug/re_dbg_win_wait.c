@@ -13,7 +13,7 @@ typedef int re_dbg_win_wait_stub_t;
 
 #else /* _WIN32 */
 
-#include "features/debug/re_dbg_win_priv.h"
+#    include "features/debug/re_dbg_win_priv.h"
 
 void re_dbg_win_enable_debug_priv(void) {
     HANDLE tok = NULL;
