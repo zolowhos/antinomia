@@ -5,6 +5,7 @@
 #include "features/bp/re_dbg_advbp.h"
 #include "features/debug/re_dbg.h"
 #include "features/debug/re_dbg_bp.h"
+#include "features/disasm/re_disasm_annot.h"
 
 #include <string.h>
 
@@ -450,6 +451,7 @@ re_err_code_t re_dbg_session_disasm(re_dbg_session_t *s, uint64_t addr, size_t c
         out[i] = s->disasm_cache.lines[i];
     if (n_out)
         *n_out = i;
+    re_disasm_annot_many(s, out, i);
     return note(s, RE_OK, NULL);
 }
 

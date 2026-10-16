@@ -1,9 +1,10 @@
 // re_cpu.c - fills and paints the CPU-like debugger panes from session state.
 // Module: cli (C11).
 // Owns: re_cpu.h formatting and layout. No terminal I/O.
-// Depends: re_cpu.h, re_screen, re_hex. Backend stubs yield placeholder lines.
+// Depends: re_cpu.h, re_disasm_cfg, re_screen, re_hex. Backend stubs degrade.
 #include "cli/screen/re_cpu.h"
 
+#include "features/disasm/re_disasm_cfg.h"
 #include "utils/text/re_hex.h"
 
 #include <stdarg.h>
@@ -150,29 +151,57 @@ static void fill_regs_lines(re_cpu_view_t *v) {
 }
 
 static void fill_disasm(re_cpu_view_t *v, re_dbg_session_t *s) {
-    size_t i;
-    const size_t n = 16u;
-    const size_t mid = n / 2u;
-    uint64_t base = v->rip ? (v->rip > mid ? v->rip - mid : 0u) : 0u;
-    v->n_disasm = n;
-    v->rip_row = mid;
+    re_disasm_insn_t lines[RE_DISASM_CACHE_N];
+    size_t n = 0, i;
+    v->n_disasm = 0;
+    v->rip_row = 0;
     v->have_mem = false;
-    for (i = 0; i < n; i++) {
-        uint8_t bytes[4];
-        uint64_t addr = base + i;
-        char hex[16];
-        size_t got = try_read(s, addr, bytes, sizeof(bytes));
-        if (got) {
-            v->have_mem = true;
-            re_hex_encode(hex, bytes, 4);
-            line_set(&v->disasm[i], "%016llx  %s  db", (unsigned long long)addr, hex);
-        } else if (v->attached) {
-            line_set(&v->disasm[i], "%016llx  ?? ?? ?? ??  ; mem stub", (unsigned long long)addr);
-        } else {
-            line_set(&v->disasm[i], "%016llx  -- -- -- --  ; no target", (unsigned long long)addr);
+    if (v->attached && v->rip && re_dbg_session_disasm(s, v->rip, 16, lines, &n) == RE_OK &&
+        n > 0) {
+        v->have_mem = true;
+        for (i = 0; i < n && v->n_disasm < RE_CPU_DISASM_MAX; i++) {
+            char hex[33];
+            re_hex_encode(hex, lines[i].bytes, lines[i].size);
+            if (lines[i].comment[0])
+                line_set(&v->disasm[v->n_disasm], "%016llx  %-18s  %s  ; %s",
+                         (unsigned long long)lines[i].addr, hex, lines[i].text, lines[i].comment);
+            else
+                line_set(&v->disasm[v->n_disasm], "%016llx  %-18s  %s",
+                         (unsigned long long)lines[i].addr, hex, lines[i].text);
+            if (lines[i].addr == v->rip)
+                v->rip_row = v->n_disasm;
+            v->n_disasm++;
         }
-        if (addr == v->rip)
-            v->rip_row = i;
+        return;
+    }
+    for (i = 0; i < 12u; i++) {
+        uint64_t addr = v->rip ? v->rip + i : i;
+        if (v->attached)
+            line_set(&v->disasm[i], "%016llx  ?? ?? ?? ??  ; mem stub", (unsigned long long)addr);
+        else
+            line_set(&v->disasm[i], "%016llx  -- -- -- --  ; no target", (unsigned long long)addr);
+        v->n_disasm++;
+    }
+}
+
+static void fill_graph(re_cpu_view_t *v, re_dbg_session_t *s) {
+    re_cfg_t g;
+    size_t i;
+    v->n_graph = 0;
+    if (!v->attached || re_dbg_session_cfg(s, v->rip, &g) != RE_OK) {
+        line_set(&v->graph[v->n_graph++], "(cfg unavailable)");
+        return;
+    }
+    line_set(&v->graph[v->n_graph++], "entry %016llx  blocks %zu", (unsigned long long)g.entry,
+             g.n_blocks);
+    for (i = 0; i < g.n_blocks && v->n_graph < RE_CPU_GRAPH_MAX; i++) {
+        line_set(&v->graph[v->n_graph++], "B%zu %016llx..%016llx n=%zu%s", i,
+                 (unsigned long long)g.blocks[i].start, (unsigned long long)g.blocks[i].end,
+                 g.blocks[i].insn_count, g.blocks[i].is_ret ? " ret" : "");
+    }
+    for (i = 0; i < g.n_edges && v->n_graph < RE_CPU_GRAPH_MAX; i++) {
+        line_set(&v->graph[v->n_graph++], "  %s -> %016llx", g.edges[i].kind,
+                 (unsigned long long)g.edges[i].to);
     }
 }
 
@@ -280,6 +309,7 @@ void re_cpu_refresh(re_cpu_view_t *v, re_dbg_session_t *s) {
     re_cpu_fill_maps(v, s);
     re_cpu_fill_threads(v, s);
     fill_bps(v);
+    fill_graph(v, s);
     re_cpu_fill_watches(v, s);
     maybe_log_event(v, s);
     if (v->n_log == 0)
@@ -335,7 +365,7 @@ static void paint_pane(re_screen_t *s, re_cpu_view_t *v, re_cpu_pane_t pane, re_
 
 static void layout_rects(uint16_t rows, uint16_t cols, re_cpu_rect_t out[RE_CPU_PANE_COUNT]) {
     uint16_t mid_x = (uint16_t)(cols / 2u);
-    uint16_t q = (uint16_t)(cols / 4u);
+    uint16_t q = (uint16_t)(cols / 5u);
     uint16_t top_h;
     uint16_t mid_h;
     uint16_t bot_h;
@@ -343,11 +373,11 @@ static void layout_rects(uint16_t rows, uint16_t cols, re_cpu_rect_t out[RE_CPU_
     uint16_t y2;
     if (rows < 14u)
         rows = 14u;
-    if (cols < 48u)
-        cols = 48u;
-    if (q < 12u)
-        q = 12u;
-    // title(1) + body + status(1). Three bands: CPU, dump/stack, maps/threads/bp/log.
+    if (cols < 50u)
+        cols = 50u;
+    if (q < 10u)
+        q = 10u;
+    /* title(1) + body + status(1). Bottom: maps/threads/bp/graph/log. */
     top_h = (uint16_t)((rows - 2u) * 36u / 100u);
     if (top_h < 4u)
         top_h = 4u;
@@ -371,8 +401,9 @@ static void layout_rects(uint16_t rows, uint16_t cols, re_cpu_rect_t out[RE_CPU_
     out[RE_CPU_PANE_MAPS] = (re_cpu_rect_t){y2, 0, q, bot_h};
     out[RE_CPU_PANE_THREADS] = (re_cpu_rect_t){y2, q, q, bot_h};
     out[RE_CPU_PANE_BP] = (re_cpu_rect_t){y2, (uint16_t)(q * 2u), q, bot_h};
+    out[RE_CPU_PANE_GRAPH] = (re_cpu_rect_t){y2, (uint16_t)(q * 3u), q, bot_h};
     out[RE_CPU_PANE_LOG] =
-        (re_cpu_rect_t){y2, (uint16_t)(q * 3u), (uint16_t)(cols - q * 3u), bot_h};
+        (re_cpu_rect_t){y2, (uint16_t)(q * 4u), (uint16_t)(cols - q * 4u), bot_h};
 }
 
 void re_cpu_paint(re_screen_t *s, re_cpu_view_t *v) {
@@ -398,6 +429,8 @@ void re_cpu_paint(re_screen_t *s, re_cpu_view_t *v) {
     paint_pane(s, v, RE_CPU_PANE_THREADS, R[RE_CPU_PANE_THREADS], "threads", v->thr_lines,
                v->n_threads, (size_t)-1);
     paint_pane(s, v, RE_CPU_PANE_BP, R[RE_CPU_PANE_BP], "breakpoints", v->bp_lines, v->n_bp_lines,
+               (size_t)-1);
+    paint_pane(s, v, RE_CPU_PANE_GRAPH, R[RE_CPU_PANE_GRAPH], "graph", v->graph, v->n_graph,
                (size_t)-1);
     paint_pane(s, v, RE_CPU_PANE_LOG, R[RE_CPU_PANE_LOG], "log", v->log, v->n_log, (size_t)-1);
     re_screen_status(s, (uint16_t)(s->rows - 1u), 0, s->cols, v->status_left, v->status_right);
