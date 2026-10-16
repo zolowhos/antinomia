@@ -233,7 +233,6 @@ static re_err_code_t win_kill(re_dbg_backend_t *b) {
     return RE_OK;
 }
 
-
 static void win_destroy(re_dbg_backend_t *b) {
     re_dbg_win_impl_t *w = re_dbg_win_impl(b);
     if (!w)

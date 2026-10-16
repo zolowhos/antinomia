@@ -59,4 +59,3 @@ re_err_code_t re_dbg_bp_disarm_all(re_dbg_bps_t *bps, re_dbg_backend_t *b);
 
 // Minimal x86_64 helpers for step-over (CALL length).
 bool re_dbg_x86_is_call(const uint8_t *buf, size_t cap, size_t *len_out);
-

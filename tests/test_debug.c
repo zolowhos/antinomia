@@ -225,7 +225,6 @@ static void test_regs_mem_disasm(void) {
     re_dbg_session_free(&s);
 }
 
-
 /* Headless CLI/MCP surface: session API only, no TTY. */
 static void test_launch_bp_regs_step_detach(void) {
     re_dbg_session_t s;

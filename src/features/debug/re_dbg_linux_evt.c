@@ -296,8 +296,6 @@ re_err_code_t re_dbg_linux_enum_threads(re_dbg_backend_t *b, re_dbg_thread_t *ou
     return RE_OK;
 }
 
-
-
 #else
 typedef int re_dbg_linux_evt_placeholder;
 #endif /* __linux__ */

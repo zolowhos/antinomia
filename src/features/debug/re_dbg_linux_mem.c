@@ -1,11 +1,13 @@
 // re_dbg_linux_mem.c - process memory read/write for the Linux ptrace backend.
 // Module: feature (C11).
 // Owns: process_vm/ptrace mem R/W and enum_modules from /proc maps.
-// Depends: re_dbg_linux_priv.h. Invalidation of disasm cache is session-side.
+// Depends: re_dbg_linux_priv.h, re_str. Disasm cache invalidation is session-side.
 #define _GNU_SOURCE
 #include "features/debug/re_dbg_linux_priv.h"
 
 #if defined(__linux__)
+
+#    include "utils/text/re_str.h"
 
 #    include <fcntl.h>
 #    include <stdio.h>
@@ -122,10 +124,6 @@ re_err_code_t re_dbg_linux_write_mem(re_dbg_backend_t *b, uint64_t addr, const v
     return poke_bytes(st, tid, addr, src, n);
 }
 
-
-
-
-
 #    define RE_DBG_LINUX_MAX_MOD 128
 
 typedef struct {
@@ -189,7 +187,6 @@ static bool parse_map_line(const char *line, uint64_t *lo, uint64_t *hi, char *p
     }
     return true;
 }
-
 
 static bool elf_magic_ok(re_dbg_backend_t *b, uint64_t base) {
     uint8_t magic[4];

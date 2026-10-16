@@ -158,9 +158,6 @@ re_err_code_t re_dbg_win_write_mem(re_dbg_backend_t *b, uint64_t addr, const voi
     return RE_OK;
 }
 
-
-
-
 static size_t copy_cstr(char *dst, size_t cap, const char *src) {
     size_t i = 0;
     if (!dst || cap == 0)
@@ -320,8 +317,6 @@ re_err_code_t re_dbg_win_enum_modules(re_dbg_backend_t *b, re_dbg_module_t *out,
     }
     return RE_OK;
 }
-
-
 
 /* Used from re_dbg_win_track when unload arrives. */
 void re_dbg_win_mod_unload(re_dbg_win_impl_t *w, uint64_t base) {
