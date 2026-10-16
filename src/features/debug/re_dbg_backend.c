@@ -1,6 +1,6 @@
 // re_dbg_backend.c - pick the host OS debug backend that still links.
 // Module: feature (C11).
-// Owns: backend factory. Linux ptrace is live; WinDebug arrives in Pack B.
+// Owns: backend factory selecting the host OS debug implementation.
 // Depends: re_dbg.h. Both backends compile; only one is selected at runtime.
 #include "features/debug/re_dbg.h"
 
