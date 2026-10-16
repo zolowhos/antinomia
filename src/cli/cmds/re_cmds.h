@@ -72,6 +72,14 @@ int re_cmd_bm(re_ctx_t *ctx, const char *path, int argc, char **argv);
 int re_cmd_bmlist(re_ctx_t *ctx, const char *path, int argc, char **argv);
 int re_cmd_patches(re_ctx_t *ctx, const char *path, int argc, char **argv);
 int re_cmd_funcs(re_ctx_t *ctx, const char *path, int argc, char **argv);
+int re_cmd_trace(re_ctx_t *ctx, const char *path, int argc, char **argv);
+int re_cmd_tracestart(re_ctx_t *ctx, const char *path, int argc, char **argv);
+int re_cmd_tracestop(re_ctx_t *ctx, const char *path, int argc, char **argv);
+int re_cmd_traceclear(re_ctx_t *ctx, const char *path, int argc, char **argv);
+int re_cmd_tracestep(re_ctx_t *ctx, const char *path, int argc, char **argv);
+int re_cmd_tracesave(re_ctx_t *ctx, const char *path, int argc, char **argv);
+int re_cmd_traceload(re_ctx_t *ctx, const char *path, int argc, char **argv);
+int re_cmd_trace_query(re_ctx_t *ctx, const char *path, int argc, char **argv);
 
 #ifdef __cplusplus
 }

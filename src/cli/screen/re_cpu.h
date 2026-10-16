@@ -1,6 +1,6 @@
 // re_cpu.h - CPU-like debugger panes bound to session state.
 // Module: cli (C11).
-// Owns: disasm/regs/dump/stack/maps/threads/bp/graph/log view model.
+// Owns: disasm/regs/dump/stack/maps/threads/bp/graph/log/trace view model.
 // Depends: re_screen, re_dbg. Degrades when backend ops are unsupported.
 #pragma once
 
@@ -23,6 +23,7 @@ extern "C" {
 #define RE_CPU_BP_MAX 32u
 #define RE_CPU_GRAPH_MAX 32u
 #define RE_CPU_LOG_MAX 32u
+#define RE_CPU_TRACE_MAX 24u
 #define RE_CPU_WATCH_MAX 16u
 #define RE_CPU_MAP_MAX 24u
 #define RE_CPU_THR_MAX 24u
@@ -37,6 +38,7 @@ typedef enum {
     RE_CPU_PANE_BP,
     RE_CPU_PANE_GRAPH,
     RE_CPU_PANE_LOG,
+    RE_CPU_PANE_TRACE,
     RE_CPU_PANE_COUNT
 } re_cpu_pane_t;
 
@@ -99,6 +101,9 @@ typedef struct {
     re_dbg_event_kind_t logged_kind;
     uint64_t logged_addr;
 
+    re_cpu_line_t trace_lines[RE_CPU_TRACE_MAX];
+    size_t n_trace;
+
     /* Watch pane hook: filled by re_cpu_fill_watches; not painted yet. */
     re_cpu_line_t watch_lines[RE_CPU_WATCH_MAX];
     size_t n_watch;
@@ -116,6 +121,7 @@ void re_cpu_fill_watches(re_cpu_view_t *v, re_dbg_session_t *s);
 void re_cpu_fill_maps(re_cpu_view_t *v, re_dbg_session_t *s);
 void re_cpu_fill_threads(re_cpu_view_t *v, re_dbg_session_t *s);
 void re_cpu_fill_callstack(re_cpu_view_t *v, re_dbg_session_t *s);
+void re_cpu_fill_trace(re_cpu_view_t *v, re_dbg_session_t *s);
 void re_cpu_focus_next(re_cpu_view_t *v);
 void re_cpu_focus_prev(re_cpu_view_t *v);
 bool re_cpu_focus_zone(re_cpu_view_t *v, uint8_t zone);
