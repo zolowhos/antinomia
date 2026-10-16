@@ -256,11 +256,20 @@ static void win_destroy(re_dbg_backend_t *b) {
     re_dbg_win_reset_state(w);
 }
 
-static const re_dbg_backend_vtbl_t kVtbl = {
-    win_launch,           win_attach,          win_detach,           win_kill,
-    re_dbg_win_wait,      re_dbg_win_cont,     win_step,             re_dbg_win_get_regs,
-    win_set_regs,         re_dbg_win_read_mem, win_write,            re_dbg_win_enum_threads,
-    re_dbg_win_enum_modules, win_destroy};
+static const re_dbg_backend_vtbl_t kVtbl = {win_launch,
+                                            win_attach,
+                                            win_detach,
+                                            win_kill,
+                                            re_dbg_win_wait,
+                                            re_dbg_win_cont,
+                                            win_step,
+                                            re_dbg_win_get_regs,
+                                            win_set_regs,
+                                            re_dbg_win_read_mem,
+                                            win_write,
+                                            re_dbg_win_enum_threads,
+                                            re_dbg_win_enum_modules,
+                                            win_destroy};
 
 re_dbg_backend_t *re_dbg_backend_win_create(re_arena_t *a) {
     re_dbg_backend_t *b = (re_dbg_backend_t *)re_arena_alloc(a, sizeof(*b));

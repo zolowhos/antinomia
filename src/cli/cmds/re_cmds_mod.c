@@ -46,8 +46,8 @@ int re_cmd_modules(re_ctx_t *ctx, const char *path, int argc, char **argv) {
     (void)argv;
     c = re_dbg_session_enum_modules(sess(ctx), mods, 128, &n);
     if (c != RE_OK) {
-        emit_err(ctx, "modules", c, c == RE_E_USAGE ? "modules requires an attached target"
-                                                    : "modules failed");
+        emit_err(ctx, "modules", c,
+                 c == RE_E_USAGE ? "modules requires an attached target" : "modules failed");
         return re_err_exit_code(c);
     }
     start = ctx->offset;

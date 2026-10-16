@@ -132,7 +132,8 @@ re_err_code_t re_dbg_session_enum_modules(re_dbg_session_t *s, re_dbg_module_t *
     return s->backend->vt->enum_modules(s->backend, out, cap, n_out);
 }
 
-re_err_code_t re_dbg_session_bt(re_dbg_session_t *s, re_dbg_frame_t *out, size_t cap, size_t *n_out) {
+re_err_code_t re_dbg_session_bt(re_dbg_session_t *s, re_dbg_frame_t *out, size_t cap,
+                                size_t *n_out) {
     re_dbg_regs_t regs;
     re_dbg_module_t mods[128];
     size_t n_mod = 0, n = 0, i;

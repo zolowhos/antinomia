@@ -210,9 +210,9 @@ static void test_modules_sym_bt(void) {
     mi = find_mod_path(mods, n, "loop_inferior");
     RE_CHECK(mi >= 0);
     RE_CHECK(mods[mi].base != 0);
-    RE_CHECK_EQ_U(re_dbg_sym_resolve_file(&s.arena, g_inferior, mods[mi].base, "antinomia_marker",
-                                          &addr),
-                  RE_OK);
+    RE_CHECK_EQ_U(
+        re_dbg_sym_resolve_file(&s.arena, g_inferior, mods[mi].base, "antinomia_marker", &addr),
+        RE_OK);
     RE_CHECK(addr != 0);
     RE_CHECK_EQ_U(re_dbg_session_resolve(&s, "loop_inferior:antinomia_marker", &addr, &info),
                   RE_OK);

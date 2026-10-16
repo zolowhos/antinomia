@@ -82,7 +82,8 @@ static void path_from_debuggee(HANDLE process, const void *name_ptr, bool unicod
     dst[0] = 0;
     if (!process || !name_ptr)
         return;
-    if (!ReadProcessMemory(process, name_ptr, &remote, sizeof(remote), &got) || got < sizeof(void *))
+    if (!ReadProcessMemory(process, name_ptr, &remote, sizeof(remote), &got) ||
+        got < sizeof(void *))
         return;
     if (!remote)
         return;

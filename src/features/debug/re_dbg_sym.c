@@ -229,7 +229,8 @@ static re_err_code_t pe_resolve(re_span_t file, uint64_t base, const char *name,
         uint32_t name_rva = 0, name_off = 0, func_rva = 0;
         uint16_t ord = 0;
         re_span_t nm;
-        if (!re_rd32(file, names_off + i * 4u, &name_rva) || !re_rd16(file, ords_off + i * 2u, &ord))
+        if (!re_rd32(file, names_off + i * 4u, &name_rva) ||
+            !re_rd16(file, ords_off + i * 2u, &ord))
             return RE_E_MALFORMED;
         name_off = pe_rva_to_off(file, name_rva, sect_off, nsect, opt_sz);
         if (!name_off || !re_rd_cstr(file, name_off, 256, &nm) || !cstr_eq(nm, name))
