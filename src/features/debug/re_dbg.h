@@ -60,6 +60,7 @@ typedef struct re_dbg_backend_vtbl {
     re_err_code_t (*launch)(re_dbg_backend_t *b, const char *path, const char *args);
     re_err_code_t (*attach)(re_dbg_backend_t *b, uint32_t pid);
     re_err_code_t (*detach)(re_dbg_backend_t *b);
+    re_err_code_t (*kill)(re_dbg_backend_t *b);
     re_err_code_t (*wait_event)(re_dbg_backend_t *b, re_dbg_event_t *ev, uint32_t timeout_ms);
     re_err_code_t (*cont)(re_dbg_backend_t *b);
     re_err_code_t (*step)(re_dbg_backend_t *b);
