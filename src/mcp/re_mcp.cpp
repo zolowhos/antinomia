@@ -26,8 +26,8 @@ constexpr const char *kProtocolVersion = "2025-06-18";
 constexpr const char *kName = "antinomia";
 constexpr const char *kVersion = "0.1.0";
 constexpr const char *kInstructions =
-    "antinomia Phase 0 debugger scaffold. Tools are stubs that return "
-    "not-implemented until live backends land. Prefer status, then launch/attach.";
+    "antinomia debugger MCP. Stdio or side-channel attach (ANTINOMIA_MCP / "
+    "mcp --attach). Prefer status, then init/attach, bp, run, wait_event.";
 constexpr int kFrameMax = 1 << 20;
 constexpr int kErrParse = -32700;
 constexpr int kErrInvalid = -32600;

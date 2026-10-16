@@ -205,3 +205,17 @@ add_test(NAME smoke_mcp_tools
         -DANTINOMIA=$<TARGET_FILE:antinomia>
         -DINPUT=${CMAKE_CURRENT_SOURCE_DIR}/mcp_tools_list.jsonl
         -P ${CMAKE_CURRENT_SOURCE_DIR}/run_mcp_tools_list.cmake)
+
+add_executable(re_test_dbg_lock test_dbg_lock.c)
+target_link_libraries(re_test_dbg_lock PRIVATE re_core re_utils re_flags)
+if(MSVC)
+    set_property(TARGET re_test_dbg_lock
+        PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+    target_compile_definitions(re_test_dbg_lock PRIVATE _CRT_SECURE_NO_WARNINGS)
+endif()
+add_test(NAME dbg_lock COMMAND re_test_dbg_lock)
+
+add_test(NAME smoke_mcp_side_attach
+    COMMAND ${CMAKE_COMMAND}
+        -DANTINOMIA=$<TARGET_FILE:antinomia>
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/run_mcp_side_attach.cmake)

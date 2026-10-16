@@ -19,6 +19,7 @@
 #include "cli/cmds/re_cmds.h"
 #include "cli/screen/re_gui.h"
 #include "mcp/re_mcp.h"
+#include "mcp/re_mcp_side.h"
 
 namespace {
 
@@ -94,16 +95,25 @@ class Utf8Console {
 } // namespace
 
 static int run_mcp(int argc, char **argv) {
-    // ANTINOMIA_MCP names the GUI side-channel endpoint (tcp: or unix path).
-    // Phase 0 is stdio MCP only; --attach is reserved for Phase 3 live attach.
-    if (argc >= 3 && re_str_eq_cstr(re_str(argv[2]), "--attach")) {
-        const char *ep = argc >= 4 ? argv[3] : std::getenv("ANTINOMIA_MCP");
-        if (!ep || !ep[0]) {
-            std::fprintf(stderr, "mcp --attach needs an endpoint or ANTINOMIA_MCP (Phase 3)\n");
-            return 2;
+    // Stdio MCP, or --attach to a TUI side-channel (ANTINOMIA_MCP / path file).
+    // --side-listen hosts the side channel without a TTY (CI / demos).
+    if (argc >= 3 && re_str_eq_cstr(re_str(argv[2]), "--attach"))
+        return re_mcp_attach_main(argc >= 4 ? argv[3] : nullptr);
+    if (argc >= 3 && re_str_eq_cstr(re_str(argv[2]), "--side-listen")) {
+        char ep[256];
+        if (!re_mcp_side_start(ep, sizeof(ep))) {
+            std::fprintf(stderr, "mcp --side-listen could not bind a local endpoint\n");
+            return 6;
         }
-        std::fprintf(stderr, "mcp --attach is not implemented in Phase 0 (endpoint %s)\n", ep);
-        return 5;
+        std::fprintf(stderr, "%s\n", ep);
+        std::fflush(stderr);
+        for (;;) {
+            int c = std::fgetc(stdin);
+            if (c == EOF || c == 'q' || c == 'Q')
+                break;
+        }
+        re_mcp_side_stop();
+        return 0;
     }
     (void)argv;
     return re_mcp_main();

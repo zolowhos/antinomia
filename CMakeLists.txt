@@ -84,7 +84,8 @@ file(GLOB_RECURSE RE_FEATURE_HEADERS CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/src/f
 
 add_library(re_core STATIC ${RE_FEATURE_SOURCES} ${RE_FEATURE_HEADERS})
 target_include_directories(re_core PUBLIC ${CMAKE_SOURCE_DIR}/src)
-target_link_libraries(re_core PUBLIC re_utils PRIVATE re_flags)
+find_package(Threads REQUIRED)
+target_link_libraries(re_core PUBLIC re_utils Threads::Threads PRIVATE re_flags)
 if(MSVC)
     set_property(TARGET re_core PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
     target_compile_definitions(re_core PRIVATE _CRT_SECURE_NO_WARNINGS)
@@ -123,10 +124,9 @@ add_executable(antinomia
     src/cli/screen/re_cpu.c
     src/cli/screen/re_cpu_panes.c
     src/mcp/re_mcp.cpp
-    src/mcp/re_mcp_tools.cpp)
-target_link_libraries(antinomia PRIVATE re_core re_flags)
-find_package(Threads REQUIRED)
-target_link_libraries(antinomia PRIVATE Threads::Threads)
+    src/mcp/re_mcp_tools.cpp
+    src/mcp/re_mcp_side.cpp)
+target_link_libraries(antinomia PRIVATE re_core re_flags Threads::Threads)
 if(WIN32)
     target_link_libraries(antinomia PRIVATE comdlg32 ws2_32)
     # PDB basic via dbghelp (Phase 2); also link on re_core consumers of Sym*.
