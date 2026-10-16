@@ -39,6 +39,16 @@ const char *re_err_str(re_err_code_t code);
 /* Stable antinomia/1 JSON error.code slug for agents (never a prose sentence). */
 const char *re_err_json_code(re_err_code_t code);
 
+/* Structured privilege detail for antinomia/1 error objects (agents). */
+typedef struct {
+    const char *kind;     /* attach | launch | access */
+    const char *platform; /* linux | windows */
+    const char *hint;     /* stable remediation token (not a tutorial) */
+} re_err_privilege_t;
+
+/* Fill kind/platform/hint from a tool/op name (attach/init/launch/...). */
+void re_err_privilege_fill(const char *op, re_err_privilege_t *out);
+
 // Process exit code for an error code. Documented in .rules/rules.md section 7.
 static inline int re_err_exit_code(re_err_code_t code) {
     switch (code) {

@@ -62,6 +62,26 @@ const char *re_err_json_code(re_err_code_t code) {
     }
 }
 
+void re_err_privilege_fill(const char *op, re_err_privilege_t *out) {
+    const char *kind = "access";
+    if (!out)
+        return;
+#if defined(_WIN32)
+    out->platform = "windows";
+    out->hint = "SeDebugPrivilege";
+#else
+    out->platform = "linux";
+    out->hint = "/proc/sys/kernel/yama/ptrace_scope";
+#endif
+    if (op && op[0]) {
+        if (strcmp(op, "attach") == 0)
+            kind = "attach";
+        else if (strcmp(op, "init") == 0 || strcmp(op, "launch") == 0)
+            kind = "launch";
+    }
+    out->kind = kind;
+}
+
 void re_err_set(re_err_t *e, re_err_code_t code, const char *file, int line, const char *msg) {
     if (!e)
         return;

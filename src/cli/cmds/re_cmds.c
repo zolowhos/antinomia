@@ -39,6 +39,13 @@ static void emit_result(re_ctx_t *ctx, const char *tool, re_err_code_t code, con
         re_jw_obj(&w);
         re_jw_kcstr(&w, "code", re_err_json_code(code));
         re_jw_kcstr(&w, "message", msg);
+        if (code == RE_E_PRIVILEGE) {
+            re_err_privilege_t priv;
+            re_err_privilege_fill(tool, &priv);
+            re_jw_kcstr(&w, "kind", priv.kind);
+            re_jw_kcstr(&w, "platform", priv.platform);
+            re_jw_kcstr(&w, "hint", priv.hint);
+        }
         re_jw_obj_end(&w);
     }
     re_jw_obj_end(&w);

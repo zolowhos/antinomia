@@ -39,7 +39,8 @@ static void clear_target(re_dbg_session_t *s) {
     s->attached = false;
     s->pid = 0;
     s->tid = 0;
-    s->path[0] = 0;
+    s->path[0] = s->replay_path[0] = 0;
+    s->offline_replay = false;
     memset(&s->last_event, 0, sizeof(s->last_event));
 }
 
@@ -487,7 +488,6 @@ re_err_code_t re_dbg_session_disasm(re_dbg_session_t *s, uint64_t addr, size_t c
     re_disasm_annot_many(s, out, i);
     return note(s, RE_OK, NULL);
 }
-
 const char *re_dbg_backend_name(void) {
 #if defined(_WIN32)
     return "windows";
