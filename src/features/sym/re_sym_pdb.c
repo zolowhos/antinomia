@@ -59,6 +59,9 @@ static re_err_code_t pdb_open(re_sym_provider_t *p, re_arena_t *a, const char *p
     im->arena = a;
     copy_name(im->path, sizeof(im->path), path);
     im->base = base;
+    /* Reject missing images before dbghelp; DEFERRED_LOADS can otherwise succeed. */
+    if (GetFileAttributesA(path) == INVALID_FILE_ATTRIBUTES)
+        return RE_E_IO;
     im->process = GetCurrentProcess();
     SymSetOptions(SYMOPT_UNDNAME | SYMOPT_DEFERRED_LOADS | SYMOPT_LOAD_LINES);
     if (!SymInitialize(im->process, NULL, FALSE))

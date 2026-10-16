@@ -8,11 +8,8 @@
 #include "re_test.h"
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
-
-#if defined(__linux__)
-#    include <stdlib.h>
-#endif
 
 int re_test_count = 0;
 int re_test_fail = 0;
@@ -55,7 +52,19 @@ static void test_rich_user_db(void) {
     re_dbg_db_t db;
     re_arena_t scratch;
     re_dbg_db_func_t fn;
+#if defined(_WIN32)
+    char path[512];
+    {
+        const char *tmp = getenv("TEMP");
+        if (!tmp || !tmp[0])
+            tmp = getenv("TMP");
+        if (!tmp || !tmp[0])
+            tmp = ".";
+        (void)snprintf(path, sizeof(path), "%s\\antinomia_packf_mod.dll", tmp);
+    }
+#else
     char path[] = "/tmp/antinomia_packf_mod.so";
+#endif
     char dbpath[512];
     re_arena_init(&scratch, 256 * 1024);
     re_dbg_db_init(&db);
