@@ -42,7 +42,11 @@ static void test_session_arena_isolation(void) {
     re_arena_init(&cmd, 4096);
     scratch = re_arena_alloc(&cmd, 64);
     RE_CHECK(scratch != NULL);
-    RE_CHECK(strcmp(re_dbg_event_kind_str(RE_DBG_EV_BREAK), "break") == 0);
+    RE_CHECK(strcmp(re_dbg_event_kind_str(RE_DBG_EV_BREAKPOINT), "breakpoint") == 0);
+    RE_CHECK(strcmp(re_dbg_event_kind_str(RE_DBG_EV_THREAD_CREATE), "thread_create") == 0);
+    RE_CHECK(strcmp(re_dbg_event_kind_str(RE_DBG_EV_THREAD_EXIT), "thread_exit") == 0);
+    RE_CHECK(strcmp(re_dbg_event_kind_str(RE_DBG_EV_OUTPUT), "output") == 0);
+    RE_CHECK(strcmp(re_dbg_event_kind_str(RE_DBG_EV_UNLOAD), "unload") == 0);
     RE_CHECK(re_dbg_backend_name()[0] != 0);
     // Command arena reset must not touch the session arena or backend.
     re_arena_reset(&cmd);

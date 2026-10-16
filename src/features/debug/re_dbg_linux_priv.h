@@ -36,8 +36,10 @@ typedef struct {
     bool stopped;
     bool stepping;
     int last_status;
+    int pass_sig; /* signal delivered on next PTRACE_CONT; 0 = swallow */
     re_err_t last_err;
     pid_t tids[RE_DBG_LINUX_MAX_TIDS];
+    bool susp[RE_DBG_LINUX_MAX_TIDS];
     size_t n_tids;
     re_dbg_event_t q[RE_DBG_LINUX_MAX_EV];
     size_t q_n;
@@ -74,5 +76,16 @@ re_err_code_t re_dbg_linux_enum_threads(re_dbg_backend_t *b, re_dbg_thread_t *ou
                                         size_t *n_out);
 re_err_code_t re_dbg_linux_enum_modules(re_dbg_backend_t *b, re_dbg_module_t *out, size_t cap,
                                         size_t *n_out);
+re_err_code_t re_dbg_linux_enum_maps(re_dbg_backend_t *b, re_dbg_map_t *out, size_t cap,
+                                     size_t *n_out);
+re_err_code_t re_dbg_linux_thread_suspend(re_dbg_backend_t *b, uint32_t tid);
+re_err_code_t re_dbg_linux_thread_resume(re_dbg_backend_t *b, uint32_t tid);
+re_err_code_t re_dbg_linux_hw_bp_set(re_dbg_backend_t *b, int slot, uint64_t addr, uint8_t size,
+                                     uint8_t access);
+re_err_code_t re_dbg_linux_hw_bp_clear(re_dbg_backend_t *b, int slot);
+re_err_code_t re_dbg_linux_hw_bp_hit(re_dbg_backend_t *b, uint32_t tid, int *slot_out,
+                                     uint64_t *addr_out);
+re_err_code_t re_dbg_linux_rendezvous_addr(re_dbg_backend_t *b, uint64_t *addr_out);
+re_err_code_t re_dbg_linux_set_pass(re_dbg_backend_t *b, bool pass, int32_t code);
 
 #endif /* __linux__ */

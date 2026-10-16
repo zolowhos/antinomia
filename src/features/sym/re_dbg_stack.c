@@ -1,8 +1,9 @@
 // re_dbg_stack.c - stack walk v0: frame-pointer chain or simple RSP dump.
 // Module: feature/sym (C11).
 // Owns: re_dbg_session_bt and best-effort module/symbol annotate per frame.
-// Depends: re_dbg.h. Uses backend get_regs and read_mem only.
+// Depends: re_dbg.h, re_dbg_os. Uses backend get_regs and read_mem only.
 #include "features/debug/re_dbg.h"
+#include "features/os/re_dbg_os.h"
 
 #include "utils/sys/re_path.h"
 
@@ -36,12 +37,29 @@ static void annotate_frame(re_dbg_session_t *s, re_dbg_frame_t *fr, const re_dbg
     fr->module[0] = 0;
     fr->symbol[0] = 0;
     for (i = 0; i < n_mod; i++) {
+        char sym[128];
+        uint64_t sym_addr = 0;
         if (!addr_in_mod(&mods[i], fr->ip))
             continue;
         copy_name(fr->module, sizeof(fr->module), re_path_basename_ptr(mods[i].path));
+        if (s &&
+            re_dbg_sym_nearest_file(&s->arena, mods[i].path, mods[i].base, fr->ip, sym, sizeof(sym),
+                                    &sym_addr) == RE_OK &&
+            sym[0]) {
+            if (sym_addr == fr->ip)
+                copy_name(fr->symbol, sizeof(fr->symbol), sym);
+            else {
+                /* Keep offset so rich bt shows module+symbol+delta. */
+                size_t n = 0;
+                while (sym[n] && n + 1 < sizeof(fr->symbol)) {
+                    fr->symbol[n] = sym[n];
+                    n++;
+                }
+                fr->symbol[n] = 0;
+            }
+        }
         return;
     }
-    (void)s;
 }
 
 static bool looks_like_fp(uint64_t fp, uint64_t sp) {
@@ -123,13 +141,22 @@ static re_err_code_t dump_rsp(re_dbg_backend_t *b, uint64_t rip, uint64_t rsp, r
 
 re_err_code_t re_dbg_session_enum_modules(re_dbg_session_t *s, re_dbg_module_t *out, size_t cap,
                                           size_t *n_out) {
+    re_err_code_t c;
+    size_t n = 0;
     if (n_out)
         *n_out = 0;
     if (!s || !s->backend || !s->backend->vt || !s->backend->vt->enum_modules)
         return RE_E_INTERNAL;
     if (!s->attached)
         return RE_E_USAGE;
-    return s->backend->vt->enum_modules(s->backend, out, cap, n_out);
+    c = s->backend->vt->enum_modules(s->backend, out, cap, &n);
+    if (c != RE_OK)
+        return c;
+    if (out && n)
+        (void)re_dbg_os_enrich_modules(s, out, n < cap ? n : cap);
+    if (n_out)
+        *n_out = n;
+    return RE_OK;
 }
 
 re_err_code_t re_dbg_session_bt(re_dbg_session_t *s, re_dbg_frame_t *out, size_t cap,

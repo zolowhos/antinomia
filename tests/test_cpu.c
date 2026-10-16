@@ -24,7 +24,8 @@ static void test_focus_cycles(void) {
         re_cpu_focus_next(&v);
     RE_CHECK_EQ_U(v.focus, RE_CPU_PANE_DISASM);
     re_cpu_focus_prev(&v);
-    RE_CHECK_EQ_U(v.focus, RE_CPU_PANE_LOG);
+    RE_CHECK_EQ_U(v.focus, RE_CPU_PANE_TRACE);
+    RE_CHECK_EQ_U((unsigned)RE_CPU_PANE_LOG + 1u, (unsigned)RE_CPU_PANE_TRACE);
 }
 
 static void test_refresh_detached(void) {
@@ -38,8 +39,11 @@ static void test_refresh_detached(void) {
     RE_CHECK(v.n_regs > 0);
     RE_CHECK(v.n_dump > 0);
     RE_CHECK(v.n_stack > 0);
+    RE_CHECK(v.n_maps > 0);
+    RE_CHECK(v.n_threads > 0);
     RE_CHECK(v.n_bp_lines > 0);
     RE_CHECK(v.n_log > 0);
+    RE_CHECK(v.n_trace > 0);
     RE_CHECK(strstr(v.status_left, "pid=") != NULL);
     RE_CHECK(strstr(v.bp_lines[0].text, "no breakpoints") != NULL);
     re_dbg_session_free(&s);
@@ -98,7 +102,9 @@ static void test_paint_zones(void) {
     RE_CHECK(strstr(out.p, "disasm") != NULL);
     RE_CHECK(strstr(out.p, "registers") != NULL);
     RE_CHECK(strstr(out.p, "dump") != NULL);
-    RE_CHECK(strstr(out.p, "stack") != NULL);
+    RE_CHECK(strstr(out.p, "call stack") != NULL || strstr(out.p, "stack") != NULL);
+    RE_CHECK(strstr(out.p, "maps") != NULL);
+    RE_CHECK(strstr(out.p, "threads") != NULL);
     RE_CHECK(strstr(out.p, "breakpoints") != NULL);
     RE_CHECK(strstr(out.p, "log") != NULL);
     re_dbg_session_free(&sess);

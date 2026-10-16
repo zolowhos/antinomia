@@ -57,15 +57,20 @@ static inline bool re_str_eq_n(re_str_t a, const char *b, size_t bn) {
     return re_str_eq(a, re_strn(b, bn));
 }
 
-static inline bool re_str_icmp(re_str_t a, re_str_t b) {
+/* Case-insensitive three-way compare: <0, 0, >0 (not a boolean less-than). */
+static inline int re_str_icmp(re_str_t a, re_str_t b) {
     size_t n = a.n < b.n ? a.n : b.n;
     for (size_t i = 0; i < n; i++) {
-        char ca = re_char_lower(a.p[i]);
-        char cb = re_char_lower(b.p[i]);
+        unsigned char ca = (unsigned char)re_char_lower(a.p[i]);
+        unsigned char cb = (unsigned char)re_char_lower(b.p[i]);
         if (ca != cb)
-            return ca < cb;
+            return (int)ca - (int)cb;
     }
-    return a.n < b.n;
+    if (a.n < b.n)
+        return -1;
+    if (a.n > b.n)
+        return 1;
+    return 0;
 }
 
 // Case insensitive ordering against a C string, so callers can compare to zero.

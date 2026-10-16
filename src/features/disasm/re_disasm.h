@@ -15,13 +15,27 @@ extern "C" {
 #include "utils/sys/re_err.h"
 
 #define RE_DISASM_TEXT_MAX 64
+#define RE_DISASM_COMMENT_MAX 48
 #define RE_DISASM_CACHE_N 64
+
+enum {
+    RE_DISASM_F_CALL = 1u << 0,
+    RE_DISASM_F_JMP = 1u << 1,
+    RE_DISASM_F_JCC = 1u << 2,
+    RE_DISASM_F_RET = 1u << 3,
+    RE_DISASM_F_IMM = 1u << 4,
+    RE_DISASM_F_RIPREL = 1u << 5
+};
 
 typedef struct {
     uint64_t addr;
     uint8_t size;
     uint8_t bytes[15];
     char text[RE_DISASM_TEXT_MAX];
+    char comment[RE_DISASM_COMMENT_MAX];
+    uint32_t flags;
+    uint64_t target; /* absolute branch/call target when flags say so */
+    uint64_t mem;    /* rip-rel or absolute immediate pointer candidate */
 } re_disasm_insn_t;
 
 typedef struct {
@@ -38,6 +52,9 @@ size_t re_disasm_x64_one(uint64_t addr, const uint8_t *buf, size_t n, re_disasm_
 // Decode up to max_n instructions into out. Writes count to n_out.
 re_err_code_t re_disasm_x64_many(uint64_t addr, const uint8_t *buf, size_t n, size_t max_n,
                                  re_disasm_insn_t *out, size_t *n_out);
+
+// Fill flags/target/mem from raw bytes (native Capstone stand-in for x86-64).
+void re_disasm_enrich(re_disasm_insn_t *insn);
 
 void re_disasm_cache_clear(re_disasm_cache_t *c);
 void re_disasm_cache_invalidate(re_disasm_cache_t *c, uint64_t addr, size_t n);
