@@ -98,6 +98,7 @@ int fill_argv(re_arena_t *a, const re_jr_t *args, char **argv) {
     push_str(a, argv, &argc, re_jr_str(re_jr_get(args, "pattern"), ""));
     push_str(a, argv, &argc, re_jr_str(re_jr_get(args, "hex"), ""));
     push_str(a, argv, &argc, re_jr_str(re_jr_get(args, "value"), ""));
+    push_str(a, argv, &argc, re_jr_str(re_jr_get(args, "index"), ""));
     push_str(a, argv, &argc, re_jr_str(re_jr_get(args, "size"), ""));
     push_str(a, argv, &argc, re_jr_str(re_jr_get(args, "access"), ""));
     push_str(a, argv, &argc, re_jr_str(re_jr_get(args, "code"), ""));
@@ -220,9 +221,14 @@ void schema_props(const re_cmd_t *cmd, re_strbuf_t *b, bool *first) {
         prop(b, first, "sub", "string", "Subcommand (start/stop/clear/follow/...)");
     if (name_is(cmd, "tracestep"))
         prop(b, first, "value", "string", "Step count while recording");
-    if (name_is(cmd, "trace.query") || name_is(cmd, "mem.page") || name_is(cmd, "mem_page") ||
-        name_is(cmd, "maps") || name_is(cmd, "modules") || name_is(cmd, "state"))
+    if (name_is(cmd, "trace.query") || name_is(cmd, "replay.query") || name_is(cmd, "mem.page") ||
+        name_is(cmd, "mem_page") || name_is(cmd, "maps") || name_is(cmd, "modules") ||
+        name_is(cmd, "state"))
         prop(b, first, "cursor", "string", "Opaque page cursor (same as offset decimal)");
+    if (name_is(cmd, "replay.frame")) {
+        prop(b, first, "index", "string", "Absolute frame index from the Phase 2 trace file");
+        prop(b, first, "value", "string", "Alias for index");
+    }
     schema_common(b, first);
 }
 
@@ -245,6 +251,16 @@ void mcp_tool_error(re_strbuf_t *out, re_err_code_t code, const char *msg, bool 
     re_strbuf_puts(out, re_err_json_code(code));
     re_strbuf_puts(out, "\",\"message\":");
     re_jr_escape(out, re_str(msg ? msg : re_err_str(code)));
+    if (code == RE_E_PRIVILEGE) {
+        re_err_privilege_t priv;
+        re_err_privilege_fill("access", &priv);
+        re_strbuf_puts(out, ",\"kind\":\"");
+        re_strbuf_puts(out, priv.kind);
+        re_strbuf_puts(out, "\",\"platform\":\"");
+        re_strbuf_puts(out, priv.platform);
+        re_strbuf_puts(out, "\",\"hint\":");
+        re_jr_escape(out, re_str(priv.hint));
+    }
     re_strbuf_puts(out, "}}");
     *is_error = true;
 }

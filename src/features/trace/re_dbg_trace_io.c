@@ -53,8 +53,9 @@ static uint64_t parse_u64(const re_jr_t *v) {
     size_t i = 0;
     if (!v)
         return 0;
+    /* re_jr keeps numbers as raw text; v->num is always 0 (see re_jr.c). */
     if (v->kind == RE_JR_NUM)
-        return (uint64_t)v->num;
+        return (uint64_t)re_jr_i64(v, 0);
     if (v->kind != RE_JR_STR)
         return 0;
     s = v->str;
@@ -190,6 +191,74 @@ re_err_code_t re_dbg_session_trace_save(re_dbg_session_t *s, const char *path) {
     return note(s, RE_OK, NULL);
 }
 
+static void copy_replay_path(re_dbg_session_t *s, const char *path) {
+    size_t i = 0;
+    if (!s)
+        return;
+    if (!path) {
+        s->replay_path[0] = 0;
+        return;
+    }
+    while (path[i] && i + 1u < sizeof(s->replay_path)) {
+        s->replay_path[i] = path[i];
+        i++;
+    }
+    s->replay_path[i] = 0;
+}
+
+re_err_code_t re_dbg_session_replay_open(re_dbg_session_t *s, const char *path) {
+    re_err_code_t c;
+    if (!s || !path || !path[0])
+        return note(s, RE_E_USAGE, "replay.open needs a Phase 2 trace file path");
+    c = re_dbg_session_trace_load(s, path);
+    if (c != RE_OK)
+        return c;
+    s->offline_replay = true;
+    copy_replay_path(s, path);
+    return note(s, RE_OK, NULL);
+}
+
+re_err_code_t re_dbg_session_replay_close(re_dbg_session_t *s) {
+    if (!s)
+        return RE_E_INTERNAL;
+    if (s->trace)
+        re_dbg_trace_clear(s->trace);
+    s->offline_replay = false;
+    s->replay_path[0] = 0;
+    return note(s, RE_OK, NULL);
+}
+
+bool re_dbg_session_replay_active(const re_dbg_session_t *s) {
+    return s && s->offline_replay;
+}
+
+const char *re_dbg_session_replay_path(const re_dbg_session_t *s) {
+    if (!s || !s->offline_replay)
+        return "";
+    return s->replay_path;
+}
+
+re_err_code_t re_dbg_session_replay_frame(re_dbg_session_t *s, uint64_t index,
+                                          re_dbg_trace_frame_t *out) {
+    re_dbg_trace_t *t;
+    size_t i;
+    size_t start;
+    if (!s || !out)
+        return note(s, RE_E_USAGE, "replay.frame needs an output frame");
+    t = s->trace;
+    if (!t || t->count == 0)
+        return note(s, RE_E_NOTFOUND, "no offline trace frames loaded");
+    start = t->count < RE_TRACE_CAP ? 0 : t->head;
+    for (i = 0; i < t->count; i++) {
+        const re_dbg_trace_frame_t *f = &t->frames[(start + i) % RE_TRACE_CAP];
+        if (f->index == index) {
+            *out = *f;
+            return note(s, RE_OK, NULL);
+        }
+    }
+    return note(s, RE_E_NOTFOUND, "trace frame index not in buffer");
+}
+
 re_err_code_t re_dbg_session_trace_load(re_dbg_session_t *s, const char *path) {
     re_dbg_trace_t *t;
     re_arena_t scratch;
@@ -234,6 +303,9 @@ re_err_code_t re_dbg_session_trace_load(re_dbg_session_t *s, const char *path) {
         load_one_frame(t, &frames->items[i]);
     t->head = t->count % RE_TRACE_CAP;
     t->recording = false;
+    /* Bare traceload is not offline MCP mode; replay.open sets the flag. */
+    s->offline_replay = false;
+    s->replay_path[0] = 0;
     re_file_close(&f);
     re_arena_free(&scratch);
     return note(s, RE_OK, NULL);

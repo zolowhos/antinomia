@@ -242,6 +242,8 @@ typedef struct re_dbg_session {
     re_dbg_bps_t *bps;
     re_dbg_advbp_t *advbp;
     re_dbg_trace_t *trace;   /* insn stream + regs; Pack G */
+    bool offline_replay;     /* true after replay.open (no live inferior) */
+    char replay_path[512];   /* last Phase 2 trace file opened for offline MCP */
     re_dbg_db_t db;          /* per-module annotations; load on launch, save on exit */
     re_patch_list_t patches; /* live assemble/mem patches for list + write-back */
     re_dbg_var_t vars[RE_DBG_MAX_VARS];

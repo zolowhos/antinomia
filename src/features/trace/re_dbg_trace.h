@@ -55,6 +55,15 @@ re_err_code_t re_dbg_session_trace_query(re_dbg_session_t *s, size_t offset, siz
 re_err_code_t re_dbg_session_trace_save(re_dbg_session_t *s, const char *path);
 re_err_code_t re_dbg_session_trace_load(re_dbg_session_t *s, const char *path);
 
+/* Offline MCP replay: load a Phase 2 antinomia/1 trace file without a live target. */
+re_err_code_t re_dbg_session_replay_open(re_dbg_session_t *s, const char *path);
+re_err_code_t re_dbg_session_replay_close(re_dbg_session_t *s);
+bool re_dbg_session_replay_active(const re_dbg_session_t *s);
+const char *re_dbg_session_replay_path(const re_dbg_session_t *s);
+/* Resolve one frame by absolute trace index (not ring offset). */
+re_err_code_t re_dbg_session_replay_frame(re_dbg_session_t *s, uint64_t index,
+                                          re_dbg_trace_frame_t *out);
+
 #ifdef __cplusplus
 }
 #endif

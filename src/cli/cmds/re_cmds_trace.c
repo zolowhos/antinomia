@@ -1,6 +1,6 @@
-// re_cmds_trace.c - trace start/stop/query/save/load command handlers.
+// re_cmds_trace.c - trace and offline replay command handlers.
 // Module: cli (C11).
-// Owns: Pack G CLI/MCP verbs emitting antinomia/1 JSON with paging.
+// Owns: Pack G/F CLI/MCP verbs emitting antinomia/1 JSON with paging.
 // Depends: re_cmds.h, re_dbg_trace, re_json. stdout via re_jw_flush only.
 #include "cli/cmds/re_cmds.h"
 
@@ -32,6 +32,13 @@ static void emit_err(re_ctx_t *ctx, const char *tool, re_err_code_t code, const 
     re_jw_obj(&w);
     re_jw_kcstr(&w, "code", re_err_json_code(code));
     re_jw_kcstr(&w, "message", msg);
+    if (code == RE_E_PRIVILEGE) {
+        re_err_privilege_t priv;
+        re_err_privilege_fill(tool, &priv);
+        re_jw_kcstr(&w, "kind", priv.kind);
+        re_jw_kcstr(&w, "platform", priv.platform);
+        re_jw_kcstr(&w, "hint", priv.hint);
+    }
     re_jw_obj_end(&w);
     re_jw_obj_end(&w);
     re_jw_flush(&w, re_ctx_out(ctx));
@@ -61,6 +68,21 @@ static void emit_regs(re_jw_t *w, const re_dbg_regs_t *r) {
     re_jw_khex(w, "rip", r->rip, 16);
     re_jw_khex(w, "rflags", r->rflags, 16);
     re_jw_obj_end(w);
+}
+
+static void emit_one_frame(re_jw_t *w, const re_dbg_trace_frame_t *f) {
+    char hex[RE_TRACE_BYTES_MAX * 2u + 1u];
+    re_jw_ku64(w, "index", f->index);
+    re_jw_ku64(w, "tid", f->tid);
+    re_jw_khex(w, "rip", f->regs.rip, 16);
+    re_jw_ku64(w, "size", f->size);
+    if (f->size)
+        re_hex_encode(hex, f->bytes, f->size);
+    else
+        hex[0] = 0;
+    re_jw_kcstr(w, "bytes", hex);
+    re_jw_kcstr(w, "text", f->text);
+    emit_regs(w, &f->regs);
 }
 
 static int emit_ok_status(re_ctx_t *ctx, const char *tool) {
@@ -121,22 +143,109 @@ static int do_query(re_ctx_t *ctx, const char *tool) {
     re_jw_key(&w, "frames");
     re_jw_arr(&w);
     for (i = 0; i < n; i++) {
-        char hex[RE_TRACE_BYTES_MAX * 2u + 1u];
         re_jw_obj(&w);
-        re_jw_ku64(&w, "index", frames[i].index);
-        re_jw_ku64(&w, "tid", frames[i].tid);
-        re_jw_khex(&w, "rip", frames[i].regs.rip, 16);
-        re_jw_ku64(&w, "size", frames[i].size);
-        if (frames[i].size)
-            re_hex_encode(hex, frames[i].bytes, frames[i].size);
-        else
-            hex[0] = 0;
-        re_jw_kcstr(&w, "bytes", hex);
-        re_jw_kcstr(&w, "text", frames[i].text);
-        emit_regs(&w, &frames[i].regs);
+        emit_one_frame(&w, &frames[i]);
         re_jw_obj_end(&w);
     }
     re_jw_arr_end(&w);
+    re_jw_obj_end(&w);
+    re_jw_flush(&w, re_ctx_out(ctx));
+    return 0;
+}
+
+static int emit_replay_status(re_ctx_t *ctx, const char *tool) {
+    re_dbg_session_t *s = sess(ctx);
+    re_jw_t w;
+    re_jw_init(&w, ctx->arena);
+    re_jw_obj(&w);
+    re_jw_kcstr(&w, "schema", "antinomia/1");
+    re_jw_kcstr(&w, "tool", tool);
+    re_jw_kbool(&w, "ok", true);
+    re_jw_kbool(&w, "offline", re_dbg_session_replay_active(s));
+    re_jw_kcstr(&w, "path", re_dbg_session_replay_path(s));
+    re_jw_ku64(&w, "count", re_dbg_session_trace_count(s));
+    re_jw_obj_end(&w);
+    re_jw_flush(&w, re_ctx_out(ctx));
+    return 0;
+}
+
+int re_cmd_replay_open(re_ctx_t *ctx, const char *path, int argc, char **argv) {
+    const char *file = path;
+    re_err_code_t c;
+    if ((!file || !file[0]) && argc > 0)
+        file = re_cmd_positional(argc, argv, 0);
+    if (!file || !file[0]) {
+        emit_err(ctx, "replay.open", RE_E_USAGE, "replay.open needs a Phase 2 trace file path");
+        return 2;
+    }
+    c = re_dbg_session_replay_open(sess(ctx), file);
+    if (c != RE_OK) {
+        emit_err(ctx, "replay.open", c,
+                 sess(ctx)->last_err.msg[0] ? sess(ctx)->last_err.msg : "replay.open failed");
+        return re_err_exit_code(c);
+    }
+    return emit_replay_status(ctx, "replay.open");
+}
+
+int re_cmd_replay_close(re_ctx_t *ctx, const char *path, int argc, char **argv) {
+    re_err_code_t c;
+    (void)path;
+    (void)argc;
+    (void)argv;
+    c = re_dbg_session_replay_close(sess(ctx));
+    if (c != RE_OK) {
+        emit_err(ctx, "replay.close", c, "replay.close failed");
+        return re_err_exit_code(c);
+    }
+    return emit_replay_status(ctx, "replay.close");
+}
+
+int re_cmd_replay_query(re_ctx_t *ctx, const char *path, int argc, char **argv) {
+    (void)path;
+    (void)argc;
+    (void)argv;
+    if (!re_dbg_session_replay_active(sess(ctx)) && re_dbg_session_trace_count(sess(ctx)) == 0) {
+        emit_err(ctx, "replay.query", RE_E_USAGE, "replay.query needs replay.open first");
+        return 2;
+    }
+    return do_query(ctx, "replay.query");
+}
+
+int re_cmd_replay_frame(re_ctx_t *ctx, const char *path, int argc, char **argv) {
+    const char *p = re_cmd_positional(argc, argv, 0);
+    uint64_t index = 0;
+    size_t i;
+    re_dbg_trace_frame_t fr;
+    re_err_code_t c;
+    re_jw_t w;
+    (void)path;
+    if (!p || !p[0]) {
+        emit_err(ctx, "replay.frame", RE_E_USAGE, "replay.frame needs a frame index");
+        return 2;
+    }
+    for (i = 0; p[i]; i++) {
+        if (p[i] < '0' || p[i] > '9') {
+            emit_err(ctx, "replay.frame", RE_E_USAGE, "replay.frame index must be decimal");
+            return 2;
+        }
+        index = index * 10u + (uint64_t)(p[i] - '0');
+    }
+    c = re_dbg_session_replay_frame(sess(ctx), index, &fr);
+    if (c != RE_OK) {
+        emit_err(ctx, "replay.frame", c,
+                 sess(ctx)->last_err.msg[0] ? sess(ctx)->last_err.msg : "replay.frame failed");
+        return re_err_exit_code(c);
+    }
+    re_jw_init(&w, ctx->arena);
+    re_jw_obj(&w);
+    re_jw_kcstr(&w, "schema", "antinomia/1");
+    re_jw_kcstr(&w, "tool", "replay.frame");
+    re_jw_kbool(&w, "ok", true);
+    re_jw_kbool(&w, "offline", re_dbg_session_replay_active(sess(ctx)));
+    re_jw_key(&w, "frame");
+    re_jw_obj(&w);
+    emit_one_frame(&w, &fr);
+    re_jw_obj_end(&w);
     re_jw_obj_end(&w);
     re_jw_flush(&w, re_ctx_out(ctx));
     return 0;

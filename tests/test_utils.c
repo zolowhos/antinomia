@@ -47,6 +47,7 @@ static void test_str(void) {
 }
 
 static void test_err_json(void) {
+    re_err_privilege_t priv;
     RE_CHECK(strcmp(re_err_json_code(RE_OK), "ok") == 0);
     RE_CHECK(strcmp(re_err_json_code(RE_E_USAGE), "usage") == 0);
     RE_CHECK(strcmp(re_err_json_code(RE_E_PRIVILEGE), "privilege") == 0);
@@ -54,6 +55,21 @@ static void test_err_json(void) {
     RE_CHECK(strcmp(re_err_json_code(RE_E_IO), "io") == 0);
     RE_CHECK(strcmp(re_err_json_code(RE_E_NOTFOUND), "notfound") == 0);
     RE_CHECK(re_err_exit_code(RE_E_PRIVILEGE) == 6);
+    re_err_privilege_fill("attach", &priv);
+    RE_CHECK(strcmp(priv.kind, "attach") == 0);
+    re_err_privilege_fill("init", &priv);
+    RE_CHECK(strcmp(priv.kind, "launch") == 0);
+    re_err_privilege_fill("launch", &priv);
+    RE_CHECK(strcmp(priv.kind, "launch") == 0);
+    re_err_privilege_fill("other", &priv);
+    RE_CHECK(strcmp(priv.kind, "access") == 0);
+#if defined(_WIN32)
+    RE_CHECK(strcmp(priv.platform, "windows") == 0);
+    RE_CHECK(strcmp(priv.hint, "SeDebugPrivilege") == 0);
+#else
+    RE_CHECK(strcmp(priv.platform, "linux") == 0);
+    RE_CHECK(strcmp(priv.hint, "/proc/sys/kernel/yama/ptrace_scope") == 0);
+#endif
 }
 
 int main(void) {

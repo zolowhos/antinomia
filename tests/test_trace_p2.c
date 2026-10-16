@@ -1,6 +1,6 @@
-// test_trace_p2.c - Phase 2 Pack G trace record, save/load, and paging.
+// test_trace_p2.c - Phase 2/3 trace record, replay, save/load, and paging.
 // Module: test (C11).
-// Owns: offline buffer tests plus Linux live tracestep against loop_inferior.
+// Owns: offline buffer/replay tests plus Linux live tracestep against loop_inferior.
 // Depends: re_dbg_trace, re_test. Live path needs RE_TEST_INFERIOR.
 #if defined(__linux__)
 #    define _GNU_SOURCE
@@ -79,6 +79,59 @@ static void test_trace_save_load_paging(void) {
     re_dbg_session_free(&s);
 }
 
+static void test_replay_offline(void) {
+    re_dbg_session_t s;
+    re_dbg_trace_frame_t fr;
+    re_dbg_trace_frame_t frames[8];
+    size_t n = 0, total = 0, i;
+    bool trunc = false;
+    char path[256];
+    re_dbg_session_init(&s);
+    for (i = 0; i < 3; i++) {
+        re_dbg_trace_frame_t f;
+        memset(&f, 0, sizeof(f));
+        f.index = s.trace->next_index;
+        f.tid = 7;
+        f.size = 1;
+        f.bytes[0] = 0x90;
+        memcpy(f.text, "nop", 4);
+        f.regs.rip = 0x500000 + i;
+        f.regs.rax = 42 + i;
+        s.trace->frames[s.trace->head] = f;
+        s.trace->head = (s.trace->head + 1u) % RE_TRACE_CAP;
+        if (s.trace->count < RE_TRACE_CAP)
+            s.trace->count++;
+        s.trace->next_index++;
+    }
+    snprintf(path, sizeof(path), "%s/antinomia_replay_test.json",
+#if defined(_WIN32)
+             getenv("TEMP") ? getenv("TEMP") : "."
+#else
+             "/tmp"
+#endif
+    );
+    RE_CHECK_EQ_U(re_dbg_session_trace_save(&s, path), RE_OK);
+    RE_CHECK_EQ_U(re_dbg_session_trace_clear(&s), RE_OK);
+    RE_CHECK(!re_dbg_session_replay_active(&s));
+    RE_CHECK_EQ_U(re_dbg_session_replay_open(&s, path), RE_OK);
+    RE_CHECK(re_dbg_session_replay_active(&s));
+    RE_CHECK(strcmp(re_dbg_session_replay_path(&s), path) == 0);
+    RE_CHECK_EQ_U(re_dbg_session_trace_count(&s), 3);
+    RE_CHECK_EQ_U(re_dbg_session_trace_query(&s, 0, 2, frames, 8, &n, &total, &trunc), RE_OK);
+    RE_CHECK_EQ_U(total, 3);
+    RE_CHECK_EQ_U(n, 2);
+    RE_CHECK(trunc);
+    RE_CHECK_EQ_U(re_dbg_session_replay_frame(&s, 1, &fr), RE_OK);
+    RE_CHECK_EQ_U(fr.regs.rip, 0x500001);
+    RE_CHECK_EQ_U(fr.regs.rax, 43);
+    RE_CHECK_EQ_U(re_dbg_session_replay_frame(&s, 99, &fr), RE_E_NOTFOUND);
+    RE_CHECK_EQ_U(re_dbg_session_replay_close(&s), RE_OK);
+    RE_CHECK(!re_dbg_session_replay_active(&s));
+    RE_CHECK_EQ_U(re_dbg_session_trace_count(&s), 0);
+    (void)remove(path);
+    re_dbg_session_free(&s);
+}
+
 #if defined(__linux__)
 static void test_trace_live_step(void) {
     re_dbg_session_t s;
@@ -115,6 +168,7 @@ int main(int argc, char **argv) {
     (void)argv;
 #endif
     test_trace_save_load_paging();
+    test_replay_offline();
 #if defined(__linux__)
     test_trace_live_step();
 #endif
