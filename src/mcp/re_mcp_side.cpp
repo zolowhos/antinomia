@@ -393,8 +393,7 @@ int re_mcp_attach_main(const char *endpoint) {
 #endif
     ep = resolve_endpoint(endpoint);
     if (ep.empty()) {
-        std::fprintf(stderr,
-                     "mcp --attach needs an endpoint, ANTINOMIA_MCP, or a running gui\n");
+        std::fprintf(stderr, "mcp --attach needs an endpoint, ANTINOMIA_MCP, or a running gui\n");
         sock_fini();
         return 2;
     }
