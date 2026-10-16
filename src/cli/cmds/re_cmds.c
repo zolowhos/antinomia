@@ -5,6 +5,7 @@
 #include "cli/cmds/re_cmds.h"
 
 #include "features/debug/re_dbg.h"
+#include "features/expr/re_expr.h"
 #include "utils/json/re_json.h"
 #include "utils/text/re_str.h"
 
@@ -204,35 +205,11 @@ int re_cmd_pause(re_ctx_t *ctx, const char *path, int argc, char **argv) {
                   "pause is not available on this backend");
 }
 
-static bool parse_addr(const char *s, uint64_t *out) {
-    re_str_t v;
-    uint64_t base = 10;
-    size_t i = 0;
-    uint64_t acc = 0;
+static bool parse_addr(re_ctx_t *ctx, const char *s, uint64_t *out) {
+    char err[RE_EXPR_ERR_MAX];
     if (!s || !s[0] || !out)
         return false;
-    v = re_str(s);
-    if (v.n > 2 && v.p[0] == '0' && (v.p[1] == 'x' || v.p[1] == 'X')) {
-        base = 16;
-        i = 2;
-    }
-    if (i >= v.n)
-        return false;
-    for (; i < v.n; i++) {
-        char c = v.p[i];
-        uint64_t d;
-        if (c >= '0' && c <= '9')
-            d = (uint64_t)(c - '0');
-        else if (base == 16 && c >= 'a' && c <= 'f')
-            d = (uint64_t)(c - 'a' + 10);
-        else if (base == 16 && c >= 'A' && c <= 'F')
-            d = (uint64_t)(c - 'A' + 10);
-        else
-            return false;
-        acc = acc * base + d;
-    }
-    *out = acc;
-    return true;
+    return re_expr_eval_u64(sess(ctx), s, out, err, sizeof(err)) == RE_OK;
 }
 
 int re_cmd_bp(re_ctx_t *ctx, const char *path, int argc, char **argv) {
@@ -241,8 +218,8 @@ int re_cmd_bp(re_ctx_t *ctx, const char *path, int argc, char **argv) {
     (void)path;
     if (!a && ctx->off)
         addr = ctx->off;
-    else if (!parse_addr(a, &addr)) {
-        emit_result(ctx, "bp", RE_E_USAGE, "bp needs an address", false);
+    else if (!parse_addr(ctx, a, &addr)) {
+        emit_result(ctx, "bp", RE_E_USAGE, "bp needs an address expression", false);
         return 2;
     }
     return finish(ctx, "bp", re_dbg_session_bp_set(sess(ctx), addr), "bp set failed");
@@ -252,9 +229,9 @@ int re_cmd_bc(re_ctx_t *ctx, const char *path, int argc, char **argv) {
     uint64_t addr = 0;
     const char *a = re_cmd_positional(argc, argv, 0);
     (void)path;
-    if (!parse_addr(a, &addr)) {
+    if (!parse_addr(ctx, a, &addr)) {
         if (!ctx->off) {
-            emit_result(ctx, "bc", RE_E_USAGE, "bc needs an address", false);
+            emit_result(ctx, "bc", RE_E_USAGE, "bc needs an address expression", false);
             return 2;
         }
         addr = ctx->off;
@@ -266,8 +243,8 @@ int re_cmd_be(re_ctx_t *ctx, const char *path, int argc, char **argv) {
     uint64_t addr = 0;
     const char *a = re_cmd_positional(argc, argv, 0);
     (void)path;
-    if (!parse_addr(a, &addr)) {
-        emit_result(ctx, "be", RE_E_USAGE, "be needs an address", false);
+    if (!parse_addr(ctx, a, &addr)) {
+        emit_result(ctx, "be", RE_E_USAGE, "be needs an address expression", false);
         return 2;
     }
     return finish(ctx, "be", re_dbg_session_bp_enable(sess(ctx), addr), "bp enable failed");
@@ -277,8 +254,8 @@ int re_cmd_bd(re_ctx_t *ctx, const char *path, int argc, char **argv) {
     uint64_t addr = 0;
     const char *a = re_cmd_positional(argc, argv, 0);
     (void)path;
-    if (!parse_addr(a, &addr)) {
-        emit_result(ctx, "bd", RE_E_USAGE, "bd needs an address", false);
+    if (!parse_addr(ctx, a, &addr)) {
+        emit_result(ctx, "bd", RE_E_USAGE, "bd needs an address expression", false);
         return 2;
     }
     return finish(ctx, "bd", re_dbg_session_bp_disable(sess(ctx), addr), "bp disable failed");
@@ -308,6 +285,13 @@ int re_cmd_bplist(re_ctx_t *ctx, const char *path, int argc, char **argv) {
         re_jw_ku64(&w, "addr", list[i].addr);
         re_jw_kbool(&w, "enabled", list[i].enabled);
         re_jw_kbool(&w, "temporary", list[i].temporary);
+        re_jw_kbool(&w, "fast_resume", list[i].fast_resume);
+        re_jw_ku64(&w, "hit_count", list[i].hit_count);
+        re_jw_kcstr(&w, "break_cond", list[i].break_cond);
+        re_jw_kcstr(&w, "log_text", list[i].log_text);
+        re_jw_kcstr(&w, "log_cond", list[i].log_cond);
+        re_jw_kcstr(&w, "cmd", list[i].cmd);
+        re_jw_kcstr(&w, "cmd_cond", list[i].cmd_cond);
         re_jw_obj_end(&w);
     }
     re_jw_arr_end(&w);

@@ -22,6 +22,7 @@ extern "C" {
 #define RE_CPU_STACK_MAX 24u
 #define RE_CPU_BP_MAX 32u
 #define RE_CPU_LOG_MAX 32u
+#define RE_CPU_WATCH_MAX 16u
 
 typedef enum {
     RE_CPU_PANE_DISASM = 0,
@@ -83,6 +84,10 @@ typedef struct {
     re_dbg_event_kind_t logged_kind;
     uint64_t logged_addr;
 
+    /* Watch pane hook: filled by re_cpu_fill_watches; not painted yet. */
+    re_cpu_line_t watch_lines[RE_CPU_WATCH_MAX];
+    size_t n_watch;
+
     char status_left[160];
     char status_right[64];
     const char *path;
@@ -92,6 +97,7 @@ void re_cpu_init(re_cpu_view_t *v);
 void re_cpu_set_bps(re_cpu_view_t *v, const re_cpu_bp_t *bps, size_t n);
 void re_cpu_log_push(re_cpu_view_t *v, const char *msg);
 void re_cpu_refresh(re_cpu_view_t *v, re_dbg_session_t *s);
+void re_cpu_fill_watches(re_cpu_view_t *v, re_dbg_session_t *s);
 void re_cpu_focus_next(re_cpu_view_t *v);
 void re_cpu_focus_prev(re_cpu_view_t *v);
 bool re_cpu_focus_zone(re_cpu_view_t *v, uint8_t zone);

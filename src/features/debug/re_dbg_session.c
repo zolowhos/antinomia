@@ -274,10 +274,14 @@ re_err_code_t re_dbg_session_pause(re_dbg_session_t *s) {
 
 static void post_event(re_dbg_session_t *s, re_dbg_event_t *ev) {
     bool consumed = false;
+    bool ours = false;
     if (!s->bps || !ev)
         return;
-    if (ev->kind == RE_DBG_EV_BREAK)
-        (void)re_dbg_bp_on_hit(s->bps, s->backend, ev->tid, &ev->addr);
+    if (ev->kind == RE_DBG_EV_BREAK) {
+        ours = re_dbg_bp_on_hit(s->bps, s->backend, ev->tid, &ev->addr);
+        if (ours)
+            (void)re_dbg_session_cond_on_break(s, ev);
+    }
     if (ev->kind == RE_DBG_EV_STEP) {
         (void)re_dbg_bp_after_step(s->bps, s->backend, &consumed);
         if (consumed)
