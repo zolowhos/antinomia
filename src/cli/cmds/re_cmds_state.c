@@ -209,8 +209,7 @@ int re_cmd_state(re_ctx_t *ctx, const char *path, int argc, char **argv) {
     if (s->attached) {
         rc = re_dbg_session_get_regs(s, 0, &regs);
         if (rc != RE_OK) {
-            emit_err(ctx, "state", rc,
-                     s->last_err.msg[0] ? s->last_err.msg : "state regs failed");
+            emit_err(ctx, "state", rc, s->last_err.msg[0] ? s->last_err.msg : "state regs failed");
             return re_err_exit_code(rc);
         }
     }
@@ -512,7 +511,8 @@ int re_cmd_summarize_ex(re_ctx_t *ctx, const char *path, int argc, char **argv) 
     (void)path;
     if (a) {
         if (!parse_i32_local(a, &code)) {
-            emit_err(ctx, "summarize_ex", RE_E_USAGE, "summarize_ex needs an exception/signal code");
+            emit_err(ctx, "summarize_ex", RE_E_USAGE,
+                     "summarize_ex needs an exception/signal code");
             return 2;
         }
         have = true;

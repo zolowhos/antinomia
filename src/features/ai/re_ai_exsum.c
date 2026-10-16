@@ -94,19 +94,23 @@ static void fill_win(int32_t code, re_ai_exsum_t *out) {
             break;
         case 0xC000001Du: /* ILLEGAL_INSTRUCTION */
             copy_cap(out->name, sizeof(out->name), "ILLEGAL_INSTRUCTION");
-            copy_cap(out->summary, sizeof(out->summary), "CPU rejected the opcode at the fault PC.");
-            copy_cap(out->advice, sizeof(out->advice), "Disassemble at addr; verify code integrity.");
+            copy_cap(out->summary, sizeof(out->summary),
+                     "CPU rejected the opcode at the fault PC.");
+            copy_cap(out->advice, sizeof(out->advice),
+                     "Disassemble at addr; verify code integrity.");
             break;
         case 0xC0000094u: /* INTEGER_DIVIDE_BY_ZERO */
             copy_cap(out->name, sizeof(out->name), "INT_DIVIDE_BY_ZERO");
             copy_cap(out->summary, sizeof(out->summary), "Integer divide by zero.");
-            copy_cap(out->advice, sizeof(out->advice), "Inspect divisor register before the fault.");
+            copy_cap(out->advice, sizeof(out->advice),
+                     "Inspect divisor register before the fault.");
             break;
         case 0x80000003u: /* BREAKPOINT */
             copy_cap(out->name, sizeof(out->name), "BREAKPOINT");
             copy_cap(out->summary, sizeof(out->summary),
                      "Breakpoint exception (int3 / debug break).");
-            copy_cap(out->advice, sizeof(out->advice), "Expected at software BPs; else scan for int3.");
+            copy_cap(out->advice, sizeof(out->advice),
+                     "Expected at software BPs; else scan for int3.");
             break;
         case 0x80000004u: /* SINGLE_STEP */
             copy_cap(out->name, sizeof(out->name), "SINGLE_STEP");
@@ -116,7 +120,8 @@ static void fill_win(int32_t code, re_ai_exsum_t *out) {
         case 0xC00000FDu: /* STACK_OVERFLOW */
             copy_cap(out->name, sizeof(out->name), "STACK_OVERFLOW");
             copy_cap(out->summary, sizeof(out->summary), "Stack overflow / guard page hit.");
-            copy_cap(out->advice, sizeof(out->advice), "Inspect RSP and recursion; grow stack carefully.");
+            copy_cap(out->advice, sizeof(out->advice),
+                     "Inspect RSP and recursion; grow stack carefully.");
             break;
         default:
             snprintf(out->name, sizeof(out->name), "0x%08X", u);
