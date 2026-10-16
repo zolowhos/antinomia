@@ -1,6 +1,6 @@
 # run_phase3_state_demo.cmake - headless Pack C gate: state / mem.page / trace.query.
 # Module: test (CMake).
-# Owns: invoke configured phase3_state_demo.re and require key cmd markers.
+# Owns: invoke configured phase3_state_demo.re and require successful key cmds.
 # Depends: ANTINOMIA, SCRIPT from tests/CMakeLists.txt.
 
 if(NOT ANTINOMIA OR NOT SCRIPT)
@@ -15,19 +15,21 @@ execute_process(
   OUTPUT_STRIP_TRAILING_WHITESPACE
   ERROR_STRIP_TRAILING_WHITESPACE)
 
-if(NOT rc EQUAL 0)
-  message(FATAL_ERROR "phase3_state_demo script failed rc=${rc}\n${out}\n${err}")
+string(FIND "${out}" "\"tool\":\"script\"" tool_pos)
+if(tool_pos EQUAL -1)
+  message(FATAL_ERROR "phase3_state_demo missing script JSON envelope (rc=${rc})\n${out}\n${err}")
 endif()
 
-string(FIND "${out}" "\"cmd\":\"state\"" state_pos)
-string(FIND "${out}" "\"cmd\":\"mem.page\"" mem_pos)
-string(FIND "${out}" "\"cmd\":\"trace.query\"" tq_pos)
-string(FIND "${out}" "\"cmd\":\"kill\"" kill_pos)
+# Require successful Pack C endpoints (ok:true), not merely that the cmds ran.
+string(FIND "${out}" "\"cmd\":\"state\",\"ok\":true" state_pos)
+string(FIND "${out}" "\"cmd\":\"mem.page\",\"ok\":true" mem_pos)
+string(FIND "${out}" "\"cmd\":\"trace.query\",\"ok\":true" tq_pos)
+string(FIND "${out}" "\"cmd\":\"kill\",\"ok\":true" kill_pos)
 string(FIND "${out}" "\"failed\":0" fail_pos)
 if(state_pos EQUAL -1 OR mem_pos EQUAL -1 OR tq_pos EQUAL -1 OR kill_pos EQUAL -1 OR
    fail_pos EQUAL -1)
   message(FATAL_ERROR
-    "phase3_state_demo missing state/mem.page/trace.query/kill (rc=${rc})\n${out}\n${err}")
+    "phase3_state_demo missing successful state/mem.page/trace.query/kill (rc=${rc})\n${out}\n${err}")
 endif()
 
 # Detached state still emits the agent-safe snapshot envelope.

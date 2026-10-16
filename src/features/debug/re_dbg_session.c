@@ -302,11 +302,12 @@ re_err_code_t re_dbg_session_pause(re_dbg_session_t *s) {
     return note(s, RE_OK, NULL);
 }
 
-static void post_event(re_dbg_session_t *s, re_dbg_event_t *ev) {
+/* Returns true when a soft-BP rearm STEP was swallowed and the inferior resumed. */
+static bool post_event(re_dbg_session_t *s, re_dbg_event_t *ev) {
     bool consumed = false;
     bool ours = false;
     if (!ev)
-        return;
+        return false;
     if (s->bps && ev->kind == RE_DBG_EV_BREAKPOINT) {
         ours = re_dbg_bp_on_hit(s->bps, s->backend, ev->tid, &ev->addr);
         if (ours)
@@ -323,6 +324,7 @@ static void post_event(re_dbg_session_t *s, re_dbg_event_t *ev) {
     }
     if (ev->kind == RE_DBG_EV_EXCEPTION)
         (void)re_dbg_ex_filter(s->bps, s->backend, ev);
+    return consumed;
 }
 
 static bool load_bp_should_stop(re_dbg_session_t *s, re_dbg_event_t *ev) {
@@ -357,10 +359,11 @@ re_err_code_t re_dbg_session_wait_event(re_dbg_session_t *s, re_dbg_event_t *ev,
     if (!s->backend->vt->wait_event)
         return note(s, RE_E_UNSUPPORTED, "wait_event is not available on this backend");
     for (;;) {
+        bool skipped;
         c = s->backend->vt->wait_event(s->backend, ev, timeout_ms);
         if (c != RE_OK)
             return note(s, c, "wait_event failed or is not implemented");
-        post_event(s, ev);
+        skipped = post_event(s, ev);
         if (ev->kind != RE_DBG_EV_NONE && !load_bp_should_stop(s, ev)) {
             if (s->backend->vt->cont)
                 (void)s->backend->vt->cont(s->backend);
@@ -368,13 +371,18 @@ re_err_code_t re_dbg_session_wait_event(re_dbg_session_t *s, re_dbg_event_t *ev,
         }
         if (ev->kind != RE_DBG_EV_NONE)
             break;
+        /* Rearm STEP was swallowed and inferior resumed; wait for a real stop. */
+        if (skipped)
+            continue;
         if (timeout_ms != 0)
             break;
     }
     s->last_event = *ev;
     if (ev->pid)
         s->pid = ev->pid;
-    if (ev->tid)
+    /* Do not adopt THREAD_CREATE tids: Linux auto-continues the new thread, so
+     * GETREGS on that tid races with ESRCH. Prefer stop events / prior tid. */
+    if (ev->tid && ev->kind != RE_DBG_EV_THREAD_CREATE && ev->kind != RE_DBG_EV_THREAD_EXIT)
         s->tid = ev->tid;
     /* Pack G: when recording, capture insn stream + regs on step/break stops. */
     if (s->trace && s->trace->recording &&
@@ -393,6 +401,9 @@ re_err_code_t re_dbg_session_get_regs(re_dbg_session_t *s, uint32_t tid, re_dbg_
     if (!s->backend->vt->get_regs)
         return note(s, RE_E_UNSUPPORTED, "get_regs is not available on this backend");
     c = s->backend->vt->get_regs(s->backend, use, out);
+    /* Fall back to backend cur_tid/pid when the session tid is a raced clone. */
+    if (c != RE_OK && use != 0)
+        c = s->backend->vt->get_regs(s->backend, 0, out);
     if (c != RE_OK)
         return note(s, c, "get_regs failed or is not implemented");
     return note(s, RE_OK, NULL);

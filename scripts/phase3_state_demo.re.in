@@ -1,24 +1,32 @@
 # phase3_state_demo.re - Phase 3 Pack C agent snapshot / paging demo.
 # Module: demo (antinomia script).
-# Owns: init -> BP -> run -> state -> mem.page -> trace.query -> detach.
+# Owns: stopped-target state/mem.page/trace.query sequencing for CI.
 # Depends: antinomia CLI. @INFERIOR@ substituted at configure time.
+#
+# Sequencing notes (GitHub Linux runners):
+# - Take the first state at the automatic loader stop (guaranteed stopped).
+# - After run, drain wait_event, pause+wait, then sti so regs/mem are stable
+#   even if an intermediate wait landed on THREAD_CREATE (auto-continued tid).
 
 init @INFERIOR@
 wait_event 5000
 wait_event 5000
+state --limit 8
+log agent_init_stop
+mem.page --limit 64 --offset 0
+maps --limit 2 --offset 0
 bp loop_inferior:antinomia_touch
 run
 wait_event 5000
-state --limit 8
-log agent_break
+wait_event 5000
+pause
+wait_event 2000
+sti
+wait_event 5000
 state --limit 4
-mem.page --limit 64 --offset 0
 mem.page --limit 64 --cursor 64
-maps --limit 2 --offset 0
 tracestart
-tracestep 6
+tracestep 4
 trace.query --limit 2 --offset 0
 trace.query --limit 2 --cursor 2
-# Prefer kill in headless CI: detach can leave a live inferior that
-# stalls cmake execute_process pipe teardown on some hosts.
 kill
