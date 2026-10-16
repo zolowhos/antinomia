@@ -102,8 +102,26 @@ static void test_inline_without_owner(void) {
     RE_CHECK(g_inline_hit);
 }
 
+static int g_nested_drain;
+
+static void job_nested_wait(void *ctx) {
+    (void)ctx;
+    /* Mirrors wait_event: after_wait -> drain must not deadlock. */
+    re_dbg_lock_before_wait();
+    re_dbg_lock_after_wait();
+    g_nested_drain = 1;
+}
+
+static void test_submit_nested_drain(void) {
+    g_nested_drain = 0;
+    re_dbg_lock_set_owner(false);
+    re_dbg_lock_submit(job_nested_wait, NULL);
+    RE_CHECK(g_nested_drain);
+}
+
 int main(void) {
     test_inline_without_owner();
+    test_submit_nested_drain();
     test_queue_on_owner();
     return re_test_report("dbg_lock");
 }

@@ -243,6 +243,18 @@ if(UNIX AND NOT APPLE)
             -DANTINOMIA=$<TARGET_FILE:antinomia>
             -DSCRIPT=${CMAKE_CURRENT_BINARY_DIR}/phase3_ai_demo_ready.re
             -P ${CMAKE_CURRENT_SOURCE_DIR}/run_phase3_ai_demo.cmake)
+    # Phase 3 gate: pure MCP stdio agent path (no TUI).
+    add_test(NAME phase3_gate_mcp
+        COMMAND ${CMAKE_COMMAND}
+            -DANTINOMIA=$<TARGET_FILE:antinomia>
+            -DINFERIOR=$<TARGET_FILE:loop_inferior>
+            -P ${CMAKE_CURRENT_SOURCE_DIR}/run_phase3_gate_mcp.cmake)
+    # Phase 3 gate: side-listen owner + mcp --attach (CI stand-in for TUI).
+    add_test(NAME phase3_gate_side
+        COMMAND ${CMAKE_COMMAND}
+            -DANTINOMIA=$<TARGET_FILE:antinomia>
+            -DINFERIOR=$<TARGET_FILE:loop_inferior>
+            -P ${CMAKE_CURRENT_SOURCE_DIR}/run_phase3_gate_side.cmake)
 else()
     add_test(NAME debug COMMAND re_test_debug)
     add_test(NAME debug_p2 COMMAND re_test_debug_p2)

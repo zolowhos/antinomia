@@ -98,6 +98,8 @@ static int is_owner_thread(void) {
     return g_owned && g_owner_set && tid_eq(g_owner, self_id());
 }
 
+/* Run queued jobs without holding the mutex. wait_event tools call
+ * re_dbg_lock_after_wait -> drain; nesting under a held lock deadlocks. */
 static void run_queue_holding(void) {
     while (g_head) {
         re_dbg_job_t *j = g_head;
@@ -105,8 +107,10 @@ static void run_queue_holding(void) {
         if (!g_head)
             g_tail = NULL;
         j->next = NULL;
+        mu_unlock();
         if (j->fn)
             j->fn(j->ctx);
+        mu_lock();
         j->done = 1;
         mu_signal();
     }
@@ -167,6 +171,7 @@ void re_dbg_lock_submit(re_dbg_job_fn fn, void *ctx) {
         mu_unlock();
         return;
     }
-    fn(ctx);
+    /* Inline path: release before fn so wait_event can drain safely. */
     mu_unlock();
+    fn(ctx);
 }
