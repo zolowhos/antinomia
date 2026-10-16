@@ -167,7 +167,7 @@ re_err_code_t re_dbg_session_enum_seh(re_dbg_session_t *s, re_dbg_seh_frame_t *o
     ntdll = GetModuleHandleA("ntdll.dll");
     if (!ntdll)
         return RE_E_UNSUPPORTED;
-    pQit = (NtQueryInformationThread_fn)GetProcAddress(ntdll, "NtQueryInformationThread");
+    pQit = (NtQueryInformationThread_fn)(void *)GetProcAddress(ntdll, "NtQueryInformationThread");
     if (!pQit)
         return RE_E_UNSUPPORTED;
     proc = OpenProcess(PROCESS_VM_READ | PROCESS_QUERY_INFORMATION, FALSE, (DWORD)s->pid);
@@ -271,8 +271,8 @@ re_err_code_t re_dbg_session_enum_handles(re_dbg_session_t *s, re_dbg_handle_t *
     ntdll = GetModuleHandleA("ntdll.dll");
     if (!ntdll)
         return RE_E_UNSUPPORTED;
-    pQsi = (NtQuerySystemInformation_fn)GetProcAddress(ntdll, "NtQuerySystemInformation");
-    pQo = (NtQueryObject_fn)GetProcAddress(ntdll, "NtQueryObject");
+    pQsi = (NtQuerySystemInformation_fn)(void *)GetProcAddress(ntdll, "NtQuerySystemInformation");
+    pQo = (NtQueryObject_fn)(void *)GetProcAddress(ntdll, "NtQueryObject");
     if (!pQsi)
         return RE_E_UNSUPPORTED;
     buf = query_handle_table(pQsi, NULL);
