@@ -165,7 +165,7 @@ re_err_code_t re_dbg_session_log_list(re_dbg_session_t *s, const char **out, siz
 }
 
 re_err_code_t re_dbg_session_traces_list(re_dbg_session_t *s, re_dbg_trace_rec_t *out, size_t cap,
-                                        size_t *n_out) {
+                                         size_t *n_out) {
     size_t i;
     if (n_out)
         *n_out = 0;
