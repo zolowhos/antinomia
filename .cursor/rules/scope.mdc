@@ -6,10 +6,11 @@ alwaysApply: true
 # Feature scope
 
 Build: opaque `re_dbg_backend` vtable, debug session, TUI CPU-like panes, CLI and MCP
-command table, dual-OS stub backends that link.
+command table (`init`/`attach`/`detach`/`kill`/`run`/`g`/`status`), dual-OS backends
+behind the vtable (stubs degrade with RE_E_UNSUPPORTED).
 
 Skip: Qt GUI, pure static PE triage / FLIRT / capa / analyze-all (that is antistrefo),
 kernel debugging, macOS.
 
 Debugger is in scope. Do not add a Skip Debugger rule.
-Session arena is long-lived; per-command arenas are short-lived.
+Session arena is long-lived; per-command arenas are short-lived. See architecture.mdc.
