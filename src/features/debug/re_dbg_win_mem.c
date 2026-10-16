@@ -1,7 +1,7 @@
 // re_dbg_win_mem.c - registers and memory ops for the Windows debug backend.
 // Module: feature (C11).
 // Owns: Win regs/mem R/W and LOAD_DLL module tracking for enum_modules.
-// Depends: re_dbg_win_priv.h. FlushInstructionCache runs after every write.
+// Depends: re_dbg_win_priv.h, re_str. FlushInstructionCache after writes.
 #include "features/debug/re_dbg.h"
 
 #include <string.h>
@@ -13,6 +13,7 @@ typedef int re_dbg_win_mem_placeholder;
 #else /* _WIN32 */
 
 #    include "features/debug/re_dbg_win_priv.h"
+#    include "utils/text/re_str.h"
 
 static HANDLE win_thr_handle(re_dbg_win_impl_t *w, DWORD tid) {
     for (size_t i = 0; i < w->n_thr; i++) {
