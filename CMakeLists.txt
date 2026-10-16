@@ -130,7 +130,8 @@ find_program(RE_PYTHON NAMES python3 python)
 file(GLOB_RECURSE RE_SOURCES CONFIGURE_DEPENDS
     ${CMAKE_SOURCE_DIR}/src/*.c
     ${CMAKE_SOURCE_DIR}/src/*.cpp
-    ${CMAKE_SOURCE_DIR}/src/*.h)
+    ${CMAKE_SOURCE_DIR}/src/*.h
+    ${CMAKE_SOURCE_DIR}/tests/fixtures/*.c)
 
 if(RE_CLANG_FORMAT)
     add_custom_target(re_format
