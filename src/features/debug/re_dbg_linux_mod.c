@@ -46,7 +46,8 @@ static int find_mod(linux_mod_t *mods, size_t n, const char *path) {
     return -1;
 }
 
-static bool parse_map_line(const char *line, uint64_t *lo, uint64_t *hi, char *path, size_t path_cap) {
+static bool parse_map_line(const char *line, uint64_t *lo, uint64_t *hi, char *path,
+                           size_t path_cap) {
     unsigned long long a = 0, b = 0;
     char perms[8];
     unsigned long long off = 0;
@@ -123,7 +124,8 @@ static bool elf_magic_ok(re_dbg_backend_t *b, uint64_t base) {
     return magic[0] == 0x7f && magic[1] == 'E' && magic[2] == 'L' && magic[3] == 'F';
 }
 
-static void merge_map(linux_mod_t *mods, size_t *n_mod, uint64_t lo, uint64_t hi, const char *path) {
+static void merge_map(linux_mod_t *mods, size_t *n_mod, uint64_t lo, uint64_t hi,
+                      const char *path) {
     int idx = find_mod(mods, *n_mod, path);
     re_str_t ps = re_str(path);
     if (idx < 0) {
@@ -154,7 +156,8 @@ static size_t filter_elf_mods(re_dbg_backend_t *b, linux_mod_t *mods, size_t n_m
     return kept > 0 ? kept : n_mod;
 }
 
-static void fill_module_out(re_dbg_module_t *out, size_t cap, const linux_mod_t *mods, size_t n_mod) {
+static void fill_module_out(re_dbg_module_t *out, size_t cap, const linux_mod_t *mods,
+                            size_t n_mod) {
     size_t lim = n_mod < cap ? n_mod : cap;
     for (size_t i = 0; i < lim; i++) {
         re_str_t ps = re_str(mods[i].path);
