@@ -265,6 +265,49 @@ re_err_code_t re_dbg_win_cont(re_dbg_backend_t *b) {
     return RE_OK;
 }
 
+HANDLE re_dbg_win_thread_handle(re_dbg_win_impl_t *w, DWORD tid) {
+    size_t i;
+    if (!w)
+        return NULL;
+    if (tid == 0)
+        tid = w->last_tid;
+    for (i = 0; i < w->n_thr; i++) {
+        if (w->thr[i].tid == tid)
+            return w->thr[i].handle;
+    }
+    return NULL;
+}
+
+re_err_code_t re_dbg_win_step(re_dbg_backend_t *b) {
+    re_dbg_win_impl_t *w = re_dbg_win_impl(b);
+    re_dbg_regs_t regs;
+    re_err_code_t c;
+    if (!w || !w->active || !w->pending)
+        return RE_E_USAGE;
+    c = re_dbg_win_get_regs(b, (uint32_t)w->last_tid, &regs);
+    if (c != RE_OK)
+        return c;
+    regs.rflags |= 0x100ull; /* TF */
+    c = re_dbg_win_set_regs(b, (uint32_t)w->last_tid, &regs);
+    if (c != RE_OK)
+        return c;
+    if (!re_dbg_win_continue(w, w->cont_status))
+        return RE_E_IO;
+    w->stashed = false;
+    return RE_OK;
+}
+
+re_err_code_t re_dbg_win_pause(re_dbg_backend_t *b) {
+    re_dbg_win_impl_t *w = re_dbg_win_impl(b);
+    if (!w || !w->active || !w->process)
+        return RE_E_USAGE;
+    if (w->pending)
+        return RE_OK;
+    if (!DebugBreakProcess(w->process))
+        return RE_E_IO;
+    return RE_OK;
+}
+
 re_err_code_t re_dbg_win_enum_threads(re_dbg_backend_t *b, re_dbg_thread_t *out, size_t cap,
                                       size_t *n_out) {
     re_dbg_win_impl_t *w = re_dbg_win_impl(b);

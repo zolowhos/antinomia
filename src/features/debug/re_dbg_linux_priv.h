@@ -65,6 +65,7 @@ re_err_code_t re_dbg_linux_kill(re_dbg_backend_t *b);
 re_err_code_t re_dbg_linux_wait(re_dbg_backend_t *b, re_dbg_event_t *ev, uint32_t timeout_ms);
 re_err_code_t re_dbg_linux_cont(re_dbg_backend_t *b);
 re_err_code_t re_dbg_linux_step(re_dbg_backend_t *b);
+re_err_code_t re_dbg_linux_pause(re_dbg_backend_t *b);
 re_err_code_t re_dbg_linux_get_regs(re_dbg_backend_t *b, uint32_t tid, re_dbg_regs_t *out);
 re_err_code_t re_dbg_linux_set_regs(re_dbg_backend_t *b, uint32_t tid, const re_dbg_regs_t *in);
 re_err_code_t re_dbg_linux_read_mem(re_dbg_backend_t *b, uint64_t addr, void *dst, size_t n);

@@ -1,6 +1,6 @@
 // re_dbg_linux_evt.c - wait_event, continue, step, and register helpers.
 // Module: feature (C11).
-// Owns: the ptrace wait loop and event decode (create/exit/break/step/thread).
+// Owns: the ptrace wait loop, pause, and register get/set helpers.
 // Depends: re_dbg_linux_priv.h. Breakpoint restore is out of scope for Pack A.
 #define _GNU_SOURCE
 #include "features/debug/re_dbg_linux_priv.h"
@@ -9,6 +9,7 @@
 
 #    include <string.h>
 #    include <time.h>
+#    include <unistd.h>
 
 static void fill_regs(re_dbg_regs_t *out, const struct user_regs_struct *r) {
     out->rax = r->rax;
@@ -214,6 +215,23 @@ re_err_code_t re_dbg_linux_step(re_dbg_backend_t *b) {
         return re_dbg_linux_fail_errno(st, "PTRACE_SINGLESTEP");
     st->stopped = false;
     st->stepping = true;
+    return RE_OK;
+}
+
+re_err_code_t re_dbg_linux_pause(re_dbg_backend_t *b) {
+    re_dbg_linux_t *st = re_dbg_linux(b);
+    pid_t tid;
+    if (!st)
+        return RE_E_INTERNAL;
+    if (!st->attached)
+        return re_dbg_linux_fail(st, RE_E_USAGE, "not attached");
+    if (st->stopped)
+        return RE_OK;
+    tid = st->cur_tid > 0 ? st->cur_tid : st->pid;
+    if (tgkill(st->pid, tid, SIGSTOP) != 0) {
+        if (kill(st->pid, SIGSTOP) != 0)
+            return re_dbg_linux_fail_errno(st, "tgkill/SIGSTOP");
+    }
     return RE_OK;
 }
 

@@ -1,8 +1,10 @@
 // re_dbg_session.c - long-lived debug session arena and control API.
 // Module: feature (C11).
-// Owns: session init/reset/free, global handle, and session-to-backend wiring.
-// Depends: re_dbg.h, re_disasm. Session arena is not the per-command arena.
+// Owns: session init/reset/free, BP/regs/mem/disasm wrappers, wait post-process.
+// Depends: re_dbg.h, re_dbg_bp.h, re_dbg_x86.h, re_disasm. Not the command arena.
 #include "features/debug/re_dbg.h"
+#include "features/debug/re_dbg_bp.h"
+#include "features/debug/re_dbg_x86.h"
 
 #include <string.h>
 
@@ -50,28 +52,43 @@ static re_err_code_t need_backend(re_dbg_session_t *s) {
     return RE_OK;
 }
 
+static re_err_code_t need_attached(re_dbg_session_t *s) {
+    re_err_code_t c = need_backend(s);
+    if (c != RE_OK)
+        return c;
+    if (!s->attached)
+        return note(s, RE_E_USAGE, "not attached");
+    return RE_OK;
+}
+
 void re_dbg_session_init(re_dbg_session_t *s) {
     memset(s, 0, sizeof(*s));
     re_arena_init(&s->arena, 64u * 1024u);
     s->backend = re_dbg_backend_create(&s->arena);
+    s->bps = (re_dbg_bps_t *)re_arena_calloc(&s->arena, 1, sizeof(*s->bps));
     s->last_err.code = RE_OK;
     re_disasm_cache_clear(&s->disasm_cache);
 }
 
 void re_dbg_session_reset(re_dbg_session_t *s) {
-    if (s->backend && s->backend->vt && s->backend->vt->detach && s->attached)
+    if (s->backend && s->backend->vt && s->backend->vt->detach && s->attached) {
+        if (s->bps)
+            (void)re_dbg_bp_disarm_all(s->bps, s->backend);
         s->backend->vt->detach(s->backend);
+    }
     clear_target(s);
     RE_ERR_OK(&s->last_err);
     re_disasm_cache_clear(&s->disasm_cache);
     re_arena_reset(&s->arena);
     s->backend = re_dbg_backend_create(&s->arena);
+    s->bps = (re_dbg_bps_t *)re_arena_calloc(&s->arena, 1, sizeof(*s->bps));
 }
 
 void re_dbg_session_free(re_dbg_session_t *s) {
     if (s->backend && s->backend->vt && s->backend->vt->destroy)
         s->backend->vt->destroy(s->backend);
     s->backend = NULL;
+    s->bps = NULL;
     re_arena_free(&s->arena);
 }
 
@@ -96,6 +113,8 @@ re_err_code_t re_dbg_session_launch(re_dbg_session_t *s, const char *path, const
         return note(s, c, "launch failed or is not implemented");
     clear_target(s);
     re_disasm_cache_clear(&s->disasm_cache);
+    if (s->bps)
+        re_dbg_bps_clear(s->bps);
     s->attached = true;
     copy_path(s, path);
     return note(s, RE_OK, NULL);
@@ -114,6 +133,8 @@ re_err_code_t re_dbg_session_attach(re_dbg_session_t *s, uint32_t pid) {
         return note(s, c, "attach failed or is not implemented");
     clear_target(s);
     re_disasm_cache_clear(&s->disasm_cache);
+    if (s->bps)
+        re_dbg_bps_clear(s->bps);
     s->attached = true;
     s->pid = pid;
     return note(s, RE_OK, NULL);
@@ -123,6 +144,8 @@ re_err_code_t re_dbg_session_detach(re_dbg_session_t *s) {
     re_err_code_t c = need_backend(s);
     if (c != RE_OK)
         return c;
+    if (s->attached && s->bps)
+        (void)re_dbg_bp_disarm_all(s->bps, s->backend);
     if (!s->backend->vt->detach)
         return note(s, RE_E_UNSUPPORTED, "detach is not available on this backend");
     c = s->backend->vt->detach(s->backend);
@@ -130,6 +153,8 @@ re_err_code_t re_dbg_session_detach(re_dbg_session_t *s) {
         return note(s, c, "detach failed or is not implemented");
     clear_target(s);
     re_disasm_cache_clear(&s->disasm_cache);
+    if (s->bps)
+        re_dbg_bps_clear(s->bps);
     return note(s, RE_OK, NULL);
 }
 
@@ -144,19 +169,93 @@ re_err_code_t re_dbg_session_kill(re_dbg_session_t *s) {
         return note(s, c, "kill failed or is not implemented");
     clear_target(s);
     re_disasm_cache_clear(&s->disasm_cache);
+    if (s->bps)
+        re_dbg_bps_clear(s->bps);
     return note(s, RE_OK, NULL);
 }
 
 re_err_code_t re_dbg_session_cont(re_dbg_session_t *s) {
-    re_err_code_t c = need_backend(s);
+    re_err_code_t c = need_attached(s);
     if (c != RE_OK)
         return c;
     if (!s->backend->vt->cont)
         return note(s, RE_E_UNSUPPORTED, "continue is not available on this backend");
+    if (s->bps) {
+        c = re_dbg_bp_prepare_cont(s->bps, s->backend);
+        if (c != RE_OK)
+            return note(s, c, "continue re-arm step failed");
+        if (s->bps->rearm_then_cont)
+            return note(s, RE_OK, NULL);
+    }
     c = s->backend->vt->cont(s->backend);
     if (c != RE_OK)
         return note(s, c, "continue failed or is not implemented");
     return note(s, RE_OK, NULL);
+}
+
+re_err_code_t re_dbg_session_step(re_dbg_session_t *s) {
+    re_err_code_t c = need_attached(s);
+    if (c != RE_OK)
+        return c;
+    if (!s->backend->vt->step)
+        return note(s, RE_E_UNSUPPORTED, "step is not available on this backend");
+    if (s->bps && s->bps->need_rearm)
+        s->bps->rearm_then_cont = false;
+    c = s->backend->vt->step(s->backend);
+    if (c != RE_OK)
+        return note(s, c, "step failed or is not implemented");
+    return note(s, RE_OK, NULL);
+}
+
+re_err_code_t re_dbg_session_step_over(re_dbg_session_t *s) {
+    re_dbg_regs_t regs;
+    uint8_t buf[16];
+    size_t len = 0;
+    re_err_code_t c = need_attached(s);
+    if (c != RE_OK)
+        return c;
+    if (!s->backend->vt->get_regs || !s->backend->vt->read_mem)
+        return note(s, RE_E_UNSUPPORTED, "step-over needs regs and memory");
+    c = s->backend->vt->get_regs(s->backend, s->tid, &regs);
+    if (c != RE_OK)
+        return note(s, c, "step-over get_regs failed");
+    memset(buf, 0, sizeof(buf));
+    c = s->backend->vt->read_mem(s->backend, regs.rip, buf, sizeof(buf));
+    if (c != RE_OK)
+        return note(s, c, "step-over read_mem failed");
+    if (re_dbg_x86_is_call(buf, sizeof(buf), &len) && s->bps) {
+        c = re_dbg_bp_set(s->bps, s->backend, regs.rip + len, true);
+        if (c != RE_OK)
+            return note(s, c, "step-over temp breakpoint failed");
+        s->bps->step_over_active = true;
+        return re_dbg_session_cont(s);
+    }
+    return re_dbg_session_step(s);
+}
+
+re_err_code_t re_dbg_session_pause(re_dbg_session_t *s) {
+    re_err_code_t c = need_attached(s);
+    if (c != RE_OK)
+        return c;
+    if (!s->backend->vt->pause)
+        return note(s, RE_E_UNSUPPORTED, "pause is not available on this backend");
+    c = s->backend->vt->pause(s->backend);
+    if (c != RE_OK)
+        return note(s, c, "pause failed or is not implemented");
+    return note(s, RE_OK, NULL);
+}
+
+static void post_event(re_dbg_session_t *s, re_dbg_event_t *ev) {
+    bool consumed = false;
+    if (!s->bps || !ev)
+        return;
+    if (ev->kind == RE_DBG_EV_BREAK)
+        (void)re_dbg_bp_on_hit(s->bps, s->backend, ev->tid, &ev->addr);
+    if (ev->kind == RE_DBG_EV_STEP) {
+        (void)re_dbg_bp_after_step(s->bps, s->backend, &consumed);
+        if (consumed)
+            ev->kind = RE_DBG_EV_NONE;
+    }
 }
 
 re_err_code_t re_dbg_session_wait_event(re_dbg_session_t *s, re_dbg_event_t *ev,
@@ -170,9 +269,16 @@ re_err_code_t re_dbg_session_wait_event(re_dbg_session_t *s, re_dbg_event_t *ev,
     memset(ev, 0, sizeof(*ev));
     if (!s->backend->vt->wait_event)
         return note(s, RE_E_UNSUPPORTED, "wait_event is not available on this backend");
-    c = s->backend->vt->wait_event(s->backend, ev, timeout_ms);
-    if (c != RE_OK)
-        return note(s, c, "wait_event failed or is not implemented");
+    for (;;) {
+        c = s->backend->vt->wait_event(s->backend, ev, timeout_ms);
+        if (c != RE_OK)
+            return note(s, c, "wait_event failed or is not implemented");
+        post_event(s, ev);
+        if (ev->kind != RE_DBG_EV_NONE)
+            break;
+        if (timeout_ms != 0)
+            break;
+    }
     s->last_event = *ev;
     if (ev->pid)
         s->pid = ev->pid;
@@ -263,6 +369,61 @@ re_err_code_t re_dbg_session_disasm(re_dbg_session_t *s, uint64_t addr, size_t c
         out[i] = s->disasm_cache.lines[i];
     if (n_out)
         *n_out = i;
+    return note(s, RE_OK, NULL);
+}
+
+re_err_code_t re_dbg_session_bp_set(re_dbg_session_t *s, uint64_t addr) {
+    re_err_code_t c = need_attached(s);
+    if (c != RE_OK)
+        return c;
+    if (!s->bps)
+        return note(s, RE_E_INTERNAL, "breakpoint table missing");
+    c = re_dbg_bp_set(s->bps, s->backend, addr, false);
+    if (c != RE_OK)
+        return note(s, c, "bp set failed");
+    return note(s, RE_OK, NULL);
+}
+
+re_err_code_t re_dbg_session_bp_clear(re_dbg_session_t *s, uint64_t addr) {
+    re_err_code_t c = need_attached(s);
+    if (c != RE_OK)
+        return c;
+    c = re_dbg_bp_clear(s->bps, s->backend, addr);
+    if (c != RE_OK)
+        return note(s, c, "bp clear failed");
+    return note(s, RE_OK, NULL);
+}
+
+re_err_code_t re_dbg_session_bp_enable(re_dbg_session_t *s, uint64_t addr) {
+    re_err_code_t c = need_attached(s);
+    if (c != RE_OK)
+        return c;
+    c = re_dbg_bp_enable(s->bps, s->backend, addr);
+    if (c != RE_OK)
+        return note(s, c, "bp enable failed");
+    return note(s, RE_OK, NULL);
+}
+
+re_err_code_t re_dbg_session_bp_disable(re_dbg_session_t *s, uint64_t addr) {
+    re_err_code_t c = need_attached(s);
+    if (c != RE_OK)
+        return c;
+    c = re_dbg_bp_disable(s->bps, s->backend, addr);
+    if (c != RE_OK)
+        return note(s, c, "bp disable failed");
+    return note(s, RE_OK, NULL);
+}
+
+re_err_code_t re_dbg_session_bp_list(re_dbg_session_t *s, re_dbg_bp_info_t *out, size_t cap,
+                                     size_t *n_out) {
+    re_err_code_t c = need_backend(s);
+    if (c != RE_OK)
+        return c;
+    if (!s->bps)
+        return note(s, RE_E_INTERNAL, "breakpoint table missing");
+    c = re_dbg_bp_list(s->bps, out, cap, n_out);
+    if (c != RE_OK)
+        return note(s, c, "bp list failed");
     return note(s, RE_OK, NULL);
 }
 

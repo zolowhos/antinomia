@@ -55,6 +55,14 @@ typedef struct {
     char path[260];
 } re_dbg_module_t;
 
+typedef struct {
+    uint64_t addr;
+    uint8_t orig;
+    bool enabled;
+    bool temporary;
+} re_dbg_bp_info_t;
+
+typedef struct re_dbg_bps re_dbg_bps_t;
 typedef struct re_dbg_backend re_dbg_backend_t;
 
 // Stable OS backend contract. Parallel Linux/Windows PRs implement these ops;
@@ -67,6 +75,7 @@ typedef struct re_dbg_backend_vtbl {
     re_err_code_t (*wait_event)(re_dbg_backend_t *b, re_dbg_event_t *ev, uint32_t timeout_ms);
     re_err_code_t (*cont)(re_dbg_backend_t *b);
     re_err_code_t (*step)(re_dbg_backend_t *b);
+    re_err_code_t (*pause)(re_dbg_backend_t *b);
     re_err_code_t (*get_regs)(re_dbg_backend_t *b, uint32_t tid, re_dbg_regs_t *out);
     re_err_code_t (*set_regs)(re_dbg_backend_t *b, uint32_t tid, const re_dbg_regs_t *in);
     re_err_code_t (*read_mem)(re_dbg_backend_t *b, uint64_t addr, void *dst, size_t n);
@@ -85,6 +94,7 @@ struct re_dbg_backend {
 
 // Long-lived debug session. Lives longer than a single CLI/MCP command arena.
 // Session arena owns the backend object; command arenas must never free it.
+// Soft-BP table is owned here so wait/cont can restore and re-arm without OS code.
 typedef struct re_dbg_session {
     re_arena_t arena;
     re_dbg_backend_t *backend;
@@ -95,6 +105,7 @@ typedef struct re_dbg_session {
     re_dbg_event_t last_event;
     re_err_t last_err;
     re_disasm_cache_t disasm_cache;
+    re_dbg_bps_t *bps;
 } re_dbg_session_t;
 
 re_dbg_backend_t *re_dbg_backend_create(re_arena_t *a);
@@ -112,6 +123,9 @@ re_err_code_t re_dbg_session_attach(re_dbg_session_t *s, uint32_t pid);
 re_err_code_t re_dbg_session_detach(re_dbg_session_t *s);
 re_err_code_t re_dbg_session_kill(re_dbg_session_t *s);
 re_err_code_t re_dbg_session_cont(re_dbg_session_t *s);
+re_err_code_t re_dbg_session_step(re_dbg_session_t *s);
+re_err_code_t re_dbg_session_step_over(re_dbg_session_t *s);
+re_err_code_t re_dbg_session_pause(re_dbg_session_t *s);
 re_err_code_t re_dbg_session_wait_event(re_dbg_session_t *s, re_dbg_event_t *ev,
                                         uint32_t timeout_ms);
 re_err_code_t re_dbg_session_get_regs(re_dbg_session_t *s, uint32_t tid, re_dbg_regs_t *out);
@@ -121,6 +135,12 @@ re_err_code_t re_dbg_session_write_mem(re_dbg_session_t *s, uint64_t addr, const
                                        size_t n);
 re_err_code_t re_dbg_session_disasm(re_dbg_session_t *s, uint64_t addr, size_t count,
                                     re_disasm_insn_t *out, size_t *n_out);
+re_err_code_t re_dbg_session_bp_set(re_dbg_session_t *s, uint64_t addr);
+re_err_code_t re_dbg_session_bp_clear(re_dbg_session_t *s, uint64_t addr);
+re_err_code_t re_dbg_session_bp_enable(re_dbg_session_t *s, uint64_t addr);
+re_err_code_t re_dbg_session_bp_disable(re_dbg_session_t *s, uint64_t addr);
+re_err_code_t re_dbg_session_bp_list(re_dbg_session_t *s, re_dbg_bp_info_t *out, size_t cap,
+                                     size_t *n_out);
 
 const char *re_dbg_event_kind_str(re_dbg_event_kind_t kind);
 const char *re_dbg_backend_name(void);
