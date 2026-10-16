@@ -1,0 +1,9 @@
+---
+description: stdout purity and schema antinomia/1
+alwaysApply: true
+---
+
+# Output
+
+stdout is JSON or MCP frames only. Diagnostics on stderr via `re_log_*`. Every JSON
+response carries `"schema":"antinomia/1"`. Honour `RE_LOG` and `NO_COLOR`.

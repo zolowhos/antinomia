@@ -1,0 +1,9 @@
+---
+description: Check util catalog before writing helpers
+alwaysApply: true
+---
+
+# Reuse
+
+Read `docs/util-catalog.md` before writing helpers past 60 lines or 4 nesting levels.
+Register every new `src/utils` header in the catalog and in `re_util.h`.

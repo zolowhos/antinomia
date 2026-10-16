@@ -1,0 +1,10 @@
+---
+description: C11 core, C++17 shell, backend vtable
+alwaysApply: true
+---
+
+# Architecture
+
+C11 in `src/utils` and `src/features`. C++17 in `src/cli` and `src/mcp`.
+OS debug APIs stay behind `re_dbg_backend` vtables. One command table feeds argv and
+MCP `tools/list`. Session arena != per-command arena.

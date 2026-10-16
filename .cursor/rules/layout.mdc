@@ -1,0 +1,10 @@
+---
+description: Source tree layout and include root
+alwaysApply: true
+---
+
+# Layout
+
+Include root is `src/`. Utils under `src/utils/<cat>/`, debug features under
+`src/features/debug/`, CLI under `src/cli/`, MCP under `src/mcp/`. Max 15 files per
+directory under `src/`.

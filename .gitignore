@@ -1,0 +1,50 @@
+# .gitignore - build output, IDE state and tool caches. Keeps the repo free of binaries.
+# Module: build (gitignore).
+# Owns: excluding build trees, object files, Visual Studio state and tool caches.
+# Depends: none. Regenerating any ignored path is always a documented command.
+
+# build trees
+/build/
+/out/
+/build-*/
+CMakeUserPresets.json
+
+# compiled output
+*.obj
+*.o
+*.lib
+*.a
+*.exp
+*.pdb
+*.ilk
+*.idb
+*.exe
+*.dll
+
+# visual studio
+.vs/
+*.user
+*.suo
+*.sdf
+*.opensdf
+*.VC.db
+*.VC.opendb
+CMakeSettings.json
+
+# clang tooling caches
+.clangd/
+.cache/
+compile_commands.json
+
+# python
+__pycache__/
+*.pyc
+.venv/
+
+# local sigdb and test scratch
+/sigdb/
+/scratch/
+
+# local agent tooling; the rule gate reads tracked files only
+/.freebuff/
+/.opencode/
