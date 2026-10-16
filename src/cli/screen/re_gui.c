@@ -1,17 +1,18 @@
-// re_gui.c - empty debugger welcome: CPU-like panes with no live inferior yet.
+// re_gui.c - full-screen CPU view bound to the global debug session.
 // Module: cli (C11).
-// Owns: the Phase 0 welcome loop and the empty pane layout.
-// Depends: re_gui.h, term, input, focus, draw, screen. No live debug.
+// Owns: the interactive TUI loop, focus cycling, and frame refresh.
+// Depends: re_gui.h, re_cpu, term, input, focus, draw, screen, re_dbg.
 #include "cli/screen/re_gui.h"
 
+#include "features/debug/re_dbg.h"
 #include "utils/tui/re_screen.h"
+#include "cli/screen/re_cpu.h"
 #include "cli/screen/re_draw.h"
 #include "cli/screen/re_focus.h"
 #include "cli/screen/re_input.h"
 #include "cli/screen/re_term.h"
 
 #include <stdio.h>
-#include <string.h>
 
 #if defined(_WIN32)
 #    include <io.h>
@@ -29,35 +30,66 @@ bool re_gui_wants_file(const char *arg) {
 #endif
 }
 
-static void paint_welcome(re_screen_t *s, const char *path) {
-    uint16_t mid;
-    re_screen_clear(s);
-    re_screen_put_run(s, 0, 1, s->cols > 2 ? (uint16_t)(s->cols - 2) : 0,
-                      "antinomia 0.1.0 - AI driven debugger (Phase 0 stub)", (uint8_t)RE_ST_TITLE,
-                      0);
-    re_screen_put_run(s, 1, 1, s->cols > 2 ? (uint16_t)(s->cols - 2) : 0,
-                      "panes: disasm | regs | dump | stack (empty until Phase 1)",
-                      (uint8_t)RE_ST_LABEL, 0);
-    if (path && path[0])
-        re_screen_put_run(s, 2, 1, s->cols > 2 ? (uint16_t)(s->cols - 2) : 0, path,
-                          (uint8_t)RE_ST_NONE, 0);
-    else
-        re_screen_put_run(s, 2, 1, s->cols > 2 ? (uint16_t)(s->cols - 2) : 0,
-                          "no target - press q to leave", (uint8_t)RE_ST_NONE, 0);
-    if (s->rows < 12 || s->cols < 40)
+static bool handle_key(re_cpu_view_t *cpu, re_focus_t *focus, const re_ev_t *ev, bool *quit) {
+    if (ev->kind != RE_EV_KEY)
+        return false;
+    if (ev->key == 'q' || ev->key == 'Q' || ev->key == RE_KEY_ESCAPE) {
+        *quit = true;
+        return true;
+    }
+    if (ev->key == RE_KEY_TAB) {
+        re_cpu_focus_next(cpu);
+        if (cpu->zones[cpu->focus])
+            re_focus_set(focus, cpu->zones[cpu->focus]);
+        return true;
+    }
+    if (ev->key == RE_KEY_STAB) {
+        re_cpu_focus_prev(cpu);
+        if (cpu->zones[cpu->focus])
+            re_focus_set(focus, cpu->zones[cpu->focus]);
+        return true;
+    }
+    return false;
+}
+
+static void handle_click(re_cpu_view_t *cpu, re_focus_t *focus, const re_screen_t *frame,
+                         const re_ev_t *ev) {
+    if (!re_input_is_click(ev))
         return;
-    mid = (uint16_t)(s->cols / 2u);
-    re_screen_box(s, 4, 0, mid, 5, "disasm", (uint8_t)RE_ST_NONE);
-    re_screen_box(s, 4, mid, (uint16_t)(s->cols - mid), 5, "regs", (uint8_t)RE_ST_NONE);
-    re_screen_box(s, 9, 0, mid, 5, "dump", (uint8_t)RE_ST_NONE);
-    re_screen_box(s, 9, mid, (uint16_t)(s->cols - mid), 5, "stack", (uint8_t)RE_ST_NONE);
-    re_screen_put_run(s, 5, 2, mid > 4 ? (uint16_t)(mid - 4) : 0, "(empty)", (uint8_t)RE_ST_LABEL,
-                      0);
-    re_screen_put_run(s, 5, (uint16_t)(mid + 2), 8, "(empty)", (uint8_t)RE_ST_LABEL, 0);
-    re_screen_put_run(s, 10, 2, mid > 4 ? (uint16_t)(mid - 4) : 0, "(empty)", (uint8_t)RE_ST_LABEL,
-                      0);
-    re_screen_put_run(s, 10, (uint16_t)(mid + 2), 8, "(empty)", (uint8_t)RE_ST_LABEL, 0);
-    re_screen_status(s, (uint16_t)(s->rows - 1), 0, s->cols, "q quit", "phase0");
+    if (!re_focus_click(focus, frame, ev->row, ev->col))
+        return;
+    (void)re_cpu_focus_zone(cpu, focus->zone);
+}
+
+static bool ensure_frame(re_arena_t *arena, re_draw_t *draw, re_screen_t *frame, uint16_t rows,
+                         uint16_t cols) {
+    if (!re_draw_init(draw, arena, rows, cols))
+        return false;
+    return re_screen_init(frame, arena, &draw->out, rows, cols);
+}
+
+static void paint_frame(re_draw_t *draw, re_screen_t *frame, re_focus_t *focus, re_cpu_view_t *cpu,
+                        re_dbg_session_t *session, re_term_t *term) {
+    re_cpu_refresh(cpu, session);
+    re_cpu_paint(frame, cpu);
+    re_focus_build(focus, frame);
+    if (cpu->zones[cpu->focus])
+        re_focus_set(focus, cpu->zones[cpu->focus]);
+    if (!draw->valid)
+        re_draw_full(draw, frame);
+    else
+        re_draw_frame(draw, frame);
+    if (draw->out.len) {
+        re_draw_home(draw, 0, 0);
+        re_term_write(term, draw->out.p, draw->out.len);
+    }
+}
+
+static void resize_frame(re_arena_t *arena, re_draw_t *draw, re_screen_t *frame) {
+    uint16_t nr = 0, nc = 0;
+    re_term_size(&nr, &nc);
+    re_draw_resize(draw, arena, nr, nc);
+    re_screen_init(frame, arena, &draw->out, nr, nc);
 }
 
 int re_cmd_gui(re_ctx_t *ctx, const char *path, int argc, char **argv) {
@@ -66,6 +98,8 @@ int re_cmd_gui(re_ctx_t *ctx, const char *path, int argc, char **argv) {
     re_draw_t draw;
     re_screen_t frame;
     re_focus_t focus;
+    re_cpu_view_t cpu;
+    re_dbg_session_t *session;
     uint16_t rows = 24, cols = 80;
     bool quit = false;
     (void)argc;
@@ -76,45 +110,41 @@ int re_cmd_gui(re_ctx_t *ctx, const char *path, int argc, char **argv) {
         fprintf(stderr, "gui needs a terminal on both ends; try status or mcp\n");
         return 2;
     }
+    session = ctx && ctx->session ? ctx->session : re_dbg_session_global();
+    if (path && path[0] && !session->path[0]) {
+        size_t i = 0;
+        while (path[i] && i + 1u < sizeof(session->path)) {
+            session->path[i] = path[i];
+            i++;
+        }
+        session->path[i] = 0;
+    }
     re_arena_init(&arena, 256u * 1024u);
     re_term_size(&rows, &cols);
-    if (!re_draw_init(&draw, &arena, rows, cols) ||
-        !re_screen_init(&frame, &arena, &draw.out, rows, cols)) {
+    if (!ensure_frame(&arena, &draw, &frame, rows, cols)) {
         re_term_close(&term);
         re_arena_free(&arena);
         return 2;
     }
     re_focus_init(&focus);
+    re_cpu_init(&cpu);
     while (!quit) {
         re_ev_t ev;
-        paint_welcome(&frame, path);
-        re_focus_build(&focus, &frame);
-        if (!draw.valid)
-            re_draw_full(&draw, &frame);
-        else
-            re_draw_frame(&draw, &frame);
-        if (draw.out.len) {
-            re_draw_home(&draw, 0, 0);
-            re_term_write(&term, draw.out.p, draw.out.len);
-        }
+        paint_frame(&draw, &frame, &focus, &cpu, session, &term);
         if (!re_term_wait(&term, &ev, 250u)) {
             uint16_t nr = 0, nc = 0;
             re_term_size(&nr, &nc);
-            if (nr != frame.rows || nc != frame.cols) {
-                re_draw_resize(&draw, &arena, nr, nc);
-                re_screen_init(&frame, &arena, &draw.out, nr, nc);
-            }
+            if (nr != frame.rows || nc != frame.cols)
+                resize_frame(&arena, &draw, &frame);
             continue;
         }
         if (ev.kind == RE_EV_RESIZE) {
-            uint16_t nr = 0, nc = 0;
-            re_term_size(&nr, &nc);
-            re_draw_resize(&draw, &arena, nr, nc);
-            re_screen_init(&frame, &arena, &draw.out, nr, nc);
+            resize_frame(&arena, &draw, &frame);
             continue;
         }
-        if (ev.kind == RE_EV_KEY && (ev.key == 'q' || ev.key == 'Q' || ev.key == RE_KEY_ESCAPE))
-            quit = true;
+        if (handle_key(&cpu, &focus, &ev, &quit))
+            continue;
+        handle_click(&cpu, &focus, &frame, &ev);
     }
     re_term_close(&term);
     re_arena_free(&arena);

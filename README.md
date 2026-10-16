@@ -48,12 +48,13 @@ Three ways in, and the first is usually what you want:
 
 | | |
 |---|---|
-| **Run it** | Opens the empty debugger view |
-| **Drop a file on it** | Explorer passes the path; it opens the welcome onto that path |
+| **Run it** | Opens the CPU view (disasm, regs, dump, stack, breakpoints, log) |
+| **Drop a file on it** | Explorer passes the path; it opens the view onto that path |
 | **`antinomia shell`** | A prompt, for driving the debug commands one at a time |
 
-Inside the view: <kbd>q</kbd> or <kbd>Esc</kbd> leaves. Phase 1 fills the panes from a
-live inferior.
+Inside the view: <kbd>Tab</kbd> / <kbd>Shift-Tab</kbd> cycles pane focus, click selects a
+pane, <kbd>q</kbd> or <kbd>Esc</kbd> leaves. Panes bind to session state and degrade when
+regs/mem/disasm backends are still stubs.
 
 ## Building
 

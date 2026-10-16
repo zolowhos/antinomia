@@ -31,6 +31,16 @@ if(MSVC)
 endif()
 add_test(NAME screen COMMAND re_test_screen)
 
+add_executable(re_test_cpu test_cpu.c ${CMAKE_SOURCE_DIR}/src/cli/screen/re_cpu.c)
+target_include_directories(re_test_cpu PRIVATE ${CMAKE_SOURCE_DIR}/src)
+target_link_libraries(re_test_cpu PRIVATE re_core re_utils re_flags)
+if(MSVC)
+    set_property(TARGET re_test_cpu
+        PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+    target_compile_definitions(re_test_cpu PRIVATE _CRT_SECURE_NO_WARNINGS)
+endif()
+add_test(NAME cpu COMMAND re_test_cpu)
+
 add_executable(re_test_console test_console.c)
 target_link_libraries(re_test_console PRIVATE re_utils re_flags)
 if(MSVC)

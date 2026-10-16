@@ -111,6 +111,7 @@ add_executable(antinomia
     src/cli/screen/re_draw.c
     src/cli/screen/re_term.c
     src/cli/screen/re_gui.c
+    src/cli/screen/re_cpu.c
     src/mcp/re_mcp.cpp
     src/mcp/re_mcp_tools.cpp)
 target_link_libraries(antinomia PRIVATE re_core re_flags)
