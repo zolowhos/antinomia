@@ -26,11 +26,7 @@ typedef enum {
 } re_dbg_bp_kind_t;
 
 /* x86 DR7 R/W field: 0=exec, 1=write, 3=read/write. */
-typedef enum {
-    RE_DBG_BP_AX_X = 0,
-    RE_DBG_BP_AX_W = 1,
-    RE_DBG_BP_AX_RW = 3
-} re_dbg_bp_access_t;
+typedef enum { RE_DBG_BP_AX_X = 0, RE_DBG_BP_AX_W = 1, RE_DBG_BP_AX_RW = 3 } re_dbg_bp_access_t;
 
 typedef struct {
     uint64_t addr;
