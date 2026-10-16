@@ -200,8 +200,10 @@ const char *re_dbg_event_kind_str(re_dbg_event_kind_t kind) {
 
 const char *re_dbg_backend_name(void) {
 #if defined(_WIN32)
-    return "windows-stub";
+    return "windows";
+#elif defined(__linux__)
+    return "linux";
 #else
-    return "linux-stub";
+    return "stub";
 #endif
 }

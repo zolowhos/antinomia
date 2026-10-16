@@ -50,6 +50,7 @@ endif()
 if(UNIX AND NOT APPLE)
     add_executable(loop_inferior fixtures/loop_inferior.c)
     target_link_libraries(loop_inferior PRIVATE re_flags)
+    target_link_options(loop_inferior PRIVATE -Wl,--export-dynamic)
     add_test(NAME debug
         COMMAND re_test_debug $<TARGET_FILE:loop_inferior>)
     set_tests_properties(debug PROPERTIES

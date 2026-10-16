@@ -72,11 +72,11 @@ static void test_win_inactive(void) {
                   RE_E_IO);
     RE_CHECK_EQ_U(s.backend->vt->attach(s.backend, 0), RE_E_USAGE);
     RE_CHECK_EQ_U(s.backend->vt->step(s.backend), RE_E_UNSUPPORTED);
-    RE_CHECK_EQ_U(s.backend->vt->get_regs(s.backend, 0, &regs), RE_E_UNSUPPORTED);
+    RE_CHECK_EQ_U(s.backend->vt->get_regs(s.backend, 0, &regs), RE_E_USAGE);
     RE_CHECK_EQ_U(s.backend->vt->set_regs(s.backend, 0, &regs), RE_E_UNSUPPORTED);
-    RE_CHECK_EQ_U(s.backend->vt->read_mem(s.backend, 0, NULL, 0), RE_E_UNSUPPORTED);
+    RE_CHECK_EQ_U(s.backend->vt->read_mem(s.backend, 0, NULL, 0), RE_E_USAGE);
     RE_CHECK_EQ_U(s.backend->vt->write_mem(s.backend, 0, NULL, 0), RE_E_UNSUPPORTED);
-    RE_CHECK_EQ_U(s.backend->vt->enum_modules(s.backend, NULL, 0, &n), RE_E_UNSUPPORTED);
+    RE_CHECK_EQ_U(s.backend->vt->enum_modules(s.backend, NULL, 0, &n), RE_E_USAGE);
     RE_CHECK_EQ_U(re_dbg_session_detach(&s), RE_E_USAGE);
     RE_CHECK_EQ_U(re_dbg_session_kill(&s), RE_E_USAGE);
     re_dbg_session_free(&s);
@@ -181,6 +181,49 @@ static void test_session_api_live(void) {
     re_dbg_session_free(&s);
 }
 
+static int find_mod_path(const re_dbg_module_t *mods, size_t n, const char *want) {
+    size_t i;
+    for (i = 0; i < n; i++) {
+        if (strstr(mods[i].path, want))
+            return (int)i;
+    }
+    return -1;
+}
+
+static void test_modules_sym_bt(void) {
+    re_dbg_session_t s;
+    re_dbg_event_t ev;
+    re_dbg_module_t mods[32];
+    re_dbg_frame_t frames[16];
+    re_dbg_symbol_t info;
+    size_t n = 0, nf = 0;
+    uint64_t addr = 0;
+    int mi;
+    re_dbg_session_init(&s);
+    RE_CHECK_EQ_U(re_dbg_session_launch(&s, g_inferior, NULL), RE_OK);
+    RE_CHECK_EQ_U(re_dbg_session_wait_event(&s, &ev, 2000), RE_OK);
+    RE_CHECK_EQ_U(ev.kind, RE_DBG_EV_CREATE);
+    RE_CHECK_EQ_U(re_dbg_session_wait_event(&s, &ev, 2000), RE_OK);
+    RE_CHECK_EQ_U(ev.kind, RE_DBG_EV_BREAK);
+    RE_CHECK_EQ_U(re_dbg_session_enum_modules(&s, mods, 32, &n), RE_OK);
+    RE_CHECK(n >= 1);
+    mi = find_mod_path(mods, n, "loop_inferior");
+    RE_CHECK(mi >= 0);
+    RE_CHECK(mods[mi].base != 0);
+    RE_CHECK_EQ_U(re_dbg_sym_resolve_file(&s.arena, g_inferior, mods[mi].base, "antinomia_marker",
+                                          &addr),
+                  RE_OK);
+    RE_CHECK(addr != 0);
+    RE_CHECK_EQ_U(re_dbg_session_resolve(&s, "loop_inferior:antinomia_marker", &addr, &info),
+                  RE_OK);
+    RE_CHECK(info.addr != 0);
+    RE_CHECK_EQ_U(re_dbg_session_bt(&s, frames, 16, &nf), RE_OK);
+    RE_CHECK(nf >= 1);
+    RE_CHECK(frames[0].ip != 0);
+    RE_CHECK_EQ_U(re_dbg_session_kill(&s), RE_OK);
+    re_dbg_session_free(&s);
+}
+
 #else /* non-Linux, non-Windows host */
 
 static void test_stubs(void) {
@@ -244,6 +287,7 @@ int main(int argc, char **argv) {
     test_detach_leaves_alive();
     test_attach_detach();
     test_session_api_live();
+    test_modules_sym_bt();
 #else
     test_stubs();
     test_session_api_degrades();

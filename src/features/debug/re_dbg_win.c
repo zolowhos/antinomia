@@ -233,24 +233,10 @@ static re_err_code_t win_step(re_dbg_backend_t *b) {
     (void)b;
     return RE_E_UNSUPPORTED;
 }
-static re_err_code_t win_get_regs(re_dbg_backend_t *b, uint32_t tid, re_dbg_regs_t *out) {
-    (void)b;
-    (void)tid;
-    if (out)
-        memset(out, 0, sizeof(*out));
-    return RE_E_UNSUPPORTED;
-}
 static re_err_code_t win_set_regs(re_dbg_backend_t *b, uint32_t tid, const re_dbg_regs_t *in) {
     (void)b;
     (void)tid;
     (void)in;
-    return RE_E_UNSUPPORTED;
-}
-static re_err_code_t win_read(re_dbg_backend_t *b, uint64_t addr, void *dst, size_t n) {
-    (void)b;
-    (void)addr;
-    if (dst && n)
-        memset(dst, 0, n);
     return RE_E_UNSUPPORTED;
 }
 static re_err_code_t win_write(re_dbg_backend_t *b, uint64_t addr, const void *src, size_t n) {
@@ -258,15 +244,6 @@ static re_err_code_t win_write(re_dbg_backend_t *b, uint64_t addr, const void *s
     (void)addr;
     (void)src;
     (void)n;
-    return RE_E_UNSUPPORTED;
-}
-static re_err_code_t win_modules(re_dbg_backend_t *b, re_dbg_module_t *out, size_t cap,
-                                 size_t *n_out) {
-    (void)b;
-    (void)out;
-    (void)cap;
-    if (n_out)
-        *n_out = 0;
     return RE_E_UNSUPPORTED;
 }
 
@@ -280,9 +257,10 @@ static void win_destroy(re_dbg_backend_t *b) {
 }
 
 static const re_dbg_backend_vtbl_t kVtbl = {
-    win_launch,  win_attach,   win_detach,   win_kill, re_dbg_win_wait, re_dbg_win_cont,
-    win_step,    win_get_regs, win_set_regs, win_read, win_write,       re_dbg_win_enum_threads,
-    win_modules, win_destroy};
+    win_launch,           win_attach,          win_detach,           win_kill,
+    re_dbg_win_wait,      re_dbg_win_cont,     win_step,             re_dbg_win_get_regs,
+    win_set_regs,         re_dbg_win_read_mem, win_write,            re_dbg_win_enum_threads,
+    re_dbg_win_enum_modules, win_destroy};
 
 re_dbg_backend_t *re_dbg_backend_win_create(re_arena_t *a) {
     re_dbg_backend_t *b = (re_dbg_backend_t *)re_arena_alloc(a, sizeof(*b));
