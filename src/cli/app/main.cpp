@@ -52,7 +52,7 @@ int report_error(const re_err_t &err) {
     re_jw_kcstr(&w, "schema", kSchema);
     re_jw_key(&w, "error");
     re_jw_obj(&w);
-    re_jw_kcstr(&w, "code", re_err_str(err.code));
+    re_jw_kcstr(&w, "code", re_err_json_code(err.code));
     re_jw_kstr(&w, "message", re_strn(re_err_msg(&err), re_str(re_err_msg(&err)).n));
     re_jw_ku64(&w, "exit", (uint64_t)re_err_exit_code(err.code));
     re_jw_obj_end(&w);

@@ -46,11 +46,22 @@ static void test_str(void) {
     RE_CHECK(!re_str_eq_cstr(re_str("abc"), "abd"));
 }
 
+static void test_err_json(void) {
+    RE_CHECK(strcmp(re_err_json_code(RE_OK), "ok") == 0);
+    RE_CHECK(strcmp(re_err_json_code(RE_E_USAGE), "usage") == 0);
+    RE_CHECK(strcmp(re_err_json_code(RE_E_PRIVILEGE), "privilege") == 0);
+    RE_CHECK(strcmp(re_err_json_code(RE_E_UNSUPPORTED), "unsupported") == 0);
+    RE_CHECK(strcmp(re_err_json_code(RE_E_IO), "io") == 0);
+    RE_CHECK(strcmp(re_err_json_code(RE_E_NOTFOUND), "notfound") == 0);
+    RE_CHECK(re_err_exit_code(RE_E_PRIVILEGE) == 6);
+}
+
 int main(void) {
     re_crc_init();
     test_bits();
     test_hex();
     test_arena();
     test_str();
+    test_err_json();
     return re_test_report("utils");
 }

@@ -96,7 +96,7 @@ static const re_cmd_t kCommands[] = {
     {"sigdisp", "alias for signals", "sigdisp", re_cmd_signals, false, false, true},
     {"dbsave", "export per-module annotation DB to disk", "dbsave", re_cmd_dbsave, false, false,
      true},
-    {"maps", "memory map with protect/type; follow dump", "maps [follow <index|addr>]", re_cmd_maps,
+    {"maps", "memory map with protect/type, follow dump", "maps [follow <index|addr>]", re_cmd_maps,
      false, false, true},
     {"mmap", "alias for maps", "mmap [follow <index|addr>]", re_cmd_maps, false, false, true},
     {"sym", "resolve module:symbol (export/dynsym then PDB)", "sym <module:symbol>", re_cmd_sym,

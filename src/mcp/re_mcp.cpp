@@ -26,8 +26,10 @@ constexpr const char *kProtocolVersion = "2025-06-18";
 constexpr const char *kName = "antinomia";
 constexpr const char *kVersion = "0.1.0";
 constexpr const char *kInstructions =
-    "antinomia Phase 0 debugger scaffold. Tools are stubs that return "
-    "not-implemented until live backends land. Prefer status, then launch/attach.";
+    "antinomia debugger MCP (protocol 2025-06-18). Every debug verb is a tool "
+    "aligned with the CLI command table. Responses use schema antinomia/1. "
+    "Errors use stable error.code slugs: usage, privilege, unsupported, io. "
+    "Prefer status, then init or attach, then bp, run, sti, regs.";
 constexpr int kFrameMax = 1 << 20;
 constexpr int kErrParse = -32700;
 constexpr int kErrInvalid = -32600;
@@ -116,12 +118,13 @@ static void handle_tools_call(Server *s, re_arena_t *a, double id, const re_jr_t
     re_strbuf_init(&out, a);
     bool is_error = false;
     if (!cmd || !cmd->mcp || !cmd->fn) {
-        mcp_tool_error(&out, "no such tool", &is_error);
+        mcp_tool_error(&out, RE_E_NOTFOUND, "no such tool", &is_error);
         send_tool_result(s, a, id, &out, is_error);
         return;
     }
     if (cmd->interactive) {
-        mcp_tool_error(&out, "interactive tools are not available over MCP", &is_error);
+        mcp_tool_error(&out, RE_E_UNSUPPORTED, "interactive tools are not available over MCP",
+                       &is_error);
         send_tool_result(s, a, id, &out, is_error);
         return;
     }
@@ -132,7 +135,7 @@ static void handle_tools_call(Server *s, re_arena_t *a, double id, const re_jr_t
             path = re_arena_strdup(a, direct.p);
     }
     if (cmd->needs_path && !path) {
-        mcp_tool_error(&out, "no file: give path", &is_error);
+        mcp_tool_error(&out, RE_E_USAGE, "no file: give path", &is_error);
         send_tool_result(s, a, id, &out, is_error);
         return;
     }

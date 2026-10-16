@@ -28,7 +28,8 @@ $ cat /proc/sys/kernel/yama/ptrace_scope
   to descendants (or with `CAP_SYS_PTRACE` / root). Scope `0` restores classic
   same-uid attach.
 
-When attach is denied, antinomia returns `RE_E_IO` and prints a stderr hint that
+When attach is denied, antinomia returns `RE_E_PRIVILEGE` with structured JSON
+`error.code` = `"privilege"` (schema `antinomia/1`) and prints a stderr hint that
 names `/proc/sys/kernel/yama/ptrace_scope` (never setuid the debugger).
 
 ## CI and local tests

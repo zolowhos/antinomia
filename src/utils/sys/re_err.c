@@ -28,8 +28,37 @@ const char *re_err_str(re_err_code_t code) {
             return "read out of bounds";
         case RE_E_NOTFOUND:
             return "not found";
+        case RE_E_PRIVILEGE:
+            return "privilege denied";
         default:
             return "internal error";
+    }
+}
+
+const char *re_err_json_code(re_err_code_t code) {
+    switch (code) {
+        case RE_OK:
+            return "ok";
+        case RE_E_USAGE:
+            return "usage";
+        case RE_E_NOTBIN:
+            return "notbin";
+        case RE_E_MALFORMED:
+            return "malformed";
+        case RE_E_UNSUPPORTED:
+            return "unsupported";
+        case RE_E_IO:
+            return "io";
+        case RE_E_NOMEM:
+            return "nomem";
+        case RE_E_RANGE:
+            return "range";
+        case RE_E_NOTFOUND:
+            return "notfound";
+        case RE_E_PRIVILEGE:
+            return "privilege";
+        default:
+            return "internal";
     }
 }
 

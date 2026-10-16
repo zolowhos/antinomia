@@ -212,8 +212,12 @@ static re_err_code_t win_launch(re_dbg_backend_t *b, const char *path, const cha
     memset(&pi, 0, sizeof(pi));
     re_dbg_win_enable_debug_priv();
     if (!CreateProcessA(NULL, cmd, NULL, NULL, FALSE, DEBUG_ONLY_THIS_PROCESS | CREATE_NEW_CONSOLE,
-                        NULL, NULL, &si, &pi))
+                        NULL, NULL, &si, &pi)) {
+        DWORD e = GetLastError();
+        if (e == ERROR_ACCESS_DENIED)
+            return RE_E_PRIVILEGE;
         return RE_E_IO;
+    }
     CloseHandle(pi.hThread);
     CloseHandle(pi.hProcess);
     w->active = true;
@@ -235,8 +239,12 @@ static re_err_code_t win_attach(re_dbg_backend_t *b, uint32_t pid) {
     if (w->active || pid == 0)
         return RE_E_USAGE;
     re_dbg_win_enable_debug_priv();
-    if (!DebugActiveProcess((DWORD)pid))
+    if (!DebugActiveProcess((DWORD)pid)) {
+        DWORD e = GetLastError();
+        if (e == ERROR_ACCESS_DENIED)
+            return RE_E_PRIVILEGE;
         return RE_E_IO;
+    }
     DebugSetProcessKillOnExit(FALSE);
     w->active = true;
     w->pid = (DWORD)pid;
