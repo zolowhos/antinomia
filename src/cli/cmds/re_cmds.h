@@ -60,6 +60,11 @@ int re_cmd_bplogc(re_ctx_t *ctx, const char *path, int argc, char **argv);
 int re_cmd_bpcmd(re_ctx_t *ctx, const char *path, int argc, char **argv);
 int re_cmd_bpcmdc(re_ctx_t *ctx, const char *path, int argc, char **argv);
 int re_cmd_bpfr(re_ctx_t *ctx, const char *path, int argc, char **argv);
+int re_cmd_src(re_ctx_t *ctx, const char *path, int argc, char **argv);
+int re_cmd_bm(re_ctx_t *ctx, const char *path, int argc, char **argv);
+int re_cmd_bmlist(re_ctx_t *ctx, const char *path, int argc, char **argv);
+int re_cmd_patches(re_ctx_t *ctx, const char *path, int argc, char **argv);
+int re_cmd_funcs(re_ctx_t *ctx, const char *path, int argc, char **argv);
 
 #ifdef __cplusplus
 }

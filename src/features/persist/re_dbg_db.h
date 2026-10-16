@@ -1,4 +1,4 @@
-// re_dbg_db.h - per-module JSON persistence for breakpoints, labels, comments.
+// re_dbg_db.h - per-module JSON persistence for annotations and caches.
 // Module: feature/persist (C11).
 // Owns: load-on-module and save-on-exit database for user annotations.
 // Depends: re_arena, re_err. No OS debug APIs; file I/O only.
@@ -18,8 +18,12 @@ extern "C" {
 #define RE_DBG_DB_MAX_BP 32
 #define RE_DBG_DB_MAX_LABEL 32
 #define RE_DBG_DB_MAX_COMMENT 32
+#define RE_DBG_DB_MAX_BOOKMARK 32
+#define RE_DBG_DB_MAX_PATCH 32
+#define RE_DBG_DB_MAX_FUNC 64
 #define RE_DBG_DB_NAME_MAX 64
 #define RE_DBG_DB_TEXT_MAX 128
+#define RE_DBG_DB_BYTES_MAX 64
 #define RE_DBG_DB_PATH_MAX 512
 
 typedef struct {
@@ -38,6 +42,24 @@ typedef struct {
 } re_dbg_db_comment_t;
 
 typedef struct {
+    uint64_t rva;
+    char name[RE_DBG_DB_NAME_MAX];
+} re_dbg_db_bookmark_t;
+
+typedef struct {
+    uint64_t rva;
+    uint32_t size;
+    char orig_hex[RE_DBG_DB_BYTES_MAX];
+    char patch_hex[RE_DBG_DB_BYTES_MAX];
+} re_dbg_db_patch_t;
+
+typedef struct {
+    uint64_t start_rva;
+    uint64_t end_rva;
+    char name[RE_DBG_DB_NAME_MAX];
+} re_dbg_db_func_t;
+
+typedef struct {
     char module_path[RE_DBG_DB_PATH_MAX];
     char db_path[RE_DBG_DB_PATH_MAX];
     bool loaded;
@@ -48,21 +70,33 @@ typedef struct {
     size_t n_labels;
     re_dbg_db_comment_t comments[RE_DBG_DB_MAX_COMMENT];
     size_t n_comments;
+    re_dbg_db_bookmark_t bookmarks[RE_DBG_DB_MAX_BOOKMARK];
+    size_t n_bookmarks;
+    re_dbg_db_patch_t patches[RE_DBG_DB_MAX_PATCH];
+    size_t n_patches;
+    re_dbg_db_func_t funcs[RE_DBG_DB_MAX_FUNC];
+    size_t n_funcs;
 } re_dbg_db_t;
 
 void re_dbg_db_init(re_dbg_db_t *db);
 void re_dbg_db_clear(re_dbg_db_t *db);
 
-// Derive "<module>.antinomia.json" beside the module image.
+/* Derive "<module>.antinomia.json" beside the module image. */
 re_err_code_t re_dbg_db_path_for(const char *module_path, char *out, size_t cap);
 
-// Missing file is ok (empty db). Malformed JSON returns RE_E_MALFORMED.
+/* Missing file is ok (empty db). Malformed JSON returns RE_E_MALFORMED. */
 re_err_code_t re_dbg_db_load(re_dbg_db_t *db, re_arena_t *scratch, const char *module_path);
 re_err_code_t re_dbg_db_save(const re_dbg_db_t *db, re_arena_t *scratch);
 
 re_err_code_t re_dbg_db_add_bp(re_dbg_db_t *db, uint64_t rva, bool enabled);
 re_err_code_t re_dbg_db_add_label(re_dbg_db_t *db, uint64_t rva, const char *name);
 re_err_code_t re_dbg_db_add_comment(re_dbg_db_t *db, uint64_t rva, const char *text);
+re_err_code_t re_dbg_db_add_bookmark(re_dbg_db_t *db, uint64_t rva, const char *name);
+re_err_code_t re_dbg_db_add_patch(re_dbg_db_t *db, uint64_t rva, uint32_t size,
+                                  const char *orig_hex, const char *patch_hex);
+re_err_code_t re_dbg_db_add_func(re_dbg_db_t *db, uint64_t start_rva, uint64_t end_rva,
+                                 const char *name);
+re_err_code_t re_dbg_db_find_func(const re_dbg_db_t *db, uint64_t rva, re_dbg_db_func_t *out);
 
 #ifdef __cplusplus
 }
