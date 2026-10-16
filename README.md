@@ -111,6 +111,9 @@ vtable so both OSes link.
 | `sym` | Resolve `module:symbol` via PE export / ELF dynsym |
 | `bt` | Stack walk v0 (frame pointer or RSP dump) |
 | `script` / `source` | Run a file of debugger commands |
+| `headless` | Same as script; JSON summary includes `exit` for CI |
+| `triage-live` | Live triage: modules, entry, interesting imports, anti-debug |
+| ida-mcp shims | Optional honest aliases — see `docs/ida-mcp-shims.md` |
 | `note` / `notes` | Session notes with `{rax}` / `{$var}` formatting |
 | `log` | Append or list log lines (`{rax}` format; BP logs join this ring) |
 | `traces` | List/clear trace records with `--limit` / `--offset` paging |
