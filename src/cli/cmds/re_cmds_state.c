@@ -9,8 +9,8 @@
 #include "features/script/re_script.h"
 #include "utils/json/re_json.h"
 #include "utils/text/re_hex.h"
-#include "utils/text/re_strbuf.h"
 #include "utils/text/re_str.h"
+#include "utils/text/re_strbuf.h"
 
 #include <string.h>
 
@@ -259,7 +259,8 @@ static void mp_emit_cursor(re_jw_t *w, re_arena_t *a, size_t next, bool trunc) {
     re_jw_kcstr(w, "next_cursor", cur.p ? cur.p : "");
 }
 
-static bool mp_resolve_base(re_ctx_t *ctx, const char *tool, int argc, char **argv, uint64_t *base) {
+static bool mp_resolve_base(re_ctx_t *ctx, const char *tool, int argc, char **argv,
+                            uint64_t *base) {
     re_dbg_session_t *s = sess(ctx);
     re_dbg_regs_t regs;
     const char *p = re_cmd_positional(argc, argv, 0);
@@ -303,7 +304,7 @@ static size_t mp_page_limit(const re_ctx_t *ctx) {
 }
 
 static void mp_emit_ok(re_ctx_t *ctx, const char *tool, uint64_t base, uint64_t addr, size_t off,
-                    size_t lim, const char *hex) {
+                       size_t lim, const char *hex) {
     re_jw_t w;
     re_jw_init(&w, ctx->arena);
     re_jw_obj(&w);

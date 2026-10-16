@@ -351,8 +351,8 @@ int re_cmd_ida_open_database(re_ctx_t *ctx, const char *path, int argc, char **a
         re_jw_key(&w, "error");
         re_jw_obj(&w);
         re_jw_kcstr(&w, "code", re_err_json_code(c));
-        re_jw_kcstr(&w, "message", sess(ctx)->last_err.msg[0] ? sess(ctx)->last_err.msg
-                                                              : re_err_str(c));
+        re_jw_kcstr(&w, "message",
+                    sess(ctx)->last_err.msg[0] ? sess(ctx)->last_err.msg : re_err_str(c));
         re_jw_obj_end(&w);
     } else {
         re_jw_kbool(&w, "attached", sess(ctx)->attached);
