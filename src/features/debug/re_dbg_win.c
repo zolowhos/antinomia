@@ -91,13 +91,49 @@ static re_err_code_t stub_modules(re_dbg_backend_t *b, re_dbg_module_t *out, siz
         *n_out = 0;
     return RE_E_UNSUPPORTED;
 }
+static re_err_code_t stub_caps(re_dbg_backend_t *b, re_dbg_caps_t *out) {
+    (void)b;
+    if (out)
+        memset(out, 0, sizeof(*out));
+    return RE_E_UNSUPPORTED;
+}
+static re_err_code_t stub_hw_set(re_dbg_backend_t *b, int slot, uint64_t addr, uint8_t size,
+                                 uint8_t access) {
+    (void)b;
+    (void)slot;
+    (void)addr;
+    (void)size;
+    (void)access;
+    return RE_E_UNSUPPORTED;
+}
+static re_err_code_t stub_hw_clear(re_dbg_backend_t *b, int slot) {
+    (void)b;
+    (void)slot;
+    return RE_E_UNSUPPORTED;
+}
+static re_err_code_t stub_hw_hit(re_dbg_backend_t *b, uint32_t tid, int *slot_out,
+                                 uint64_t *addr_out) {
+    (void)b;
+    (void)tid;
+    if (slot_out)
+        *slot_out = -1;
+    if (addr_out)
+        *addr_out = 0;
+    return RE_E_UNSUPPORTED;
+}
+static re_err_code_t stub_rend(re_dbg_backend_t *b, uint64_t *addr_out) {
+    (void)b;
+    if (addr_out)
+        *addr_out = 0;
+    return RE_E_UNSUPPORTED;
+}
 static void stub_destroy(re_dbg_backend_t *b) {
     (void)b;
 }
-static const re_dbg_backend_vtbl_t kVtbl = {stub_launch,   stub_attach,   stub_detach, stub_kill,
-                                            stub_wait,     stub_cont,     stub_step,   stub_pause,
-                                            stub_get_regs, stub_set_regs, stub_read,   stub_write,
-                                            stub_threads,  stub_modules,  stub_destroy};
+static const re_dbg_backend_vtbl_t kVtbl = {
+    stub_launch, stub_attach, stub_detach, stub_kill, stub_wait, stub_cont, stub_step, stub_pause,
+    stub_get_regs, stub_set_regs, stub_read, stub_write, stub_threads, stub_modules, stub_caps,
+    stub_hw_set, stub_hw_clear, stub_hw_hit, stub_rend, stub_destroy};
 
 re_dbg_backend_t *re_dbg_backend_win_create(re_arena_t *a) {
     re_dbg_backend_t *b = (re_dbg_backend_t *)re_arena_alloc(a, sizeof(*b));
@@ -256,6 +292,11 @@ static const re_dbg_backend_vtbl_t kVtbl = {win_launch,
                                             re_dbg_win_write_mem,
                                             re_dbg_win_enum_threads,
                                             re_dbg_win_enum_modules,
+                                            re_dbg_win_get_caps,
+                                            re_dbg_win_hw_bp_set,
+                                            re_dbg_win_hw_bp_clear,
+                                            re_dbg_win_hw_bp_hit,
+                                            re_dbg_win_rendezvous_addr,
                                             win_destroy};
 
 re_dbg_backend_t *re_dbg_backend_win_create(re_arena_t *a) {

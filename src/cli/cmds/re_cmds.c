@@ -4,6 +4,7 @@
 // Depends: re_cmds.h, re_dbg, re_json. stdout only via re_jw_flush.
 #include "cli/cmds/re_cmds.h"
 
+#include "features/bp/re_dbg_advbp.h"
 #include "features/debug/re_dbg.h"
 #include "utils/json/re_json.h"
 #include "utils/text/re_str.h"
@@ -90,6 +91,18 @@ int re_cmd_status(re_ctx_t *ctx, const char *path, int argc, char **argv) {
     re_jw_ku64(&w, "tid", s->tid);
     re_jw_kcstr(&w, "path", s->path);
     re_jw_kcstr(&w, "backend", re_dbg_backend_name());
+    {
+        re_dbg_caps_t caps;
+        memset(&caps, 0, sizeof(caps));
+        (void)re_dbg_session_caps(s, &caps);
+        re_jw_key(&w, "caps");
+        re_jw_obj(&w);
+        re_jw_kbool(&w, "hw_bp", caps.hw_bp);
+        re_jw_kbool(&w, "mem_bp", caps.mem_bp);
+        re_jw_kbool(&w, "load_bp", caps.load_bp);
+        re_jw_ku64(&w, "hw_slots", caps.hw_slots);
+        re_jw_obj_end(&w);
+    }
     re_jw_key(&w, "last_event");
     re_jw_obj(&w);
     re_jw_kcstr(&w, "kind", re_dbg_event_kind_str(s->last_event.kind));
@@ -285,14 +298,14 @@ int re_cmd_bd(re_ctx_t *ctx, const char *path, int argc, char **argv) {
 }
 
 int re_cmd_bplist(re_ctx_t *ctx, const char *path, int argc, char **argv) {
-    re_dbg_bp_info_t list[64];
+    re_dbg_bp_ex_t list[96];
     size_t n = 0;
     re_err_code_t c;
     re_jw_t w;
     (void)path;
     (void)argc;
     (void)argv;
-    c = re_dbg_session_bp_list(sess(ctx), list, 64, &n);
+    c = re_dbg_session_bp_list_ex(sess(ctx), list, 96, &n);
     if (c != RE_OK)
         return finish(ctx, "bplist", c, "bplist failed");
     re_jw_init(&w, ctx->arena);
@@ -305,9 +318,16 @@ int re_cmd_bplist(re_ctx_t *ctx, const char *path, int argc, char **argv) {
     re_jw_arr(&w);
     for (size_t i = 0; i < n; i++) {
         re_jw_obj(&w);
+        re_jw_kcstr(&w, "kind", re_dbg_bp_kind_str(list[i].kind));
         re_jw_ku64(&w, "addr", list[i].addr);
         re_jw_kbool(&w, "enabled", list[i].enabled);
         re_jw_kbool(&w, "temporary", list[i].temporary);
+        if (list[i].kind == RE_DBG_BP_KIND_HW || list[i].kind == RE_DBG_BP_KIND_MEM) {
+            re_jw_kcstr(&w, "access", re_dbg_bp_access_str((re_dbg_bp_access_t)list[i].access));
+            re_jw_ku64(&w, "size", list[i].size ? list[i].size : list[i].len);
+        }
+        if (list[i].kind == RE_DBG_BP_KIND_LOAD)
+            re_jw_kcstr(&w, "name", list[i].name);
         re_jw_obj_end(&w);
     }
     re_jw_arr_end(&w);

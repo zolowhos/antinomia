@@ -33,7 +33,9 @@ Launch/attach, software breakpoints, step in/over, regs, memory R/W, modules + e
 
 ### Phase 2
 
-Hardware/memory/module-load BPs, expression engine, conditional BP, PDB/DWARF basics, map/threads/graph/trace panes, PE/ELF patch write-back.
+Hardware/memory/module-load BPs (`bph`/`bpm`/`bpdll`, `caps.hw_bp`/`caps.mem_bp`; see
+`docs/bp-fidelity.md`), expression engine, conditional BP, PDB/DWARF basics,
+map/threads/graph/trace panes, PE/ELF patch write-back.
 
 ### Phase 3
 

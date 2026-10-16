@@ -273,6 +273,73 @@ static size_t modrm_len(uint8_t modrm, const uint8_t *rest, size_t rest_n, bool 
     return n;
 }
 
+static re_err_code_t sess_note(re_dbg_session_t *s, re_err_code_t c, const char *msg) {
+    if (!s)
+        return c == RE_OK ? RE_E_INTERNAL : c;
+    if (c == RE_OK)
+        RE_ERR_OK(&s->last_err);
+    else
+        RE_ERR_SET(&s->last_err, c, msg);
+    return c;
+}
+
+re_err_code_t re_dbg_session_bp_set(re_dbg_session_t *s, uint64_t addr) {
+    re_err_code_t c;
+    if (!s || !s->backend || !s->backend->vt)
+        return sess_note(s, RE_E_INTERNAL, "debug session has no backend");
+    if (!s->attached)
+        return sess_note(s, RE_E_USAGE, "not attached");
+    if (!s->bps)
+        return sess_note(s, RE_E_INTERNAL, "breakpoint table missing");
+    c = re_dbg_bp_set(s->bps, s->backend, addr, false);
+    if (c != RE_OK)
+        return sess_note(s, c, "bp set failed");
+    return sess_note(s, RE_OK, NULL);
+}
+
+re_err_code_t re_dbg_session_bp_clear(re_dbg_session_t *s, uint64_t addr) {
+    re_err_code_t c;
+    if (!s || !s->attached)
+        return sess_note(s, RE_E_USAGE, "not attached");
+    c = re_dbg_bp_clear(s->bps, s->backend, addr);
+    if (c != RE_OK)
+        return sess_note(s, c, "bp clear failed");
+    return sess_note(s, RE_OK, NULL);
+}
+
+re_err_code_t re_dbg_session_bp_enable(re_dbg_session_t *s, uint64_t addr) {
+    re_err_code_t c;
+    if (!s || !s->attached)
+        return sess_note(s, RE_E_USAGE, "not attached");
+    c = re_dbg_bp_enable(s->bps, s->backend, addr);
+    if (c != RE_OK)
+        return sess_note(s, c, "bp enable failed");
+    return sess_note(s, RE_OK, NULL);
+}
+
+re_err_code_t re_dbg_session_bp_disable(re_dbg_session_t *s, uint64_t addr) {
+    re_err_code_t c;
+    if (!s || !s->attached)
+        return sess_note(s, RE_E_USAGE, "not attached");
+    c = re_dbg_bp_disable(s->bps, s->backend, addr);
+    if (c != RE_OK)
+        return sess_note(s, c, "bp disable failed");
+    return sess_note(s, RE_OK, NULL);
+}
+
+re_err_code_t re_dbg_session_bp_list(re_dbg_session_t *s, re_dbg_bp_info_t *out, size_t cap,
+                                     size_t *n_out) {
+    re_err_code_t c;
+    if (!s || !s->backend || !s->backend->vt)
+        return sess_note(s, RE_E_INTERNAL, "debug session has no backend");
+    if (!s->bps)
+        return sess_note(s, RE_E_INTERNAL, "breakpoint table missing");
+    c = re_dbg_bp_list(s->bps, out, cap, n_out);
+    if (c != RE_OK)
+        return sess_note(s, c, "bp list failed");
+    return sess_note(s, RE_OK, NULL);
+}
+
 bool re_dbg_x86_is_call(const uint8_t *buf, size_t cap, size_t *len_out) {
     size_t i = 0;
     uint8_t rex = 0;

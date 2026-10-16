@@ -1,7 +1,8 @@
 // re_dbg_session.c - long-lived debug session arena and control API.
 // Module: feature (C11).
-// Owns: session init/reset/free, BP/regs/mem/disasm/db wrappers, wait post-process.
-// Depends: re_dbg.h, re_dbg_bp.h, re_dbg_db, re_disasm.
+// Owns: session init/reset/free, regs/mem/disasm/db wrappers, wait post-process.
+// Depends: re_dbg.h, re_dbg_bp.h, re_dbg_advbp.h, re_dbg_db, re_disasm.
+#include "features/bp/re_dbg_advbp.h"
 #include "features/debug/re_dbg.h"
 #include "features/debug/re_dbg_bp.h"
 
@@ -84,6 +85,7 @@ void re_dbg_session_init(re_dbg_session_t *s) {
     re_arena_init(&s->arena, 64u * 1024u);
     s->backend = re_dbg_backend_create(&s->arena);
     s->bps = (re_dbg_bps_t *)re_arena_calloc(&s->arena, 1, sizeof(*s->bps));
+    s->advbp = (re_dbg_advbp_t *)re_arena_calloc(&s->arena, 1, sizeof(*s->advbp));
     s->last_err.code = RE_OK;
     re_disasm_cache_clear(&s->disasm_cache);
     re_dbg_db_init(&s->db);
@@ -94,6 +96,8 @@ void re_dbg_session_reset(re_dbg_session_t *s) {
     if (s->backend && s->backend->vt && s->backend->vt->detach && s->attached) {
         if (s->bps)
             (void)re_dbg_bp_disarm_all(s->bps, s->backend);
+        if (s->advbp)
+            (void)re_dbg_advbp_disarm_all(s->advbp, s->backend);
         s->backend->vt->detach(s->backend);
     }
     clear_target(s);
@@ -103,6 +107,7 @@ void re_dbg_session_reset(re_dbg_session_t *s) {
     re_arena_reset(&s->arena);
     s->backend = re_dbg_backend_create(&s->arena);
     s->bps = (re_dbg_bps_t *)re_arena_calloc(&s->arena, 1, sizeof(*s->bps));
+    s->advbp = (re_dbg_advbp_t *)re_arena_calloc(&s->arena, 1, sizeof(*s->advbp));
 }
 
 void re_dbg_session_free(re_dbg_session_t *s) {
@@ -111,6 +116,7 @@ void re_dbg_session_free(re_dbg_session_t *s) {
         s->backend->vt->destroy(s->backend);
     s->backend = NULL;
     s->bps = NULL;
+    s->advbp = NULL;
     re_dbg_db_clear(&s->db);
     re_arena_free(&s->arena);
 }
@@ -139,6 +145,8 @@ re_err_code_t re_dbg_session_launch(re_dbg_session_t *s, const char *path, const
     re_disasm_cache_clear(&s->disasm_cache);
     if (s->bps)
         re_dbg_bps_clear(s->bps);
+    if (s->advbp)
+        re_dbg_advbp_clear(s->advbp);
     s->attached = true;
     copy_path(s, path);
     load_db_for_path(s, path);
@@ -160,6 +168,8 @@ re_err_code_t re_dbg_session_attach(re_dbg_session_t *s, uint32_t pid) {
     re_disasm_cache_clear(&s->disasm_cache);
     if (s->bps)
         re_dbg_bps_clear(s->bps);
+    if (s->advbp)
+        re_dbg_advbp_clear(s->advbp);
     s->attached = true;
     s->pid = pid;
     return note(s, RE_OK, NULL);
@@ -171,6 +181,8 @@ re_err_code_t re_dbg_session_detach(re_dbg_session_t *s) {
         return c;
     if (s->attached && s->bps)
         (void)re_dbg_bp_disarm_all(s->bps, s->backend);
+    if (s->attached && s->advbp)
+        (void)re_dbg_advbp_disarm_all(s->advbp, s->backend);
     if (!s->backend->vt->detach)
         return note(s, RE_E_UNSUPPORTED, "detach is not available on this backend");
     save_db_if_dirty(s);
@@ -181,6 +193,8 @@ re_err_code_t re_dbg_session_detach(re_dbg_session_t *s) {
     re_disasm_cache_clear(&s->disasm_cache);
     if (s->bps)
         re_dbg_bps_clear(s->bps);
+    if (s->advbp)
+        re_dbg_advbp_clear(s->advbp);
     return note(s, RE_OK, NULL);
 }
 
@@ -198,6 +212,8 @@ re_err_code_t re_dbg_session_kill(re_dbg_session_t *s) {
     re_disasm_cache_clear(&s->disasm_cache);
     if (s->bps)
         re_dbg_bps_clear(s->bps);
+    if (s->advbp)
+        re_dbg_advbp_clear(s->advbp);
     return note(s, RE_OK, NULL);
 }
 
@@ -274,15 +290,39 @@ re_err_code_t re_dbg_session_pause(re_dbg_session_t *s) {
 
 static void post_event(re_dbg_session_t *s, re_dbg_event_t *ev) {
     bool consumed = false;
-    if (!s->bps || !ev)
+    if (!ev)
         return;
-    if (ev->kind == RE_DBG_EV_BREAK)
+    if (s->bps && ev->kind == RE_DBG_EV_BREAK)
         (void)re_dbg_bp_on_hit(s->bps, s->backend, ev->tid, &ev->addr);
-    if (ev->kind == RE_DBG_EV_STEP) {
+    if (s->advbp && (ev->kind == RE_DBG_EV_BREAK || ev->kind == RE_DBG_EV_STEP)) {
+        if (re_dbg_advbp_on_break(s->advbp, s->backend, ev->tid, &ev->addr))
+            ev->kind = RE_DBG_EV_BREAK;
+    }
+    if (s->bps && ev->kind == RE_DBG_EV_STEP) {
         (void)re_dbg_bp_after_step(s->bps, s->backend, &consumed);
         if (consumed)
             ev->kind = RE_DBG_EV_NONE;
     }
+}
+
+static bool load_bp_should_stop(re_dbg_session_t *s, re_dbg_event_t *ev) {
+    re_dbg_module_t mods[64];
+    size_t n = 0, i;
+    if (!s->advbp || !re_dbg_advbp_has_load(s->advbp))
+        return true;
+    if (ev->kind == RE_DBG_EV_BREAK && re_dbg_advbp_is_rendezvous(s->advbp, ev->addr)) {
+        ev->kind = RE_DBG_EV_LOAD_MODULE;
+        return true;
+    }
+    if (ev->kind != RE_DBG_EV_LOAD_MODULE)
+        return true;
+    if (re_dbg_session_enum_modules(s, mods, 64, &n) != RE_OK)
+        return true;
+    for (i = 0; i < n; i++) {
+        if (mods[i].base == ev->addr && re_dbg_advbp_load_matches(s->advbp, mods[i].path))
+            return true;
+    }
+    return !re_dbg_advbp_has_load(s->advbp);
 }
 
 re_err_code_t re_dbg_session_wait_event(re_dbg_session_t *s, re_dbg_event_t *ev,
@@ -301,6 +341,11 @@ re_err_code_t re_dbg_session_wait_event(re_dbg_session_t *s, re_dbg_event_t *ev,
         if (c != RE_OK)
             return note(s, c, "wait_event failed or is not implemented");
         post_event(s, ev);
+        if (ev->kind != RE_DBG_EV_NONE && !load_bp_should_stop(s, ev)) {
+            if (s->backend->vt->cont)
+                (void)s->backend->vt->cont(s->backend);
+            continue;
+        }
         if (ev->kind != RE_DBG_EV_NONE)
             break;
         if (timeout_ms != 0)
@@ -396,61 +441,6 @@ re_err_code_t re_dbg_session_disasm(re_dbg_session_t *s, uint64_t addr, size_t c
         out[i] = s->disasm_cache.lines[i];
     if (n_out)
         *n_out = i;
-    return note(s, RE_OK, NULL);
-}
-
-re_err_code_t re_dbg_session_bp_set(re_dbg_session_t *s, uint64_t addr) {
-    re_err_code_t c = need_attached(s);
-    if (c != RE_OK)
-        return c;
-    if (!s->bps)
-        return note(s, RE_E_INTERNAL, "breakpoint table missing");
-    c = re_dbg_bp_set(s->bps, s->backend, addr, false);
-    if (c != RE_OK)
-        return note(s, c, "bp set failed");
-    return note(s, RE_OK, NULL);
-}
-
-re_err_code_t re_dbg_session_bp_clear(re_dbg_session_t *s, uint64_t addr) {
-    re_err_code_t c = need_attached(s);
-    if (c != RE_OK)
-        return c;
-    c = re_dbg_bp_clear(s->bps, s->backend, addr);
-    if (c != RE_OK)
-        return note(s, c, "bp clear failed");
-    return note(s, RE_OK, NULL);
-}
-
-re_err_code_t re_dbg_session_bp_enable(re_dbg_session_t *s, uint64_t addr) {
-    re_err_code_t c = need_attached(s);
-    if (c != RE_OK)
-        return c;
-    c = re_dbg_bp_enable(s->bps, s->backend, addr);
-    if (c != RE_OK)
-        return note(s, c, "bp enable failed");
-    return note(s, RE_OK, NULL);
-}
-
-re_err_code_t re_dbg_session_bp_disable(re_dbg_session_t *s, uint64_t addr) {
-    re_err_code_t c = need_attached(s);
-    if (c != RE_OK)
-        return c;
-    c = re_dbg_bp_disable(s->bps, s->backend, addr);
-    if (c != RE_OK)
-        return note(s, c, "bp disable failed");
-    return note(s, RE_OK, NULL);
-}
-
-re_err_code_t re_dbg_session_bp_list(re_dbg_session_t *s, re_dbg_bp_info_t *out, size_t cap,
-                                     size_t *n_out) {
-    re_err_code_t c = need_backend(s);
-    if (c != RE_OK)
-        return c;
-    if (!s->bps)
-        return note(s, RE_E_INTERNAL, "breakpoint table missing");
-    c = re_dbg_bp_list(s->bps, out, cap, n_out);
-    if (c != RE_OK)
-        return note(s, c, "bp list failed");
     return note(s, RE_OK, NULL);
 }
 

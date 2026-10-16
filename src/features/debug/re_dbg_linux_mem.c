@@ -273,6 +273,117 @@ re_err_code_t re_dbg_linux_enum_modules(re_dbg_backend_t *b, re_dbg_module_t *ou
     return RE_OK;
 }
 
+#    define RE_ELF_DT_DEBUG 21
+#    define RE_ELF_PT_DYNAMIC 2
+#    define RE_ELF_PT_PHDR 6
+
+static re_err_code_t read_u32(re_dbg_backend_t *b, uint64_t addr, uint32_t *out) {
+    return re_dbg_linux_read_mem(b, addr, out, sizeof(*out));
+}
+
+static re_err_code_t read_u64(re_dbg_backend_t *b, uint64_t addr, uint64_t *out) {
+    return re_dbg_linux_read_mem(b, addr, out, sizeof(*out));
+}
+
+static bool auxv_phdr(re_dbg_linux_t *st, uint64_t *phdr, uint64_t *phnum) {
+    char path[64];
+    FILE *fp;
+    uint64_t pair[2];
+    *phdr = 0;
+    *phnum = 0;
+    snprintf(path, sizeof(path), "/proc/%d/auxv", (int)st->pid);
+    fp = fopen(path, "rb");
+    if (!fp)
+        return false;
+    while (fread(pair, sizeof(pair), 1, fp) == 1) {
+        if (pair[0] == 0)
+            break;
+        if (pair[0] == 3u) /* AT_PHDR */
+            *phdr = pair[1];
+        if (pair[0] == 5u) /* AT_PHNUM */
+            *phnum = pair[1];
+    }
+    fclose(fp);
+    return *phdr != 0 && *phnum != 0;
+}
+
+static re_err_code_t find_dt_debug(re_dbg_backend_t *b, uint64_t phdr, uint64_t phnum,
+                                   uint64_t *debug_out) {
+    uint64_t i;
+    uint64_t dyn_vaddr = 0;
+    uint64_t dyn_filesz = 0;
+    uint64_t load_bias = 0;
+    *debug_out = 0;
+    for (i = 0; i < phnum; i++) {
+        uint64_t off = phdr + i * 56u; /* Elf64_Phdr */
+        uint32_t type = 0;
+        uint64_t vaddr = 0, filesz = 0;
+        if (read_u32(b, off, &type) != RE_OK)
+            return RE_E_IO;
+        if (type == RE_ELF_PT_PHDR) {
+            if (read_u64(b, off + 16u, &vaddr) != RE_OK)
+                return RE_E_IO;
+            load_bias = phdr - vaddr;
+        }
+        if (type == RE_ELF_PT_DYNAMIC) {
+            if (read_u64(b, off + 16u, &vaddr) != RE_OK)
+                return RE_E_IO;
+            if (read_u64(b, off + 32u, &filesz) != RE_OK)
+                return RE_E_IO;
+            dyn_vaddr = vaddr;
+            dyn_filesz = filesz;
+        }
+    }
+    if (dyn_vaddr == 0)
+        return RE_E_NOTFOUND;
+    {
+        uint64_t dyn = dyn_vaddr + load_bias;
+        uint64_t end = dyn + dyn_filesz;
+        while (dyn + 16u <= end) {
+            uint64_t tag = 0, val = 0;
+            if (read_u64(b, dyn, &tag) != RE_OK || read_u64(b, dyn + 8u, &val) != RE_OK)
+                return RE_E_IO;
+            if (tag == 0)
+                break;
+            if (tag == (uint64_t)RE_ELF_DT_DEBUG) {
+                *debug_out = val;
+                return RE_OK;
+            }
+            dyn += 16u;
+        }
+    }
+    return RE_E_NOTFOUND;
+}
+
+re_err_code_t re_dbg_linux_rendezvous_addr(re_dbg_backend_t *b, uint64_t *addr_out) {
+    re_dbg_linux_t *st = re_dbg_linux(b);
+    uint64_t phdr = 0, phnum = 0, r_debug = 0, r_brk = 0;
+    re_err_code_t c;
+    if (addr_out)
+        *addr_out = 0;
+    if (!st)
+        return RE_E_INTERNAL;
+    if (!st->attached)
+        return re_dbg_linux_fail(st, RE_E_USAGE, "not attached");
+    if (!addr_out)
+        return RE_E_USAGE;
+    if (!auxv_phdr(st, &phdr, &phnum))
+        return re_dbg_linux_fail(st, RE_E_IO, "auxv AT_PHDR missing");
+    c = find_dt_debug(b, phdr, phnum, &r_debug);
+    if (c != RE_OK)
+        return re_dbg_linux_fail(st, c, "DT_DEBUG not found");
+    if (r_debug == 0)
+        return re_dbg_linux_fail(st, RE_E_IO, "r_debug is null");
+    /* struct r_debug: r_brk at offset 16 on LP64. */
+    c = read_u64(b, r_debug + 16u, &r_brk);
+    if (c != RE_OK)
+        return c;
+    if (r_brk == 0)
+        return re_dbg_linux_fail(st, RE_E_IO, "r_debug.r_brk is null");
+    *addr_out = r_brk;
+    return RE_OK;
+}
+
 #else
 typedef int re_dbg_linux_mem_placeholder;
 #endif /* __linux__ */

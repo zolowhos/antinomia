@@ -296,6 +296,141 @@ re_err_code_t re_dbg_linux_enum_threads(re_dbg_backend_t *b, re_dbg_thread_t *ou
     return RE_OK;
 }
 
+#    include <stddef.h>
+
+static pid_t hw_tid(re_dbg_linux_t *st) {
+    return st->cur_tid > 0 ? st->cur_tid : st->pid;
+}
+
+static unsigned long dr_off(int idx) {
+    return (unsigned long)offsetof(struct user, u_debugreg[idx]);
+}
+
+static uint32_t dr_len_bits(uint8_t size) {
+    if (size == 2u)
+        return 1u;
+    if (size == 8u)
+        return 2u;
+    if (size == 4u)
+        return 3u;
+    return 0u;
+}
+
+static re_err_code_t peek_dr(re_dbg_linux_t *st, pid_t tid, int idx, uint64_t *out) {
+    errno = 0;
+    long v = ptrace(PTRACE_PEEKUSER, tid, (void *)(uintptr_t)dr_off(idx), NULL);
+    if (errno != 0)
+        return re_dbg_linux_fail_errno(st, "PTRACE_PEEKUSER debugreg");
+    if (out)
+        *out = (uint64_t)v;
+    return RE_OK;
+}
+
+static re_err_code_t poke_dr(re_dbg_linux_t *st, pid_t tid, int idx, uint64_t val) {
+    if (ptrace(PTRACE_POKEUSER, tid, (void *)(uintptr_t)dr_off(idx), (void *)(uintptr_t)val) != 0)
+        return re_dbg_linux_fail_errno(st, "PTRACE_POKEUSER debugreg");
+    return RE_OK;
+}
+
+re_err_code_t re_dbg_linux_get_caps(re_dbg_backend_t *b, re_dbg_caps_t *out) {
+    (void)b;
+    if (!out)
+        return RE_E_USAGE;
+    memset(out, 0, sizeof(*out));
+    out->hw_bp = true;
+    out->mem_bp = true; /* fidelity: DR watch only; see docs/bp-fidelity.md */
+    out->load_bp = true;
+    out->hw_slots = 4u;
+    return RE_OK;
+}
+
+re_err_code_t re_dbg_linux_hw_bp_set(re_dbg_backend_t *b, int slot, uint64_t addr, uint8_t size,
+                                     uint8_t access) {
+    re_dbg_linux_t *st = re_dbg_linux(b);
+    uint64_t dr7 = 0;
+    uint32_t shift;
+    pid_t tid;
+    re_err_code_t c;
+    if (!st)
+        return RE_E_INTERNAL;
+    if (!st->attached)
+        return re_dbg_linux_fail(st, RE_E_USAGE, "not attached");
+    if (slot < 0 || slot > 3)
+        return re_dbg_linux_fail(st, RE_E_RANGE, "hw slot must be 0..3");
+    if (access != 0u && access != 1u && access != 3u)
+        return re_dbg_linux_fail(st, RE_E_USAGE, "bad hw access");
+    tid = hw_tid(st);
+    c = poke_dr(st, tid, slot, addr);
+    if (c != RE_OK)
+        return c;
+    c = peek_dr(st, tid, 7, &dr7);
+    if (c != RE_OK)
+        return c;
+    dr7 |= (1ull << (unsigned)(slot * 2)); /* local enable */
+    shift = 16u + (uint32_t)slot * 4u;
+    dr7 &= ~(0xfull << shift);
+    dr7 |= ((uint64_t)access & 3u) << shift;
+    dr7 |= ((uint64_t)dr_len_bits(size) & 3u) << (shift + 2u);
+    return poke_dr(st, tid, 7, dr7);
+}
+
+re_err_code_t re_dbg_linux_hw_bp_clear(re_dbg_backend_t *b, int slot) {
+    re_dbg_linux_t *st = re_dbg_linux(b);
+    uint64_t dr7 = 0;
+    uint32_t shift;
+    pid_t tid;
+    re_err_code_t c;
+    if (!st)
+        return RE_E_INTERNAL;
+    if (!st->attached)
+        return re_dbg_linux_fail(st, RE_E_USAGE, "not attached");
+    if (slot < 0 || slot > 3)
+        return re_dbg_linux_fail(st, RE_E_RANGE, "hw slot must be 0..3");
+    tid = hw_tid(st);
+    c = peek_dr(st, tid, 7, &dr7);
+    if (c != RE_OK)
+        return c;
+    dr7 &= ~(3ull << (unsigned)(slot * 2));
+    shift = 16u + (uint32_t)slot * 4u;
+    dr7 &= ~(0xfull << shift);
+    c = poke_dr(st, tid, 7, dr7);
+    if (c != RE_OK)
+        return c;
+    return poke_dr(st, tid, slot, 0);
+}
+
+re_err_code_t re_dbg_linux_hw_bp_hit(re_dbg_backend_t *b, uint32_t tid, int *slot_out,
+                                     uint64_t *addr_out) {
+    re_dbg_linux_t *st = re_dbg_linux(b);
+    uint64_t dr6 = 0;
+    pid_t t;
+    int i;
+    re_err_code_t c;
+    if (slot_out)
+        *slot_out = -1;
+    if (addr_out)
+        *addr_out = 0;
+    if (!st)
+        return RE_E_INTERNAL;
+    if (!st->attached)
+        return re_dbg_linux_fail(st, RE_E_USAGE, "not attached");
+    t = tid ? (pid_t)tid : hw_tid(st);
+    c = peek_dr(st, t, 6, &dr6);
+    if (c != RE_OK)
+        return c;
+    for (i = 0; i < 4; i++) {
+        if ((dr6 & (1ull << (unsigned)i)) == 0)
+            continue;
+        if (slot_out)
+            *slot_out = i;
+        if (addr_out)
+            (void)peek_dr(st, t, i, addr_out);
+        (void)poke_dr(st, t, 6, 0);
+        return RE_OK;
+    }
+    return RE_E_NOTFOUND;
+}
+
 #else
 typedef int re_dbg_linux_evt_placeholder;
 #endif /* __linux__ */

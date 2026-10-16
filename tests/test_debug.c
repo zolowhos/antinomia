@@ -5,6 +5,7 @@
 #if defined(__linux__)
 #    define _GNU_SOURCE
 #endif
+#include "features/bp/re_dbg_advbp.h"
 #include "features/debug/re_dbg.h"
 #include "re_test.h"
 
@@ -363,6 +364,62 @@ static void test_modules_sym_bt(void) {
     re_dbg_session_free(&s);
 }
 
+static void test_caps_hw_mem_load_bp(void) {
+    re_dbg_session_t s;
+    re_dbg_event_t ev;
+    re_dbg_caps_t caps;
+    re_dbg_regs_t regs;
+    re_dbg_bp_ex_t list[16];
+    re_dbg_symbol_t info;
+    size_t n = 0;
+    uint64_t watch = 0;
+    uint64_t rend = 0;
+    re_dbg_session_init(&s);
+    RE_CHECK_EQ_U(re_dbg_session_caps(&s, &caps), RE_OK);
+    RE_CHECK(caps.hw_bp);
+    RE_CHECK(caps.mem_bp);
+    RE_CHECK(caps.load_bp);
+    RE_CHECK_EQ_U(caps.hw_slots, 4u);
+    RE_CHECK_EQ_U(re_dbg_session_launch(&s, g_inferior, NULL), RE_OK);
+    RE_CHECK_EQ_U(re_dbg_session_wait_event(&s, &ev, 2000), RE_OK);
+    RE_CHECK_EQ_U(ev.kind, RE_DBG_EV_CREATE);
+    RE_CHECK_EQ_U(re_dbg_session_wait_event(&s, &ev, 2000), RE_OK);
+    RE_CHECK_EQ_U(ev.kind, RE_DBG_EV_BREAK);
+    RE_CHECK_EQ_U(re_dbg_session_get_regs(&s, 0, &regs), RE_OK);
+    RE_CHECK_EQ_U(re_dbg_session_hw_bp_set(&s, regs.rip, 1, RE_DBG_BP_AX_X), RE_OK);
+    RE_CHECK_EQ_U(re_dbg_session_bp_list_ex(&s, list, 16, &n), RE_OK);
+    RE_CHECK(n >= 1);
+    RE_CHECK_EQ_U(re_dbg_session_cont(&s), RE_OK);
+    RE_CHECK_EQ_U(re_dbg_session_wait_event(&s, &ev, 2000), RE_OK);
+    RE_CHECK_EQ_U(ev.kind, RE_DBG_EV_BREAK);
+    RE_CHECK_EQ_U(ev.addr, regs.rip);
+    RE_CHECK_EQ_U(re_dbg_session_hw_bp_clear(&s, regs.rip), RE_OK);
+    RE_CHECK_EQ_U(re_dbg_session_resolve(&s, "loop_inferior:antinomia_watch", &watch, &info),
+                  RE_OK);
+    RE_CHECK(watch != 0);
+    RE_CHECK_EQ_U(re_dbg_session_mem_bp_set(&s, watch, 4, RE_DBG_BP_AX_W), RE_OK);
+    RE_CHECK_EQ_U(re_dbg_session_cont(&s), RE_OK);
+    RE_CHECK_EQ_U(re_dbg_session_wait_event(&s, &ev, 3000), RE_OK);
+    RE_CHECK_EQ_U(ev.kind, RE_DBG_EV_BREAK);
+    RE_CHECK_EQ_U(ev.addr, watch);
+    RE_CHECK_EQ_U(re_dbg_session_mem_bp_clear(&s, watch), RE_OK);
+    RE_CHECK_EQ_U(s.backend->vt->rendezvous_addr(s.backend, &rend), RE_OK);
+    RE_CHECK(rend != 0);
+    RE_CHECK_EQ_U(re_dbg_session_load_bp_set(&s, "libm"), RE_OK);
+    RE_CHECK_EQ_U(re_dbg_session_bp_list_ex(&s, list, 16, &n), RE_OK);
+    {
+        size_t i;
+        bool saw_load = false;
+        for (i = 0; i < n; i++) {
+            if (list[i].kind == RE_DBG_BP_KIND_LOAD)
+                saw_load = true;
+        }
+        RE_CHECK(saw_load);
+    }
+    RE_CHECK_EQ_U(re_dbg_session_kill(&s), RE_OK);
+    re_dbg_session_free(&s);
+}
+
 #else /* non-Linux, non-Windows host */
 
 static void test_stubs(void) {
@@ -430,6 +487,7 @@ int main(int argc, char **argv) {
     test_soft_bp_step_pause();
     test_modules_sym_bt();
     test_launch_bp_regs_step_detach();
+    test_caps_hw_mem_load_bp();
 #else
     test_stubs();
     test_session_api_degrades();

@@ -64,6 +64,13 @@ typedef struct {
 } re_dbg_bp_info_t;
 
 typedef struct {
+    bool hw_bp;
+    bool mem_bp;
+    bool load_bp;
+    uint32_t hw_slots;
+} re_dbg_caps_t;
+
+typedef struct {
     uint64_t addr;
     char name[128];
     char module[64];
@@ -78,6 +85,7 @@ typedef struct {
 } re_dbg_frame_t;
 
 typedef struct re_dbg_bps re_dbg_bps_t;
+typedef struct re_dbg_advbp re_dbg_advbp_t;
 typedef struct re_dbg_backend re_dbg_backend_t;
 
 // Stable OS backend contract. Parallel Linux/Windows PRs implement these ops;
@@ -99,6 +107,15 @@ typedef struct re_dbg_backend_vtbl {
                                   size_t *n_out);
     re_err_code_t (*enum_modules)(re_dbg_backend_t *b, re_dbg_module_t *out, size_t cap,
                                   size_t *n_out);
+    re_err_code_t (*get_caps)(re_dbg_backend_t *b, re_dbg_caps_t *out);
+    /* size: 1/2/4/8; access: 0=exec, 1=write, 3=read/write (DR7 encoding). */
+    re_err_code_t (*hw_bp_set)(re_dbg_backend_t *b, int slot, uint64_t addr, uint8_t size,
+                               uint8_t access);
+    re_err_code_t (*hw_bp_clear)(re_dbg_backend_t *b, int slot);
+    re_err_code_t (*hw_bp_hit)(re_dbg_backend_t *b, uint32_t tid, int *slot_out,
+                               uint64_t *addr_out);
+    /* Linux: ld.so r_brk; Windows: 0 (LOAD_DLL events cover load BP). */
+    re_err_code_t (*rendezvous_addr)(re_dbg_backend_t *b, uint64_t *addr_out);
     void (*destroy)(re_dbg_backend_t *b);
 } re_dbg_backend_vtbl_t;
 
@@ -121,6 +138,7 @@ typedef struct re_dbg_session {
     re_err_t last_err;
     re_disasm_cache_t disasm_cache;
     re_dbg_bps_t *bps;
+    re_dbg_advbp_t *advbp;
     re_dbg_db_t db; /* per-module annotations; load on launch, save on exit */
 } re_dbg_session_t;
 

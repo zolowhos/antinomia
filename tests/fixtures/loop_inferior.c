@@ -1,8 +1,15 @@
 // loop_inferior.c - tiny sleeper used by Linux debug integration tests.
 // Module: test (C11).
-// Owns: a long-lived process that exits only on signal, plus one export.
-// Depends: unistd. Built only on Linux for Pack A/F process-control tests.
+// Owns: long-lived process, export marker, watch cell, optional dlopen.
+// Depends: unistd, dlfcn. Built only on Linux for process-control tests.
+#define _GNU_SOURCE
+#include <dlfcn.h>
 #include <unistd.h>
+
+#if defined(__GNUC__)
+__attribute__((visibility("default")))
+#endif
+volatile int antinomia_watch = 0;
 
 #if defined(__GNUC__)
 __attribute__((visibility("default")))
@@ -10,9 +17,20 @@ __attribute__((visibility("default")))
 void antinomia_marker(void) {
 }
 
+#if defined(__GNUC__)
+__attribute__((visibility("default")))
+#endif
+void antinomia_touch(void) {
+    antinomia_watch = 0x5a;
+}
+
 int main(void) {
     antinomia_marker();
-    for (;;)
-        pause();
+    /* Trigger a late module load so bpdll / r_brk tests have something to hit. */
+    (void)dlopen("libm.so.6", RTLD_NOW);
+    for (;;) {
+        antinomia_touch();
+        usleep(1000);
+    }
     return 0;
 }

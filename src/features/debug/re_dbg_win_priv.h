@@ -67,3 +67,10 @@ void re_dbg_win_mod_clear(re_dbg_win_impl_t *w);
 void re_dbg_win_mod_note(re_dbg_win_impl_t *w, uint64_t base, HANDLE file, const void *name_ptr,
                          bool unicode);
 void re_dbg_win_mod_unload(re_dbg_win_impl_t *w, uint64_t base);
+re_err_code_t re_dbg_win_get_caps(re_dbg_backend_t *b, re_dbg_caps_t *out);
+re_err_code_t re_dbg_win_hw_bp_set(re_dbg_backend_t *b, int slot, uint64_t addr, uint8_t size,
+                                   uint8_t access);
+re_err_code_t re_dbg_win_hw_bp_clear(re_dbg_backend_t *b, int slot);
+re_err_code_t re_dbg_win_hw_bp_hit(re_dbg_backend_t *b, uint32_t tid, int *slot_out,
+                                   uint64_t *addr_out);
+re_err_code_t re_dbg_win_rendezvous_addr(re_dbg_backend_t *b, uint64_t *addr_out);
