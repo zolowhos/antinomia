@@ -1,10 +1,12 @@
-// re_dbg_win.c - Windows Debug API backend stub (links; live ops in Phase 1 pack B).
+// re_dbg_win.c - Windows Debug API backend (launch, attach, detach, kill).
 // Module: feature (C11).
-// Owns: the Windows stub vtable that returns RE_E_UNSUPPORTED for every op.
-// Depends: re_dbg.h. Keep the vtable layout stable for parallel backend PRs.
+// Owns: CreateProcess/DebugActiveProcess lifecycle and the Windows vtable.
+// Depends: re_dbg.h, re_dbg_win_priv.h on Windows. Non-Windows builds keep a stub.
 #include "features/debug/re_dbg.h"
 
 #include <string.h>
+
+#if !defined(_WIN32)
 
 static re_err_code_t stub_launch(re_dbg_backend_t *b, const char *path, const char *args) {
     (void)b;
@@ -101,3 +103,199 @@ re_dbg_backend_t *re_dbg_backend_win_create(re_arena_t *a) {
     b->impl = NULL;
     return b;
 }
+
+#else /* _WIN32 */
+
+#include "features/debug/re_dbg_win_priv.h"
+
+static re_err_code_t win_build_cmd(char *dst, size_t cap, const char *path, const char *args) {
+    size_t pi = 0;
+    size_t di = 0;
+    if (!path || !path[0] || cap < 4)
+        return RE_E_USAGE;
+    dst[di++] = '"';
+    while (path[pi] && di + 2 < cap)
+        dst[di++] = path[pi++];
+    if (path[pi])
+        return RE_E_RANGE;
+    dst[di++] = '"';
+    if (args && args[0]) {
+        if (di + 1 >= cap)
+            return RE_E_RANGE;
+        dst[di++] = ' ';
+        size_t ai = 0;
+        while (args[ai] && di + 1 < cap)
+            dst[di++] = args[ai++];
+        if (args[ai])
+            return RE_E_RANGE;
+    }
+    dst[di] = 0;
+    return RE_OK;
+}
+
+static re_err_code_t win_launch(re_dbg_backend_t *b, const char *path, const char *args) {
+    re_dbg_win_impl_t *w = re_dbg_win_impl(b);
+    STARTUPINFOA si;
+    PROCESS_INFORMATION pi;
+    char cmd[32768];
+    re_err_code_t rc;
+    if (!w)
+        return RE_E_INTERNAL;
+    if (w->active)
+        return RE_E_USAGE;
+    rc = win_build_cmd(cmd, sizeof(cmd), path, args);
+    if (rc != RE_OK)
+        return rc;
+    memset(&si, 0, sizeof(si));
+    si.cb = sizeof(si);
+    memset(&pi, 0, sizeof(pi));
+    re_dbg_win_enable_debug_priv();
+    if (!CreateProcessA(NULL, cmd, NULL, NULL, FALSE,
+                        DEBUG_ONLY_THIS_PROCESS | CREATE_NEW_CONSOLE, NULL, NULL, &si, &pi))
+        return RE_E_IO;
+    CloseHandle(pi.hThread);
+    CloseHandle(pi.hProcess);
+    w->active = true;
+    w->pid = pi.dwProcessId;
+    DebugSetProcessKillOnExit(FALSE);
+    rc = re_dbg_win_pump_to_break(w);
+    if (rc != RE_OK) {
+        re_dbg_win_reset_state(w);
+        return rc;
+    }
+    return RE_OK;
+}
+
+static re_err_code_t win_attach(re_dbg_backend_t *b, uint32_t pid) {
+    re_dbg_win_impl_t *w = re_dbg_win_impl(b);
+    re_err_code_t rc;
+    if (!w)
+        return RE_E_INTERNAL;
+    if (w->active || pid == 0)
+        return RE_E_USAGE;
+    re_dbg_win_enable_debug_priv();
+    if (!DebugActiveProcess((DWORD)pid))
+        return RE_E_IO;
+    DebugSetProcessKillOnExit(FALSE);
+    w->active = true;
+    w->pid = (DWORD)pid;
+    rc = re_dbg_win_pump_to_break(w);
+    if (rc != RE_OK) {
+        DebugActiveProcessStop((DWORD)pid);
+        re_dbg_win_reset_state(w);
+        return rc;
+    }
+    return RE_OK;
+}
+
+static re_err_code_t win_detach(re_dbg_backend_t *b) {
+    re_dbg_win_impl_t *w = re_dbg_win_impl(b);
+    DWORD pid;
+    if (!w || !w->active)
+        return RE_E_USAGE;
+    pid = w->pid;
+    DebugSetProcessKillOnExit(FALSE);
+    if (w->pending && !re_dbg_win_continue(w, DBG_CONTINUE))
+        return RE_E_IO;
+    w->stashed = false;
+    if (!DebugActiveProcessStop(pid))
+        return RE_E_IO;
+    re_dbg_win_reset_state(w);
+    return RE_OK;
+}
+
+static re_err_code_t win_kill(re_dbg_backend_t *b) {
+    re_dbg_win_impl_t *w = re_dbg_win_impl(b);
+    if (!w || !w->active)
+        return RE_E_USAGE;
+    DebugSetProcessKillOnExit(TRUE);
+    if (w->process)
+        TerminateProcess(w->process, 1);
+    if (w->pending)
+        re_dbg_win_continue(w, DBG_CONTINUE);
+    w->stashed = false;
+    for (;;) {
+        DEBUG_EVENT de;
+        if (!WaitForDebugEvent(&de, 5000))
+            break;
+        w->last_pid = de.dwProcessId;
+        w->last_tid = de.dwThreadId;
+        re_dbg_win_track(w, &de);
+        ContinueDebugEvent(de.dwProcessId, de.dwThreadId, DBG_CONTINUE);
+        if (de.dwDebugEventCode == EXIT_PROCESS_DEBUG_EVENT)
+            break;
+    }
+    re_dbg_win_reset_state(w);
+    return RE_OK;
+}
+
+static re_err_code_t win_step(re_dbg_backend_t *b) {
+    (void)b;
+    return RE_E_UNSUPPORTED;
+}
+static re_err_code_t win_get_regs(re_dbg_backend_t *b, uint32_t tid, re_dbg_regs_t *out) {
+    (void)b;
+    (void)tid;
+    if (out)
+        memset(out, 0, sizeof(*out));
+    return RE_E_UNSUPPORTED;
+}
+static re_err_code_t win_set_regs(re_dbg_backend_t *b, uint32_t tid, const re_dbg_regs_t *in) {
+    (void)b;
+    (void)tid;
+    (void)in;
+    return RE_E_UNSUPPORTED;
+}
+static re_err_code_t win_read(re_dbg_backend_t *b, uint64_t addr, void *dst, size_t n) {
+    (void)b;
+    (void)addr;
+    if (dst && n)
+        memset(dst, 0, n);
+    return RE_E_UNSUPPORTED;
+}
+static re_err_code_t win_write(re_dbg_backend_t *b, uint64_t addr, const void *src, size_t n) {
+    (void)b;
+    (void)addr;
+    (void)src;
+    (void)n;
+    return RE_E_UNSUPPORTED;
+}
+static re_err_code_t win_modules(re_dbg_backend_t *b, re_dbg_module_t *out, size_t cap,
+                                 size_t *n_out) {
+    (void)b;
+    (void)out;
+    (void)cap;
+    if (n_out)
+        *n_out = 0;
+    return RE_E_UNSUPPORTED;
+}
+
+static void win_destroy(re_dbg_backend_t *b) {
+    re_dbg_win_impl_t *w = re_dbg_win_impl(b);
+    if (!w)
+        return;
+    if (w->active)
+        (void)win_kill(b);
+    re_dbg_win_reset_state(w);
+}
+
+static const re_dbg_backend_vtbl_t kVtbl = {
+    win_launch,           win_attach,          win_detach,           win_kill,
+    re_dbg_win_wait,      re_dbg_win_cont,     win_step,             win_get_regs,
+    win_set_regs,         win_read,            win_write,            re_dbg_win_enum_threads,
+    win_modules,          win_destroy};
+
+re_dbg_backend_t *re_dbg_backend_win_create(re_arena_t *a) {
+    re_dbg_backend_t *b = (re_dbg_backend_t *)re_arena_alloc(a, sizeof(*b));
+    re_dbg_win_impl_t *w;
+    if (!b)
+        return NULL;
+    w = (re_dbg_win_impl_t *)re_arena_calloc(a, 1, sizeof(*w));
+    if (!w)
+        return NULL;
+    b->vt = &kVtbl;
+    b->impl = w;
+    return b;
+}
+
+#endif /* _WIN32 */
