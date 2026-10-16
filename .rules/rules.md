@@ -63,6 +63,7 @@ strong reason.
     src/cli/             argv dispatch, TUI (C++17 / C11)
     src/mcp/             MCP stdio server (C++17)
     tests/               CTest targets
+    tests/fixtures/      tiny C inferiors (breakpoint_me, loop)
 
 Include path root is `src/`, so utils are reached as `#include "utils/mem/re_arena.h"`
 and features as `#include "features/debug/re_dbg.h"`.
