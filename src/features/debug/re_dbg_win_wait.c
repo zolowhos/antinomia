@@ -55,6 +55,7 @@ static void win_thr_add(re_dbg_win_impl_t *w, DWORD tid, HANDLE h) {
     }
     w->thr[w->n_thr].tid = tid;
     w->thr[w->n_thr].handle = h;
+    w->thr[w->n_thr].suspend_depth = 0;
     w->n_thr++;
 }
 
@@ -351,7 +352,117 @@ re_err_code_t re_dbg_win_enum_threads(re_dbg_backend_t *b, re_dbg_thread_t *out,
     for (size_t i = 0; i < n; i++) {
         memset(&out[i], 0, sizeof(out[i]));
         out[i].tid = (uint32_t)w->thr[i].tid;
+        out[i].suspended = w->thr[i].suspend_depth > 0;
     }
+    return RE_OK;
+}
+
+static re_dbg_win_thr_t *win_thr_find(re_dbg_win_impl_t *w, DWORD tid) {
+    size_t i;
+    for (i = 0; i < w->n_thr; i++) {
+        if (w->thr[i].tid == tid)
+            return &w->thr[i];
+    }
+    return NULL;
+}
+
+re_err_code_t re_dbg_win_thread_suspend(re_dbg_backend_t *b, uint32_t tid) {
+    re_dbg_win_impl_t *w = re_dbg_win_impl(b);
+    re_dbg_win_thr_t *t;
+    DWORD use;
+    DWORD prev;
+    if (!w || !w->active)
+        return RE_E_USAGE;
+    use = tid ? (DWORD)tid : w->last_tid;
+    t = win_thr_find(w, use);
+    if (!t || !t->handle)
+        return RE_E_NOTFOUND;
+    prev = SuspendThread(t->handle);
+    if (prev == (DWORD)-1)
+        return RE_E_IO;
+    t->suspend_depth++;
+    return RE_OK;
+}
+
+re_err_code_t re_dbg_win_thread_resume(re_dbg_backend_t *b, uint32_t tid) {
+    re_dbg_win_impl_t *w = re_dbg_win_impl(b);
+    re_dbg_win_thr_t *t;
+    DWORD use;
+    DWORD prev;
+    if (!w || !w->active)
+        return RE_E_USAGE;
+    use = tid ? (DWORD)tid : w->last_tid;
+    t = win_thr_find(w, use);
+    if (!t || !t->handle)
+        return RE_E_NOTFOUND;
+    if (t->suspend_depth <= 0)
+        return RE_OK;
+    prev = ResumeThread(t->handle);
+    if (prev == (DWORD)-1)
+        return RE_E_IO;
+    t->suspend_depth--;
+    return RE_OK;
+}
+
+static uint32_t win_prot_bits(DWORD protect) {
+    uint32_t p = 0;
+    DWORD base = protect & 0xffu;
+    if (base == PAGE_READONLY || base == PAGE_READWRITE || base == PAGE_WRITECOPY ||
+        base == PAGE_EXECUTE_READ || base == PAGE_EXECUTE_READWRITE ||
+        base == PAGE_EXECUTE_WRITECOPY)
+        p |= RE_DBG_PROT_R;
+    if (base == PAGE_READWRITE || base == PAGE_WRITECOPY || base == PAGE_EXECUTE_READWRITE ||
+        base == PAGE_EXECUTE_WRITECOPY)
+        p |= RE_DBG_PROT_W;
+    if (base == PAGE_EXECUTE || base == PAGE_EXECUTE_READ || base == PAGE_EXECUTE_READWRITE ||
+        base == PAGE_EXECUTE_WRITECOPY)
+        p |= RE_DBG_PROT_X;
+    return p;
+}
+
+static re_dbg_map_type_t win_map_type(DWORD type, DWORD protect) {
+    (void)protect;
+    if (type == MEM_IMAGE)
+        return RE_DBG_MAP_IMAGE;
+    if (type == MEM_MAPPED)
+        return RE_DBG_MAP_MAPPED;
+    if (type == MEM_PRIVATE)
+        return RE_DBG_MAP_PRIVATE;
+    return RE_DBG_MAP_OTHER;
+}
+
+re_err_code_t re_dbg_win_enum_maps(re_dbg_backend_t *b, re_dbg_map_t *out, size_t cap,
+                                   size_t *n_out) {
+    re_dbg_win_impl_t *w = re_dbg_win_impl(b);
+    MEMORY_BASIC_INFORMATION mbi;
+    uint8_t *addr = NULL;
+    size_t n = 0;
+    if (n_out)
+        *n_out = 0;
+    if (!w || !w->active || !w->process)
+        return RE_E_USAGE;
+    while (VirtualQueryEx(w->process, addr, &mbi, sizeof(mbi))) {
+        if (mbi.State == MEM_COMMIT) {
+            if (out && n < cap) {
+                memset(&out[n], 0, sizeof(out[n]));
+                out[n].base = (uint64_t)(uintptr_t)mbi.BaseAddress;
+                out[n].size = (uint64_t)mbi.RegionSize;
+                out[n].protect = win_prot_bits(mbi.Protect);
+                out[n].type = win_map_type(mbi.Type, mbi.Protect);
+            }
+            n++;
+            if (n >= 512u)
+                break;
+        }
+        {
+            uint8_t *next = (uint8_t *)mbi.BaseAddress + mbi.RegionSize;
+            if (next <= addr)
+                break;
+            addr = next;
+        }
+    }
+    if (n_out)
+        *n_out = n;
     return RE_OK;
 }
 

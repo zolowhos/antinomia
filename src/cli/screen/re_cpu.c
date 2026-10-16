@@ -202,27 +202,6 @@ static void fill_dump(re_cpu_view_t *v, re_dbg_session_t *s) {
     }
 }
 
-static void fill_stack(re_cpu_view_t *v, re_dbg_session_t *s) {
-    size_t i;
-    v->n_stack = 12u;
-    for (i = 0; i < v->n_stack; i++) {
-        uint8_t raw[8];
-        uint64_t addr = v->rsp + i * 8u;
-        uint64_t word = 0;
-        size_t got = try_read(s, addr, raw, sizeof(raw));
-        if (got) {
-            size_t b;
-            for (b = 0; b < 8u; b++)
-                word |= (uint64_t)raw[b] << (8u * b);
-            line_set(&v->stack[i], "rsp+%02zx  %016llx", i * 8u, (unsigned long long)word);
-        } else if (v->have_regs) {
-            line_set(&v->stack[i], "rsp+%02zx  ----------------", i * 8u);
-        } else {
-            line_set(&v->stack[i], "rsp+--  ----------------");
-        }
-    }
-}
-
 static void fill_bps(re_cpu_view_t *v) {
     size_t i;
     v->n_bp_lines = 0;
@@ -290,12 +269,16 @@ void re_cpu_refresh(re_cpu_view_t *v, re_dbg_session_t *s) {
     v->last_kind = s->last_event.kind;
     v->last_addr = s->last_event.addr;
     pull_regs(v, s);
-    if (!v->dump_addr)
+    if (s->follow_dump)
+        v->dump_addr = s->follow_dump;
+    else if (!v->dump_addr)
         v->dump_addr = v->rip;
     fill_regs_lines(v);
     fill_disasm(v, s);
     fill_dump(v, s);
-    fill_stack(v, s);
+    re_cpu_fill_callstack(v, s);
+    re_cpu_fill_maps(v, s);
+    re_cpu_fill_threads(v, s);
     fill_bps(v);
     re_cpu_fill_watches(v, s);
     maybe_log_event(v, s);
@@ -352,21 +335,23 @@ static void paint_pane(re_screen_t *s, re_cpu_view_t *v, re_cpu_pane_t pane, re_
 
 static void layout_rects(uint16_t rows, uint16_t cols, re_cpu_rect_t out[RE_CPU_PANE_COUNT]) {
     uint16_t mid_x = (uint16_t)(cols / 2u);
+    uint16_t q = (uint16_t)(cols / 4u);
     uint16_t top_h;
     uint16_t mid_h;
     uint16_t bot_h;
     uint16_t y1;
     uint16_t y2;
-    uint16_t bp_w;
-    if (rows < 12u)
-        rows = 12u;
-    if (cols < 40u)
-        cols = 40u;
-    // title(1) + body + status(1). Split body into three bands.
-    top_h = (uint16_t)((rows - 2u) * 40u / 100u);
+    if (rows < 14u)
+        rows = 14u;
+    if (cols < 48u)
+        cols = 48u;
+    if (q < 12u)
+        q = 12u;
+    // title(1) + body + status(1). Three bands: CPU, dump/stack, maps/threads/bp/log.
+    top_h = (uint16_t)((rows - 2u) * 36u / 100u);
     if (top_h < 4u)
         top_h = 4u;
-    mid_h = (uint16_t)((rows - 2u) * 35u / 100u);
+    mid_h = (uint16_t)((rows - 2u) * 32u / 100u);
     if (mid_h < 4u)
         mid_h = 4u;
     bot_h = (uint16_t)(rows - 2u - top_h - mid_h);
@@ -379,17 +364,15 @@ static void layout_rects(uint16_t rows, uint16_t cols, re_cpu_rect_t out[RE_CPU_
     }
     y1 = (uint16_t)(1u + top_h);
     y2 = (uint16_t)(y1 + mid_h);
-    bp_w = (uint16_t)(cols / 3u);
-    if (bp_w < 16u)
-        bp_w = 16u;
-    if (bp_w + 12u > cols)
-        bp_w = (uint16_t)(cols / 2u);
     out[RE_CPU_PANE_DISASM] = (re_cpu_rect_t){1, 0, mid_x, top_h};
     out[RE_CPU_PANE_REGS] = (re_cpu_rect_t){1, mid_x, (uint16_t)(cols - mid_x), top_h};
     out[RE_CPU_PANE_DUMP] = (re_cpu_rect_t){y1, 0, mid_x, mid_h};
     out[RE_CPU_PANE_STACK] = (re_cpu_rect_t){y1, mid_x, (uint16_t)(cols - mid_x), mid_h};
-    out[RE_CPU_PANE_BP] = (re_cpu_rect_t){y2, 0, bp_w, bot_h};
-    out[RE_CPU_PANE_LOG] = (re_cpu_rect_t){y2, bp_w, (uint16_t)(cols - bp_w), bot_h};
+    out[RE_CPU_PANE_MAPS] = (re_cpu_rect_t){y2, 0, q, bot_h};
+    out[RE_CPU_PANE_THREADS] = (re_cpu_rect_t){y2, q, q, bot_h};
+    out[RE_CPU_PANE_BP] = (re_cpu_rect_t){y2, (uint16_t)(q * 2u), q, bot_h};
+    out[RE_CPU_PANE_LOG] =
+        (re_cpu_rect_t){y2, (uint16_t)(q * 3u), (uint16_t)(cols - q * 3u), bot_h};
 }
 
 void re_cpu_paint(re_screen_t *s, re_cpu_view_t *v) {
@@ -408,8 +391,12 @@ void re_cpu_paint(re_screen_t *s, re_cpu_view_t *v) {
     paint_pane(s, v, RE_CPU_PANE_REGS, R[RE_CPU_PANE_REGS], "registers", v->reg_lines, v->n_regs,
                (size_t)-1);
     paint_pane(s, v, RE_CPU_PANE_DUMP, R[RE_CPU_PANE_DUMP], "dump", v->dump, v->n_dump, (size_t)-1);
-    paint_pane(s, v, RE_CPU_PANE_STACK, R[RE_CPU_PANE_STACK], "stack @ rsp", v->stack, v->n_stack,
+    paint_pane(s, v, RE_CPU_PANE_STACK, R[RE_CPU_PANE_STACK], "call stack", v->stack, v->n_stack,
                (size_t)-1);
+    paint_pane(s, v, RE_CPU_PANE_MAPS, R[RE_CPU_PANE_MAPS], "maps", v->map_lines, v->n_maps,
+               (size_t)-1);
+    paint_pane(s, v, RE_CPU_PANE_THREADS, R[RE_CPU_PANE_THREADS], "threads", v->thr_lines,
+               v->n_threads, (size_t)-1);
     paint_pane(s, v, RE_CPU_PANE_BP, R[RE_CPU_PANE_BP], "breakpoints", v->bp_lines, v->n_bp_lines,
                (size_t)-1);
     paint_pane(s, v, RE_CPU_PANE_LOG, R[RE_CPU_PANE_LOG], "log", v->log, v->n_log, (size_t)-1);

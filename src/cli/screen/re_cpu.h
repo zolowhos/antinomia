@@ -1,6 +1,6 @@
 // re_cpu.h - CPU-like debugger panes bound to session state.
 // Module: cli (C11).
-// Owns: disasm/regs/dump/stack/bp/log view model and screen compose.
+// Owns: disasm/regs/dump/stack/maps/threads/bp/log view model and compose.
 // Depends: re_screen, re_dbg. Degrades when backend ops are unsupported.
 #pragma once
 
@@ -23,12 +23,16 @@ extern "C" {
 #define RE_CPU_BP_MAX 32u
 #define RE_CPU_LOG_MAX 32u
 #define RE_CPU_WATCH_MAX 16u
+#define RE_CPU_MAP_MAX 24u
+#define RE_CPU_THR_MAX 24u
 
 typedef enum {
     RE_CPU_PANE_DISASM = 0,
     RE_CPU_PANE_REGS,
     RE_CPU_PANE_DUMP,
     RE_CPU_PANE_STACK,
+    RE_CPU_PANE_MAPS,
+    RE_CPU_PANE_THREADS,
     RE_CPU_PANE_BP,
     RE_CPU_PANE_LOG,
     RE_CPU_PANE_COUNT
@@ -73,6 +77,12 @@ typedef struct {
     re_cpu_line_t stack[RE_CPU_STACK_MAX];
     size_t n_stack;
 
+    re_cpu_line_t map_lines[RE_CPU_MAP_MAX];
+    size_t n_maps;
+
+    re_cpu_line_t thr_lines[RE_CPU_THR_MAX];
+    size_t n_threads;
+
     re_cpu_bp_t bps[RE_CPU_BP_MAX];
     size_t n_bps;
     re_cpu_line_t bp_lines[RE_CPU_BP_MAX];
@@ -98,12 +108,14 @@ void re_cpu_set_bps(re_cpu_view_t *v, const re_cpu_bp_t *bps, size_t n);
 void re_cpu_log_push(re_cpu_view_t *v, const char *msg);
 void re_cpu_refresh(re_cpu_view_t *v, re_dbg_session_t *s);
 void re_cpu_fill_watches(re_cpu_view_t *v, re_dbg_session_t *s);
+void re_cpu_fill_maps(re_cpu_view_t *v, re_dbg_session_t *s);
+void re_cpu_fill_threads(re_cpu_view_t *v, re_dbg_session_t *s);
+void re_cpu_fill_callstack(re_cpu_view_t *v, re_dbg_session_t *s);
 void re_cpu_focus_next(re_cpu_view_t *v);
 void re_cpu_focus_prev(re_cpu_view_t *v);
 bool re_cpu_focus_zone(re_cpu_view_t *v, uint8_t zone);
 
-// Compose the CPU panes onto a cleared screen. Zones are assigned in pane order
-// so Tab/focus walking matches disasm -> regs -> dump -> stack -> bp -> log.
+// Compose the CPU panes onto a cleared screen. Zones are assigned in pane order.
 void re_cpu_paint(re_screen_t *s, re_cpu_view_t *v);
 
 #ifdef __cplusplus

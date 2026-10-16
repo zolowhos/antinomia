@@ -91,6 +91,24 @@ static re_err_code_t stub_modules(re_dbg_backend_t *b, re_dbg_module_t *out, siz
         *n_out = 0;
     return RE_E_UNSUPPORTED;
 }
+static re_err_code_t stub_maps(re_dbg_backend_t *b, re_dbg_map_t *out, size_t cap, size_t *n_out) {
+    (void)b;
+    (void)out;
+    (void)cap;
+    if (n_out)
+        *n_out = 0;
+    return RE_E_UNSUPPORTED;
+}
+static re_err_code_t stub_thr_susp(re_dbg_backend_t *b, uint32_t tid) {
+    (void)b;
+    (void)tid;
+    return RE_E_UNSUPPORTED;
+}
+static re_err_code_t stub_thr_res(re_dbg_backend_t *b, uint32_t tid) {
+    (void)b;
+    (void)tid;
+    return RE_E_UNSUPPORTED;
+}
 static re_err_code_t stub_hw_set(re_dbg_backend_t *b, int slot, uint64_t addr, uint8_t size,
                                  uint8_t access) {
     (void)b;
@@ -131,9 +149,10 @@ static void stub_destroy(re_dbg_backend_t *b) {
     (void)b;
 }
 static const re_dbg_backend_vtbl_t kVtbl = {
-    stub_launch, stub_attach,   stub_detach,   stub_kill, stub_wait,     stub_cont,    stub_step,
-    stub_pause,  stub_get_regs, stub_set_regs, stub_read, stub_write,    stub_threads, stub_modules,
-    stub_hw_set, stub_hw_clear, stub_hw_hit,   stub_rend, stub_set_pass, stub_destroy};
+    stub_launch,   stub_attach,  stub_detach,   stub_kill,     stub_wait,    stub_cont,
+    stub_step,     stub_pause,   stub_get_regs, stub_set_regs, stub_read,    stub_write,
+    stub_threads,  stub_modules, stub_maps,     stub_thr_susp, stub_thr_res, stub_hw_set,
+    stub_hw_clear, stub_hw_hit,  stub_rend,     stub_set_pass, stub_destroy};
 
 re_dbg_backend_t *re_dbg_backend_win_create(re_arena_t *a) {
     re_dbg_backend_t *b = (re_dbg_backend_t *)re_arena_alloc(a, sizeof(*b));
@@ -294,6 +313,9 @@ static const re_dbg_backend_vtbl_t kVtbl = {win_launch,
                                             re_dbg_win_write_mem,
                                             re_dbg_win_enum_threads,
                                             re_dbg_win_enum_modules,
+                                            re_dbg_win_enum_maps,
+                                            re_dbg_win_thread_suspend,
+                                            re_dbg_win_thread_resume,
                                             re_dbg_win_hw_bp_set,
                                             re_dbg_win_hw_bp_clear,
                                             re_dbg_win_hw_bp_hit,

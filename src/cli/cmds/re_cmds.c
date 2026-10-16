@@ -312,16 +312,6 @@ int re_cmd_bplist(re_ctx_t *ctx, const char *path, int argc, char **argv) {
     return 0;
 }
 
-int re_cmd_threads(re_ctx_t *ctx, const char *path, int argc, char **argv) {
-    size_t n = 0;
-    re_err_code_t c;
-    (void)path;
-    (void)argc;
-    (void)argv;
-    c = sess(ctx)->backend->vt->enum_threads(sess(ctx)->backend, NULL, 0, &n);
-    return finish(ctx, "threads", c, "threads is not implemented yet; waiting on OS backends");
-}
-
 static bool parse_u64_literal(const char *s, uint64_t *out) {
     re_str_t v;
     uint64_t base = 10, acc = 0;

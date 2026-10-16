@@ -263,6 +263,151 @@ re_err_code_t re_dbg_sym_resolve_file(re_arena_t *a, const char *path, uint64_t 
     return c;
 }
 
+static void copy_span_name(char *dst, size_t cap, re_span_t nm) {
+    size_t i = 0;
+    if (!dst || cap == 0)
+        return;
+    while (i + 1 < cap && i < nm.n && nm.p[i]) {
+        dst[i] = (char)nm.p[i];
+        i++;
+    }
+    dst[i] = 0;
+}
+
+static re_err_code_t elf_nearest(re_span_t file, uint64_t base, uint64_t addr, char *name_out,
+                                 size_t name_cap, uint64_t *sym_addr_out) {
+    elf_symtab_t e;
+    size_t entsz, n, i;
+    uint64_t best = 0;
+    re_span_t best_nm;
+    re_err_code_t c = elf_hdr(file, &e);
+    memset(&best_nm, 0, sizeof(best_nm));
+    if (c != RE_OK)
+        return c;
+    c = elf_find_symtab(file, &e);
+    if (c != RE_OK)
+        return c;
+    entsz = e.cls == 2 ? 24u : 16u;
+    n = (size_t)(e.sym_size / entsz);
+    for (i = 0; i < n; i++) {
+        uint64_t ent = e.sym_off + (uint64_t)i * entsz;
+        uint32_t st_name = 0;
+        uint64_t st_value = 0;
+        uint16_t st_shndx = 0;
+        uint64_t abs;
+        re_span_t nm;
+        if (e.cls == 2) {
+            if (!re_rd32(file, ent, &st_name) || !re_rd16(file, ent + 6, &st_shndx) ||
+                !re_rd64(file, ent + 8, &st_value))
+                continue;
+        } else {
+            uint32_t v32 = 0;
+            if (!re_rd32(file, ent, &st_name) || !re_rd32(file, ent + 4, &v32) ||
+                !re_rd16(file, ent + 14, &st_shndx))
+                continue;
+            st_value = v32;
+        }
+        if (st_shndx == 0 || st_name == 0)
+            continue;
+        abs = base + st_value;
+        if (abs > addr || abs < best)
+            continue;
+        if (!re_rd_cstr(file, e.str_off + st_name, e.str_size, &nm) || nm.n == 0)
+            continue;
+        best = abs;
+        best_nm = nm;
+    }
+    if (best == 0)
+        return RE_E_NOTFOUND;
+    if (sym_addr_out)
+        *sym_addr_out = best;
+    copy_span_name(name_out, name_cap, best_nm);
+    return RE_OK;
+}
+
+static re_err_code_t pe_nearest(re_span_t file, uint64_t base, uint64_t addr, char *name_out,
+                                size_t name_cap, uint64_t *sym_addr_out) {
+    uint32_t e_lfanew = 0, exp_rva = 0, exp_off = 0;
+    uint16_t magic = 0, nsect = 0, opt_sz = 0;
+    uint32_t sect_off = 0, names = 0, ords = 0, funcs = 0, nnames = 0;
+    uint32_t names_off, ords_off, funcs_off, i;
+    uint64_t best = 0;
+    re_span_t best_nm;
+    memset(&best_nm, 0, sizeof(best_nm));
+    if (file.n < 0x40 || file.p[0] != 'M' || file.p[1] != 'Z')
+        return RE_E_NOTBIN;
+    if (!re_rd32(file, 0x3c, &e_lfanew) || e_lfanew + 0x18 >= file.n)
+        return RE_E_MALFORMED;
+    if (file.p[e_lfanew] != 'P' || file.p[e_lfanew + 1] != 'E')
+        return RE_E_MALFORMED;
+    if (!re_rd16(file, e_lfanew + 6, &nsect) || !re_rd16(file, e_lfanew + 20, &opt_sz) ||
+        !re_rd16(file, e_lfanew + 24, &magic))
+        return RE_E_MALFORMED;
+    {
+        uint64_t dd = e_lfanew + 24u + (magic == 0x20b ? 112u : 96u);
+        if (!re_rd32(file, dd, &exp_rva) || exp_rva == 0)
+            return RE_E_NOTFOUND;
+    }
+    sect_off = e_lfanew + 24u + opt_sz;
+    exp_off = pe_rva_to_off(file, exp_rva, sect_off, nsect, opt_sz);
+    if (!exp_off || !re_rd32(file, exp_off + 24, &nnames) || !re_rd32(file, exp_off + 28, &funcs) ||
+        !re_rd32(file, exp_off + 32, &names) || !re_rd32(file, exp_off + 36, &ords))
+        return RE_E_MALFORMED;
+    names_off = pe_rva_to_off(file, names, sect_off, nsect, opt_sz);
+    ords_off = pe_rva_to_off(file, ords, sect_off, nsect, opt_sz);
+    funcs_off = pe_rva_to_off(file, funcs, sect_off, nsect, opt_sz);
+    if (!names_off || !ords_off || !funcs_off)
+        return RE_E_MALFORMED;
+    for (i = 0; i < nnames; i++) {
+        uint32_t name_rva = 0, name_off = 0, func_rva = 0;
+        uint16_t ord = 0;
+        uint64_t abs;
+        re_span_t nm;
+        if (!re_rd32(file, names_off + i * 4u, &name_rva) ||
+            !re_rd16(file, ords_off + i * 2u, &ord))
+            continue;
+        name_off = pe_rva_to_off(file, name_rva, sect_off, nsect, opt_sz);
+        if (!name_off || !re_rd_cstr(file, name_off, 256, &nm) || nm.n == 0)
+            continue;
+        if (!re_rd32(file, funcs_off + (uint32_t)ord * 4u, &func_rva))
+            continue;
+        abs = base + func_rva;
+        if (abs > addr || abs < best)
+            continue;
+        best = abs;
+        best_nm = nm;
+    }
+    if (best == 0)
+        return RE_E_NOTFOUND;
+    if (sym_addr_out)
+        *sym_addr_out = best;
+    copy_span_name(name_out, name_cap, best_nm);
+    return RE_OK;
+}
+
+re_err_code_t re_dbg_sym_nearest_file(re_arena_t *a, const char *path, uint64_t base, uint64_t addr,
+                                      char *name_out, size_t name_cap, uint64_t *sym_addr_out) {
+    re_file_t f;
+    re_err_code_t c;
+    if (name_out && name_cap)
+        name_out[0] = 0;
+    if (sym_addr_out)
+        *sym_addr_out = 0;
+    if (!path || !name_out || name_cap == 0)
+        return RE_E_USAGE;
+    c = re_file_open(path, a, &f);
+    if (c != RE_OK)
+        return c;
+    if (f.whole.n >= 4 && f.whole.p[0] == 0x7f && f.whole.p[1] == 'E')
+        c = elf_nearest(f.whole, base, addr, name_out, name_cap, sym_addr_out);
+    else if (f.whole.n >= 2 && f.whole.p[0] == 'M' && f.whole.p[1] == 'Z')
+        c = pe_nearest(f.whole, base, addr, name_out, name_cap, sym_addr_out);
+    else
+        c = RE_E_NOTBIN;
+    re_file_close(&f);
+    return c;
+}
+
 re_err_code_t re_dbg_session_resolve(re_dbg_session_t *s, const char *query, uint64_t *addr_out,
                                      re_dbg_symbol_t *info_out) {
     re_dbg_module_t mods[128];

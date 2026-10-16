@@ -94,6 +94,7 @@ typedef struct {
     uint32_t tid;
     uint64_t rip;
     char name[64];
+    bool suspended;
 } re_dbg_thread_t;
 
 typedef struct {
@@ -101,6 +102,26 @@ typedef struct {
     uint64_t size;
     char path[260];
 } re_dbg_module_t;
+
+/* Memory map region: protect bits and coarse type (image/private/mapped/...). */
+enum { RE_DBG_PROT_R = 1u << 0, RE_DBG_PROT_W = 1u << 1, RE_DBG_PROT_X = 1u << 2 };
+
+typedef enum {
+    RE_DBG_MAP_OTHER = 0,
+    RE_DBG_MAP_IMAGE,
+    RE_DBG_MAP_MAPPED,
+    RE_DBG_MAP_PRIVATE,
+    RE_DBG_MAP_STACK,
+    RE_DBG_MAP_HEAP
+} re_dbg_map_type_t;
+
+typedef struct {
+    uint64_t base;
+    uint64_t size;
+    uint32_t protect; /* RE_DBG_PROT_* */
+    re_dbg_map_type_t type;
+    char path[260];
+} re_dbg_map_t;
 
 #define RE_DBG_BP_COND_MAX 96
 #define RE_DBG_MAX_VARS 32
@@ -169,6 +190,9 @@ typedef struct re_dbg_backend_vtbl {
                                   size_t *n_out);
     re_err_code_t (*enum_modules)(re_dbg_backend_t *b, re_dbg_module_t *out, size_t cap,
                                   size_t *n_out);
+    re_err_code_t (*enum_maps)(re_dbg_backend_t *b, re_dbg_map_t *out, size_t cap, size_t *n_out);
+    re_err_code_t (*thread_suspend)(re_dbg_backend_t *b, uint32_t tid);
+    re_err_code_t (*thread_resume)(re_dbg_backend_t *b, uint32_t tid);
     /* size: 1/2/4/8; access: 0=exec, 1=write, 3=read/write (DR7 encoding). */
     re_err_code_t (*hw_bp_set)(re_dbg_backend_t *b, int slot, uint64_t addr, uint8_t size,
                                uint8_t access);
@@ -210,6 +234,7 @@ typedef struct re_dbg_session {
     size_t bp_log_n;
     char pending_cmd[RE_DBG_BP_COND_MAX];
     uint32_t eval_hit_count; /* $hitcount during conditional BP eval */
+    uint64_t follow_dump;    /* maps follow -> dump default address */
 } re_dbg_session_t;
 
 re_dbg_backend_t *re_dbg_backend_create(re_arena_t *a);
@@ -261,15 +286,27 @@ const char *re_dbg_ex_policy_str(re_dbg_ex_policy_t p);
 const char *re_dbg_backend_name(void);
 re_dbg_caps_t re_dbg_backend_caps(const re_dbg_backend_t *b);
 
-// Module list, symbol resolve v0 (PE export / ELF dynsym), and stack walk v0.
+// Module list, memory maps, threads, symbol resolve, and stack walk.
 re_err_code_t re_dbg_session_enum_modules(re_dbg_session_t *s, re_dbg_module_t *out, size_t cap,
                                           size_t *n_out);
+re_err_code_t re_dbg_session_enum_maps(re_dbg_session_t *s, re_dbg_map_t *out, size_t cap,
+                                       size_t *n_out);
+re_err_code_t re_dbg_session_follow_dump(re_dbg_session_t *s, uint64_t addr);
+re_err_code_t re_dbg_session_enum_threads(re_dbg_session_t *s, re_dbg_thread_t *out, size_t cap,
+                                          size_t *n_out);
+re_err_code_t re_dbg_session_thread_switch(re_dbg_session_t *s, uint32_t tid);
+re_err_code_t re_dbg_session_thread_suspend(re_dbg_session_t *s, uint32_t tid);
+re_err_code_t re_dbg_session_thread_resume(re_dbg_session_t *s, uint32_t tid);
 re_err_code_t re_dbg_sym_resolve_file(re_arena_t *a, const char *path, uint64_t base,
                                       const char *name, uint64_t *addr_out);
+re_err_code_t re_dbg_sym_nearest_file(re_arena_t *a, const char *path, uint64_t base, uint64_t addr,
+                                      char *name_out, size_t name_cap, uint64_t *sym_addr_out);
 re_err_code_t re_dbg_session_resolve(re_dbg_session_t *s, const char *query, uint64_t *addr_out,
                                      re_dbg_symbol_t *info_out);
 re_err_code_t re_dbg_session_bt(re_dbg_session_t *s, re_dbg_frame_t *out, size_t cap,
                                 size_t *n_out);
+const char *re_dbg_map_type_str(re_dbg_map_type_t t);
+void re_dbg_map_prot_str(uint32_t protect, char out[4]);
 
 // Expression / $vars / watch window (CLI/MCP; TUI hook via re_cpu_fill_watches).
 re_err_code_t re_dbg_session_eval(re_dbg_session_t *s, const char *expr, int64_t *out);

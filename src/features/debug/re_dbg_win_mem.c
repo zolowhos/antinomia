@@ -95,6 +95,8 @@ re_err_code_t re_dbg_win_get_regs(re_dbg_backend_t *b, uint32_t tid, re_dbg_regs
     if (!GetThreadContext(th, &ctx))
         return RE_E_IO;
     win_fill_regs(out, &ctx);
+    if (tid)
+        w->last_tid = t; /* thread switch focuses this tid */
     return RE_OK;
 }
 
