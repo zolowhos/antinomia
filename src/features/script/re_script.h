@@ -25,7 +25,7 @@ re_err_code_t re_dbg_session_log_add(re_dbg_session_t *s, const char *text);
 re_err_code_t re_dbg_session_log_list(re_dbg_session_t *s, const char **out, size_t cap,
                                       size_t *n_out);
 re_err_code_t re_dbg_session_traces_list(re_dbg_session_t *s, re_dbg_trace_rec_t *out, size_t cap,
-                                        size_t *n_out);
+                                         size_t *n_out);
 re_err_code_t re_dbg_session_traces_push(re_dbg_session_t *s, const re_dbg_trace_rec_t *rec);
 re_err_code_t re_dbg_session_traces_clear(re_dbg_session_t *s);
 
