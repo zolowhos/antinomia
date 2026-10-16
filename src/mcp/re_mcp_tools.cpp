@@ -112,18 +112,8 @@ void mcp_tool_schema(const re_cmd_t *cmd, re_strbuf_t *b) {
         prop(b, &first, "len", "integer", "Span to scan (0 = modules)");
     }
     prop(b, &first, "format", "string", "json or text");
-    if (re_str_eq_cstr(re_str(cmd->name), "modules") ||
-        re_str_eq_cstr(re_str(cmd->name), "lm") || re_str_eq_cstr(re_str(cmd->name), "maps") ||
-        re_str_eq_cstr(re_str(cmd->name), "mmap") || re_str_eq_cstr(re_str(cmd->name), "traces") ||
-        re_str_eq_cstr(re_str(cmd->name), "notes") || re_str_eq_cstr(re_str(cmd->name), "log") ||
-        re_str_eq_cstr(re_str(cmd->name), "threads") || re_str_eq_cstr(re_str(cmd->name), "bt") ||
-        re_str_eq_cstr(re_str(cmd->name), "bplist")) {
-        prop(b, &first, "limit", "integer", "Row cap for paging (default 200)");
-        prop(b, &first, "offset", "integer", "Skip the first N rows");
-    } else {
-        prop(b, &first, "limit", "integer", "Row cap, default 200");
-        prop(b, &first, "offset", "integer", "Skip the first N rows");
-    }
+    prop(b, &first, "limit", "integer", "Row cap for paging (default 200)");
+    prop(b, &first, "offset", "integer", "Skip the first N rows");
     if (re_str_eq_cstr(re_str(cmd->name), "note") || re_str_eq_cstr(re_str(cmd->name), "log") ||
         re_str_eq_cstr(re_str(cmd->name), "bplog") || re_str_eq_cstr(re_str(cmd->name), "bpcmd")) {
         prop(b, &first, "text", "string", "Text; {rax}/{$var} braces expand when applicable");
