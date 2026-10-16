@@ -71,11 +71,12 @@ static void test_win_inactive(void) {
     RE_CHECK_EQ_U(s.backend->vt->launch(s.backend, "Z:\\no-such-antinomia-target.exe", NULL),
                   RE_E_IO);
     RE_CHECK_EQ_U(s.backend->vt->attach(s.backend, 0), RE_E_USAGE);
-    RE_CHECK_EQ_U(s.backend->vt->step(s.backend), RE_E_UNSUPPORTED);
-    RE_CHECK_EQ_U(s.backend->vt->get_regs(s.backend, 0, &regs), RE_E_UNSUPPORTED);
-    RE_CHECK_EQ_U(s.backend->vt->set_regs(s.backend, 0, &regs), RE_E_UNSUPPORTED);
-    RE_CHECK_EQ_U(s.backend->vt->read_mem(s.backend, 0, NULL, 0), RE_E_UNSUPPORTED);
-    RE_CHECK_EQ_U(s.backend->vt->write_mem(s.backend, 0, NULL, 0), RE_E_UNSUPPORTED);
+    RE_CHECK_EQ_U(s.backend->vt->step(s.backend), RE_E_USAGE);
+    RE_CHECK_EQ_U(s.backend->vt->pause(s.backend), RE_E_USAGE);
+    RE_CHECK_EQ_U(s.backend->vt->get_regs(s.backend, 0, &regs), RE_E_USAGE);
+    RE_CHECK_EQ_U(s.backend->vt->set_regs(s.backend, 0, &regs), RE_E_USAGE);
+    RE_CHECK_EQ_U(s.backend->vt->read_mem(s.backend, 0, NULL, 0), RE_E_USAGE);
+    RE_CHECK_EQ_U(s.backend->vt->write_mem(s.backend, 0, NULL, 0), RE_E_USAGE);
     RE_CHECK_EQ_U(s.backend->vt->enum_modules(s.backend, NULL, 0, &n), RE_E_UNSUPPORTED);
     RE_CHECK_EQ_U(re_dbg_session_detach(&s), RE_E_USAGE);
     RE_CHECK_EQ_U(re_dbg_session_kill(&s), RE_E_USAGE);
@@ -181,6 +182,52 @@ static void test_session_api_live(void) {
     re_dbg_session_free(&s);
 }
 
+static void test_soft_bp_step_pause(void) {
+    re_dbg_session_t s;
+    re_dbg_event_t ev;
+    re_dbg_regs_t regs;
+    uint8_t byte = 0;
+    uint8_t orig = 0;
+    uint64_t bp_addr;
+    re_dbg_bp_info_t info[8];
+    size_t n = 0;
+    re_dbg_session_init(&s);
+    RE_CHECK_EQ_U(re_dbg_session_launch(&s, g_inferior, NULL), RE_OK);
+    RE_CHECK_EQ_U(re_dbg_session_wait_event(&s, &ev, 2000), RE_OK);
+    RE_CHECK_EQ_U(ev.kind, RE_DBG_EV_CREATE);
+    RE_CHECK_EQ_U(re_dbg_session_wait_event(&s, &ev, 2000), RE_OK);
+    RE_CHECK_EQ_U(ev.kind, RE_DBG_EV_BREAK);
+    RE_CHECK_EQ_U(s.backend->vt->get_regs(s.backend, 0, &regs), RE_OK);
+    bp_addr = regs.rip;
+    RE_CHECK_EQ_U(s.backend->vt->read_mem(s.backend, bp_addr, &orig, 1), RE_OK);
+    RE_CHECK_EQ_U(re_dbg_session_bp_set(&s, bp_addr), RE_OK);
+    RE_CHECK_EQ_U(re_dbg_session_bp_list(&s, info, 8, &n), RE_OK);
+    RE_CHECK_EQ_U(n, 1);
+    RE_CHECK(info[0].enabled);
+    RE_CHECK_EQ_U(s.backend->vt->read_mem(s.backend, bp_addr, &byte, 1), RE_OK);
+    RE_CHECK_EQ_U(byte, 0xcc);
+    RE_CHECK_EQ_U(re_dbg_session_bp_disable(&s, bp_addr), RE_OK);
+    RE_CHECK_EQ_U(s.backend->vt->read_mem(s.backend, bp_addr, &byte, 1), RE_OK);
+    RE_CHECK_EQ_U(byte, orig);
+    RE_CHECK_EQ_U(re_dbg_session_bp_enable(&s, bp_addr), RE_OK);
+    RE_CHECK_EQ_U(re_dbg_session_cont(&s), RE_OK);
+    RE_CHECK_EQ_U(re_dbg_session_wait_event(&s, &ev, 2000), RE_OK);
+    RE_CHECK_EQ_U(ev.kind, RE_DBG_EV_BREAK);
+    RE_CHECK_EQ_U(ev.addr, bp_addr);
+    RE_CHECK_EQ_U(s.backend->vt->read_mem(s.backend, bp_addr, &byte, 1), RE_OK);
+    RE_CHECK_EQ_U(byte, orig);
+    RE_CHECK_EQ_U(re_dbg_session_step(&s), RE_OK);
+    RE_CHECK_EQ_U(re_dbg_session_wait_event(&s, &ev, 2000), RE_OK);
+    RE_CHECK_EQ_U(ev.kind, RE_DBG_EV_STEP);
+    RE_CHECK_EQ_U(re_dbg_session_bp_clear(&s, bp_addr), RE_OK);
+    RE_CHECK_EQ_U(re_dbg_session_cont(&s), RE_OK);
+    RE_CHECK_EQ_U(re_dbg_session_pause(&s), RE_OK);
+    RE_CHECK_EQ_U(re_dbg_session_wait_event(&s, &ev, 2000), RE_OK);
+    RE_CHECK(ev.kind == RE_DBG_EV_BREAK || ev.kind == RE_DBG_EV_EXCEPTION);
+    RE_CHECK_EQ_U(re_dbg_session_kill(&s), RE_OK);
+    re_dbg_session_free(&s);
+}
+
 #else /* non-Linux, non-Windows host */
 
 static void test_stubs(void) {
@@ -244,6 +291,7 @@ int main(int argc, char **argv) {
     test_detach_leaves_alive();
     test_attach_detach();
     test_session_api_live();
+    test_soft_bp_step_pause();
 #else
     test_stubs();
     test_session_api_degrades();
