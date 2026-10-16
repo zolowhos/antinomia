@@ -1,0 +1,18 @@
+# .gitattributes - line endings are normalized in the repository, not just on one machine.
+# Module: build (gitattributes).
+# Owns: forcing LF in the index and in every working tree, for all text files.
+# Depends: none. Without this, core.autocrlf on Windows hands out CRLF and rule 5 fails.
+
+# The rulebook mandates LF, one final newline, ASCII. git has to agree with that on
+# every platform, not only on the machine that happens to have autocrlf off.
+* text=auto eol=lf
+
+# Compiled output is never text, and letting git try to normalize it corrupts it.
+*.exe binary
+*.dll binary
+*.obj binary
+*.o binary
+*.lib binary
+*.a binary
+*.pdb binary
+*.exe binary

@@ -1,0 +1,15 @@
+---
+description: What antinomia builds and skips
+alwaysApply: true
+---
+
+# Feature scope
+
+Build: opaque `re_dbg_backend` vtable, debug session, TUI CPU-like panes, CLI and MCP
+command table, dual-OS stub backends that link.
+
+Skip: Qt GUI, pure static PE triage / FLIRT / capa / analyze-all (that is antistrefo),
+kernel debugging, macOS.
+
+Debugger is in scope. Do not add a Skip Debugger rule.
+Session arena is long-lived; per-command arenas are short-lived.

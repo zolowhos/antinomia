@@ -1,0 +1,10 @@
+---
+description: Four-line file banners
+alwaysApply: true
+---
+
+# Banner
+
+Every source file starts with exactly four comment lines: purpose, Module, Owns,
+Depends. Headers follow with `#pragma once`. ASCII only. clang-format must not push
+the fourth banner line off the top.

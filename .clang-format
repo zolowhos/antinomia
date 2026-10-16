@@ -1,0 +1,52 @@
+# .clang-format - formatting truth for the re project. Rule 1, 5 and 10 depend on it.
+# Module: build (YAML).
+# Owns: indentation, brace, column, include-sort and alignment rules for all C and C++.
+# Depends: clang-format 20.1.8. Run via scripts/format.ps1 or the re_format target.
+
+BasedOnStyle: LLVM
+Language: Cpp
+Standard: c++17
+
+IndentWidth: 4
+TabWidth: 4
+UseTab: Never
+ContinuationIndentWidth: 4
+ColumnLimit: 100
+BreakBeforeBraces: Attach
+IndentCaseLabels: true
+IndentPPDirectives: AfterHash
+MaxEmptyLinesToKeep: 1
+
+PointerAlignment: Right
+DerivePointerAlignment: false
+SpaceBeforeParens: ControlStatements
+SpacesInParentheses: false
+SpaceAfterCStyleCast: false
+Cpp11BracedListStyle: true
+SpaceBeforeCpp11BracedList: false
+
+AllowShortFunctionsOnASingleLine: InlineOnly
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: false
+AllowShortBlocksOnASingleLine: Never
+AllowShortCaseLabelsOnASingleLine: false
+AllowShortEnumsOnASingleLine: true
+
+AlignConsecutiveAssignments: false
+AlignConsecutiveDeclarations: false
+AlignEscapedNewlines: Left
+AlignTrailingComments: true
+
+SortIncludes: CaseInsensitive
+IncludeBlocks: Preserve
+IncludeIsMainRegex: '([.]c|[-_](test|fixture))'
+IncludeCategories:
+  - Regex: '^<[a-z_]+\.h>$'
+    Priority: 1
+  - Regex: '^<(sys|inttypes|stdint|stdbool|stddef|stdarg)\.h>$'
+    Priority: 1
+  - Regex: '^"(utils|features)/'
+    Priority: 3
+ReflowComments: true
+CommentPragmas: '^ re[0-9]'
+KeepEmptyLinesAtTheStartOfBlocks: false
