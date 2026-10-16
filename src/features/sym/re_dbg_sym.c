@@ -1,8 +1,9 @@
 // re_dbg_sym.c - symbol resolve v0 from PE exports and ELF dynsym.
 // Module: feature/sym (C11).
 // Owns: file-backed module:symbol lookup helpers for bp-style queries.
-// Depends: re_dbg.h, re_buf, re_path. No OS debug APIs; parses on-disk images.
+// Depends: re_dbg.h, re_sym_prov, re_buf, re_path. Chains PDB after exports.
 #include "features/debug/re_dbg.h"
+#include "features/sym/re_sym_prov.h"
 
 #include "utils/mem/re_buf.h"
 #include "utils/sys/re_path.h"
@@ -408,6 +409,48 @@ re_err_code_t re_dbg_sym_nearest_file(re_arena_t *a, const char *path, uint64_t 
     return c;
 }
 
+static re_err_code_t try_prov(re_sym_provider_t *p, re_arena_t *a, const char *path, uint64_t base,
+                              const char *sym, uint64_t *addr, re_dbg_symbol_t *info) {
+    re_err_code_t c;
+    if (!p || !p->vt)
+        return RE_E_UNSUPPORTED;
+    c = p->vt->open_module(p, a, path, base);
+    if (c != RE_OK)
+        return c;
+    c = p->vt->resolve(p, sym, addr, info);
+    (void)p->vt->close_module(p);
+    return c;
+}
+
+static re_err_code_t resolve_one(re_dbg_session_t *s, const re_dbg_module_t *m, const char *sym,
+                                 re_sym_provider_t *exp, re_sym_provider_t *pdb, uint64_t *addr_out,
+                                 re_dbg_symbol_t *info_out) {
+    uint64_t addr = 0;
+    re_err_code_t c = try_prov(exp, &s->arena, m->path, m->base, sym, &addr, info_out);
+    if (c == RE_OK) {
+        if (addr_out)
+            *addr_out = addr;
+        return RE_OK;
+    }
+    c = try_prov(pdb, &s->arena, m->path, m->base, sym, &addr, info_out);
+    if (c == RE_OK) {
+        if (addr_out)
+            *addr_out = addr;
+        return RE_OK;
+    }
+    c = re_dbg_sym_resolve_file(&s->arena, m->path, m->base, sym, &addr);
+    if (c != RE_OK)
+        return c;
+    if (addr_out)
+        *addr_out = addr;
+    if (info_out) {
+        info_out->addr = addr;
+        copy_name(info_out->name, sizeof(info_out->name), sym);
+        copy_name(info_out->module, sizeof(info_out->module), re_path_basename_ptr(m->path));
+    }
+    return RE_OK;
+}
+
 re_err_code_t re_dbg_session_resolve(re_dbg_session_t *s, const char *query, uint64_t *addr_out,
                                      re_dbg_symbol_t *info_out) {
     re_dbg_module_t mods[128];
@@ -416,6 +459,8 @@ re_err_code_t re_dbg_session_resolve(re_dbg_session_t *s, const char *query, uin
     const char *sym;
     const char *colon;
     re_err_code_t c;
+    re_sym_provider_t *exp;
+    re_sym_provider_t *pdb;
     if (addr_out)
         *addr_out = 0;
     if (info_out)
@@ -439,22 +484,13 @@ re_err_code_t re_dbg_session_resolve(re_dbg_session_t *s, const char *query, uin
     c = re_dbg_session_enum_modules(s, mods, 128, &n);
     if (c != RE_OK)
         return c;
+    exp = re_sym_export_create(&s->arena);
+    pdb = re_sym_pdb_create(&s->arena);
     for (i = 0; i < n; i++) {
-        uint64_t addr = 0;
         if (mod[0] && !mod_name_match(mods[i].path, mod))
             continue;
-        c = re_dbg_sym_resolve_file(&s->arena, mods[i].path, mods[i].base, sym, &addr);
-        if (c != RE_OK)
-            continue;
-        if (addr_out)
-            *addr_out = addr;
-        if (info_out) {
-            info_out->addr = addr;
-            copy_name(info_out->name, sizeof(info_out->name), sym);
-            copy_name(info_out->module, sizeof(info_out->module),
-                      re_path_basename_ptr(mods[i].path));
-        }
-        return RE_OK;
+        if (resolve_one(s, &mods[i], sym, exp, pdb, addr_out, info_out) == RE_OK)
+            return RE_OK;
     }
     return RE_E_NOTFOUND;
 }

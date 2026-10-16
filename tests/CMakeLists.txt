@@ -84,6 +84,13 @@ if(MSVC)
         PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
     target_compile_definitions(re_test_debug_p2 PRIVATE _CRT_SECURE_NO_WARNINGS)
 endif()
+add_executable(re_test_sym_p2 test_sym_p2.c)
+target_link_libraries(re_test_sym_p2 PRIVATE re_core re_utils re_flags)
+if(MSVC)
+    set_property(TARGET re_test_sym_p2
+        PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+    target_compile_definitions(re_test_sym_p2 PRIVATE _CRT_SECURE_NO_WARNINGS)
+endif()
 if(UNIX AND NOT APPLE)
     add_executable(loop_inferior fixtures/loop_inferior.c)
     target_link_libraries(loop_inferior PRIVATE re_flags dl)
@@ -101,9 +108,18 @@ if(UNIX AND NOT APPLE)
         COMMAND re_test_debug_p2 $<TARGET_FILE:loop_inferior>)
     set_tests_properties(debug_p2 PROPERTIES
         ENVIRONMENT "RE_TEST_INFERIOR=$<TARGET_FILE:loop_inferior>")
+    add_executable(dwarf_src fixtures/dwarf_src.c)
+    target_link_libraries(dwarf_src PRIVATE re_flags)
+    # DWARF 4 line tables (v1 parser); DWARF 5 directory forms are deferred.
+    target_compile_options(dwarf_src PRIVATE -gdwarf-4 -g -O0)
+    add_test(NAME sym_p2
+        COMMAND re_test_sym_p2 $<TARGET_FILE:dwarf_src>)
+    set_tests_properties(sym_p2 PROPERTIES
+        ENVIRONMENT "RE_TEST_DWARF=$<TARGET_FILE:dwarf_src>")
 else()
     add_test(NAME debug COMMAND re_test_debug)
     add_test(NAME debug_p2 COMMAND re_test_debug_p2)
+    add_test(NAME sym_p2 COMMAND re_test_sym_p2)
     # Windows: enable when backend step + get_regs are live (Pack E).
     add_test(NAME DISABLED_debug_launch_bp_step_detach
         COMMAND ${CMAKE_COMMAND} -E echo

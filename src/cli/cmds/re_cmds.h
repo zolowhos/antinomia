@@ -67,6 +67,11 @@ int re_cmd_bpfr(re_ctx_t *ctx, const char *path, int argc, char **argv);
 int re_cmd_graph(re_ctx_t *ctx, const char *path, int argc, char **argv);
 int re_cmd_mem_find(re_ctx_t *ctx, const char *path, int argc, char **argv);
 int re_cmd_search(re_ctx_t *ctx, const char *path, int argc, char **argv);
+int re_cmd_src(re_ctx_t *ctx, const char *path, int argc, char **argv);
+int re_cmd_bm(re_ctx_t *ctx, const char *path, int argc, char **argv);
+int re_cmd_bmlist(re_ctx_t *ctx, const char *path, int argc, char **argv);
+int re_cmd_patches(re_ctx_t *ctx, const char *path, int argc, char **argv);
+int re_cmd_funcs(re_ctx_t *ctx, const char *path, int argc, char **argv);
 
 #ifdef __cplusplus
 }

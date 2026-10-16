@@ -1,4 +1,4 @@
-// re_dbg_db.c - load and save per-module annotation JSON (breakpoints/labels/comments).
+// re_dbg_db.c - load and save per-module annotation JSON (rich user DB).
 // Module: feature/persist (C11).
 // Owns: the on-disk schema and the in-memory annotation tables.
 // Depends: re_dbg_db.h, re_json, re_jr, re_buf. No malloc; arena scratch only.
@@ -142,6 +142,76 @@ static re_err_code_t load_comments(re_dbg_db_t *db, const re_jr_t *arr) {
     return RE_OK;
 }
 
+static re_err_code_t load_bookmarks(re_dbg_db_t *db, const re_jr_t *arr) {
+    size_t i;
+    if (!arr || arr->kind != RE_JR_ARR)
+        return RE_OK;
+    for (i = 0; i < arr->count && db->n_bookmarks < RE_DBG_DB_MAX_BOOKMARK; i++) {
+        const re_jr_t *o = &arr->items[i];
+        const re_jr_t *rv;
+        const re_jr_t *nm;
+        if (!o || o->kind != RE_JR_OBJ)
+            continue;
+        rv = re_jr_get(o, "rva");
+        nm = re_jr_get(o, "name");
+        db->bookmarks[db->n_bookmarks].rva = parse_rva(rv);
+        copy_cstr(db->bookmarks[db->n_bookmarks].name, sizeof(db->bookmarks[0].name),
+                  nm && nm->kind == RE_JR_STR ? nm->str.p : "");
+        db->n_bookmarks++;
+    }
+    return RE_OK;
+}
+
+static re_err_code_t load_patches(re_dbg_db_t *db, const re_jr_t *arr) {
+    size_t i;
+    if (!arr || arr->kind != RE_JR_ARR)
+        return RE_OK;
+    for (i = 0; i < arr->count && db->n_patches < RE_DBG_DB_MAX_PATCH; i++) {
+        const re_jr_t *o = &arr->items[i];
+        const re_jr_t *rv;
+        const re_jr_t *sz;
+        const re_jr_t *oh;
+        const re_jr_t *ph;
+        if (!o || o->kind != RE_JR_OBJ)
+            continue;
+        rv = re_jr_get(o, "rva");
+        sz = re_jr_get(o, "size");
+        oh = re_jr_get(o, "orig");
+        ph = re_jr_get(o, "patch");
+        db->patches[db->n_patches].rva = parse_rva(rv);
+        db->patches[db->n_patches].size = (uint32_t)parse_rva(sz);
+        copy_cstr(db->patches[db->n_patches].orig_hex, sizeof(db->patches[0].orig_hex),
+                  oh && oh->kind == RE_JR_STR ? oh->str.p : "");
+        copy_cstr(db->patches[db->n_patches].patch_hex, sizeof(db->patches[0].patch_hex),
+                  ph && ph->kind == RE_JR_STR ? ph->str.p : "");
+        db->n_patches++;
+    }
+    return RE_OK;
+}
+
+static re_err_code_t load_funcs(re_dbg_db_t *db, const re_jr_t *arr) {
+    size_t i;
+    if (!arr || arr->kind != RE_JR_ARR)
+        return RE_OK;
+    for (i = 0; i < arr->count && db->n_funcs < RE_DBG_DB_MAX_FUNC; i++) {
+        const re_jr_t *o = &arr->items[i];
+        const re_jr_t *st;
+        const re_jr_t *en;
+        const re_jr_t *nm;
+        if (!o || o->kind != RE_JR_OBJ)
+            continue;
+        st = re_jr_get(o, "start");
+        en = re_jr_get(o, "end");
+        nm = re_jr_get(o, "name");
+        db->funcs[db->n_funcs].start_rva = parse_rva(st);
+        db->funcs[db->n_funcs].end_rva = parse_rva(en);
+        copy_cstr(db->funcs[db->n_funcs].name, sizeof(db->funcs[0].name),
+                  nm && nm->kind == RE_JR_STR ? nm->str.p : "");
+        db->n_funcs++;
+    }
+    return RE_OK;
+}
+
 re_err_code_t re_dbg_db_load(re_dbg_db_t *db, re_arena_t *scratch, const char *module_path) {
     re_file_t f;
     re_jr_t root;
@@ -158,7 +228,7 @@ re_err_code_t re_dbg_db_load(re_dbg_db_t *db, re_arena_t *scratch, const char *m
     c = re_file_open(path, scratch, &f);
     if (c != RE_OK) {
         db->loaded = true;
-        return RE_OK; /* missing file => empty db */
+        return RE_OK;
     }
     if (!re_jr_parse(scratch, (const char *)f.whole.p, f.whole.n, &root) ||
         root.kind != RE_JR_OBJ) {
@@ -168,6 +238,9 @@ re_err_code_t re_dbg_db_load(re_dbg_db_t *db, re_arena_t *scratch, const char *m
     (void)load_bps(db, re_jr_get(&root, "breakpoints"));
     (void)load_labels(db, re_jr_get(&root, "labels"));
     (void)load_comments(db, re_jr_get(&root, "comments"));
+    (void)load_bookmarks(db, re_jr_get(&root, "bookmarks"));
+    (void)load_patches(db, re_jr_get(&root, "patches"));
+    (void)load_funcs(db, re_jr_get(&root, "functions"));
     re_file_close(&f);
     db->loaded = true;
     db->dirty = false;
@@ -213,6 +286,48 @@ static void emit_comments(re_jw_t *w, const re_dbg_db_t *db) {
     re_jw_arr_end(w);
 }
 
+static void emit_bookmarks(re_jw_t *w, const re_dbg_db_t *db) {
+    size_t i;
+    re_jw_key(w, "bookmarks");
+    re_jw_arr(w);
+    for (i = 0; i < db->n_bookmarks; i++) {
+        re_jw_obj(w);
+        re_jw_khex(w, "rva", db->bookmarks[i].rva, 0);
+        re_jw_kcstr(w, "name", db->bookmarks[i].name);
+        re_jw_obj_end(w);
+    }
+    re_jw_arr_end(w);
+}
+
+static void emit_patches(re_jw_t *w, const re_dbg_db_t *db) {
+    size_t i;
+    re_jw_key(w, "patches");
+    re_jw_arr(w);
+    for (i = 0; i < db->n_patches; i++) {
+        re_jw_obj(w);
+        re_jw_khex(w, "rva", db->patches[i].rva, 0);
+        re_jw_ku64(w, "size", db->patches[i].size);
+        re_jw_kcstr(w, "orig", db->patches[i].orig_hex);
+        re_jw_kcstr(w, "patch", db->patches[i].patch_hex);
+        re_jw_obj_end(w);
+    }
+    re_jw_arr_end(w);
+}
+
+static void emit_funcs(re_jw_t *w, const re_dbg_db_t *db) {
+    size_t i;
+    re_jw_key(w, "functions");
+    re_jw_arr(w);
+    for (i = 0; i < db->n_funcs; i++) {
+        re_jw_obj(w);
+        re_jw_khex(w, "start", db->funcs[i].start_rva, 0);
+        re_jw_khex(w, "end", db->funcs[i].end_rva, 0);
+        re_jw_kcstr(w, "name", db->funcs[i].name);
+        re_jw_obj_end(w);
+    }
+    re_jw_arr_end(w);
+}
+
 re_err_code_t re_dbg_db_save(const re_dbg_db_t *db, re_arena_t *scratch) {
     re_jw_t w;
     FILE *f;
@@ -231,6 +346,9 @@ re_err_code_t re_dbg_db_save(const re_dbg_db_t *db, re_arena_t *scratch) {
     emit_bps(&w, db);
     emit_labels(&w, db);
     emit_comments(&w, db);
+    emit_bookmarks(&w, db);
+    emit_patches(&w, db);
+    emit_funcs(&w, db);
     re_jw_obj_end(&w);
     if (!re_jw_ok(&w)) {
         fclose(f);

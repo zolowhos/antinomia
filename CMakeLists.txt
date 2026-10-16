@@ -110,6 +110,7 @@ add_executable(antinomia
     src/cli/cmds/re_cmds_thr.c
     src/cli/cmds/re_cmds_expr.c
     src/cli/cmds/re_cmds_view.c
+    src/cli/cmds/re_cmds_db.c
     src/cli/screen/re_input.c
     src/cli/screen/re_focus.c
     src/cli/screen/re_draw.c
@@ -124,6 +125,8 @@ find_package(Threads REQUIRED)
 target_link_libraries(antinomia PRIVATE Threads::Threads)
 if(WIN32)
     target_link_libraries(antinomia PRIVATE comdlg32 ws2_32)
+    # PDB basic via dbghelp (Phase 2); also link on re_core consumers of Sym*.
+    target_link_libraries(re_core PUBLIC dbghelp)
 endif()
 if(MSVC)
     set_property(TARGET antinomia PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
