@@ -12,7 +12,6 @@
 #if defined(__linux__)
 #    include <fcntl.h>
 #    include <unistd.h>
-#endif
 
 static void copy_cstr(char *dst, size_t cap, const char *src) {
     size_t i = 0;
@@ -41,8 +40,6 @@ static void fill_sig_name(int32_t n, char *out, size_t cap) {
     }
     snprintf(out, cap, "SIG%d", (int)n);
 }
-
-#if defined(__linux__)
 
 static bool parse_hex_mask(const char *s, uint64_t *lo, uint64_t *hi) {
     char tmp[40];
