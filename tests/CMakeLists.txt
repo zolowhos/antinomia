@@ -1,7 +1,9 @@
-# tests/CMakeLists.txt - CTest targets for utils, TUI, and Phase 0 smokes.
+# tests/CMakeLists.txt - CTest targets for utils, TUI, fixtures, and Phase 0 smokes.
 # Module: test (CMake).
-# Owns: utility and TUI suites plus CLI/MCP smoke tests.
+# Owns: utility and TUI suites, debug inferiors, plus CLI/MCP smoke tests.
 # Depends: re_utils, re_core, antinomia. Style and format gates live in the root.
+
+add_subdirectory(fixtures)
 add_executable(re_test_utils test_utils.c)
 target_link_libraries(re_test_utils PRIVATE re_utils re_flags)
 if(MSVC)
