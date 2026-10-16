@@ -10,7 +10,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#if defined(__linux__)
+#if defined(__linux__) || defined(_WIN32)
 #    include <stdlib.h>
 #endif
 
@@ -25,16 +25,22 @@ static void test_pdb_provider_stub(void) {
     re_arena_t a;
     re_sym_provider_t *p;
     re_err_code_t c;
+    uint64_t addr = 0;
     re_arena_init(&a, 64 * 1024);
     p = re_sym_pdb_create(&a);
     RE_CHECK(p != NULL);
     RE_CHECK(p->vt != NULL);
     RE_CHECK(strcmp(p->vt->name, "pdb_dbghelp") == 0);
-    c = p->vt->open_module(p, &a, "/nonexistent", 0x1000);
+    c = p->vt->open_module(p, &a, "Z:\\no-such-antinomia-mod.exe", 0x1000);
 #if defined(_WIN32)
-    /* Missing image/PDB should fail IO or unsupported without a real module. */
-    RE_CHECK(c == RE_E_IO || c == RE_E_UNSUPPORTED || c == RE_E_NOTFOUND);
+    /* SymLoadModuleEx may accept a fake base; resolve must still miss. */
+    RE_CHECK(c == RE_OK || c == RE_E_IO || c == RE_E_UNSUPPORTED || c == RE_E_NOTFOUND);
+    if (c == RE_OK) {
+        RE_CHECK_EQ_U(p->vt->resolve(p, "NoSuchSym", &addr, NULL), RE_E_NOTFOUND);
+        (void)p->vt->close_module(p);
+    }
 #else
+    (void)addr;
     RE_CHECK_EQ_U(c, RE_E_UNSUPPORTED);
 #endif
     re_arena_free(&a);
@@ -51,29 +57,42 @@ static void test_export_provider(void) {
     re_arena_free(&a);
 }
 
+static void make_temp_mod_path(char *out, size_t cap) {
+#if defined(_WIN32)
+    const char *tmp = getenv("TEMP");
+    if (!tmp || !tmp[0])
+        tmp = getenv("TMP");
+    if (!tmp || !tmp[0])
+        tmp = ".";
+    snprintf(out, cap, "%s\\antinomia_packf_mod.exe", tmp);
+#else
+    snprintf(out, cap, "/tmp/antinomia_packf_mod.so");
+#endif
+}
+
 static void test_rich_user_db(void) {
     re_dbg_db_t db;
     re_arena_t scratch;
     re_dbg_db_func_t fn;
-    char path[] = "/tmp/antinomia_packf_mod.so";
+    char path[512];
     char dbpath[512];
+    size_t i;
+    make_temp_mod_path(path, sizeof(path));
     re_arena_init(&scratch, 256 * 1024);
     re_dbg_db_init(&db);
     RE_CHECK_EQ_U(re_dbg_db_path_for(path, dbpath, sizeof(dbpath)), RE_OK);
-    {
-        size_t i = 0;
-        while (path[i] && i + 1u < sizeof(db.module_path)) {
-            db.module_path[i] = path[i];
-            i++;
-        }
-        db.module_path[i] = 0;
-        i = 0;
-        while (dbpath[i] && i + 1u < sizeof(db.db_path)) {
-            db.db_path[i] = dbpath[i];
-            i++;
-        }
-        db.db_path[i] = 0;
+    i = 0;
+    while (path[i] && i + 1u < sizeof(db.module_path)) {
+        db.module_path[i] = path[i];
+        i++;
     }
+    db.module_path[i] = 0;
+    i = 0;
+    while (dbpath[i] && i + 1u < sizeof(db.db_path)) {
+        db.db_path[i] = dbpath[i];
+        i++;
+    }
+    db.db_path[i] = 0;
     RE_CHECK_EQ_U(re_dbg_db_add_bookmark(&db, 0x1000, "entry"), RE_OK);
     RE_CHECK_EQ_U(re_dbg_db_add_bookmark(&db, 0x2000, "loop"), RE_OK);
     RE_CHECK_EQ_U(re_dbg_db_add_patch(&db, 0x3000, 2, "9090", "cc90"), RE_OK);
