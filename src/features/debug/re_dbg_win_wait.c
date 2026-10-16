@@ -98,8 +98,9 @@ static void win_map_exception(re_dbg_event_t *ev, const DEBUG_EVENT *de) {
     DWORD code = de->u.Exception.ExceptionRecord.ExceptionCode;
     ev->addr = (uint64_t)(uintptr_t)de->u.Exception.ExceptionRecord.ExceptionAddress;
     ev->code = (int32_t)code;
+    ev->first_chance = (de->u.Exception.dwFirstChance != 0);
     if (code == EXCEPTION_BREAKPOINT)
-        ev->kind = RE_DBG_EV_BREAK;
+        ev->kind = RE_DBG_EV_BREAKPOINT;
     else if (code == EXCEPTION_SINGLE_STEP)
         ev->kind = RE_DBG_EV_STEP;
     else
@@ -118,12 +119,12 @@ bool re_dbg_win_map_event(re_dbg_event_t *ev, const DEBUG_EVENT *de) {
             ev->code = (int32_t)de->u.ExitProcess.dwExitCode;
             return true;
         case CREATE_THREAD_DEBUG_EVENT:
-            ev->kind = RE_DBG_EV_THREAD;
+            ev->kind = RE_DBG_EV_THREAD_CREATE;
             ev->code = 1;
             ev->addr = (uint64_t)(uintptr_t)de->u.CreateThread.lpStartAddress;
             return true;
         case EXIT_THREAD_DEBUG_EVENT:
-            ev->kind = RE_DBG_EV_THREAD;
+            ev->kind = RE_DBG_EV_THREAD_EXIT;
             ev->code = 0;
             return true;
         case EXCEPTION_DEBUG_EVENT:
@@ -136,6 +137,11 @@ bool re_dbg_win_map_event(re_dbg_event_t *ev, const DEBUG_EVENT *de) {
         case UNLOAD_DLL_DEBUG_EVENT:
             ev->kind = RE_DBG_EV_UNLOAD_MODULE;
             ev->addr = (uint64_t)(uintptr_t)de->u.UnloadDll.lpBaseOfDll;
+            return true;
+        case OUTPUT_DEBUG_STRING_EVENT:
+            ev->kind = RE_DBG_EV_OUTPUT;
+            ev->addr = (uint64_t)(uintptr_t)de->u.DebugString.lpDebugStringData;
+            ev->code = (int32_t)de->u.DebugString.nDebugStringLength;
             return true;
         default:
             return false;
@@ -256,12 +262,22 @@ re_err_code_t re_dbg_win_wait(re_dbg_backend_t *b, re_dbg_event_t *ev, uint32_t 
             continue;
         }
         w->pending = true;
+        /* Default: pass exceptions; session/set_pass may override before cont. */
         w->cont_status =
             (ev->kind == RE_DBG_EV_EXCEPTION) ? DBG_EXCEPTION_NOT_HANDLED : DBG_CONTINUE;
         if (ev->kind == RE_DBG_EV_EXIT)
             w->saw_exit = true;
         return RE_OK;
     }
+}
+
+re_err_code_t re_dbg_win_set_pass(re_dbg_backend_t *b, bool pass, int32_t code) {
+    re_dbg_win_impl_t *w = re_dbg_win_impl(b);
+    (void)code;
+    if (!w || !w->active)
+        return RE_E_USAGE;
+    w->cont_status = pass ? DBG_EXCEPTION_NOT_HANDLED : DBG_CONTINUE;
+    return RE_OK;
 }
 
 re_err_code_t re_dbg_win_cont(re_dbg_backend_t *b) {

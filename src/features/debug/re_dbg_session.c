@@ -208,6 +208,9 @@ re_err_code_t re_dbg_session_cont(re_dbg_session_t *s) {
     if (!s->backend->vt->cont)
         return note(s, RE_E_UNSUPPORTED, "continue is not available on this backend");
     if (s->bps) {
+        c = re_dbg_ex_prepare_cont(s->bps, s->backend);
+        if (c != RE_OK)
+            return note(s, c, "exception continue disposition failed");
         c = re_dbg_bp_prepare_cont(s->bps, s->backend);
         if (c != RE_OK)
             return note(s, c, "continue re-arm step failed");
@@ -276,13 +279,15 @@ static void post_event(re_dbg_session_t *s, re_dbg_event_t *ev) {
     bool consumed = false;
     if (!s->bps || !ev)
         return;
-    if (ev->kind == RE_DBG_EV_BREAK)
+    if (ev->kind == RE_DBG_EV_BREAKPOINT)
         (void)re_dbg_bp_on_hit(s->bps, s->backend, ev->tid, &ev->addr);
     if (ev->kind == RE_DBG_EV_STEP) {
         (void)re_dbg_bp_after_step(s->bps, s->backend, &consumed);
         if (consumed)
             ev->kind = RE_DBG_EV_NONE;
     }
+    if (ev->kind == RE_DBG_EV_EXCEPTION)
+        (void)re_dbg_ex_filter(s->bps, s->backend, ev);
 }
 
 re_err_code_t re_dbg_session_wait_event(re_dbg_session_t *s, re_dbg_event_t *ev,
@@ -452,31 +457,6 @@ re_err_code_t re_dbg_session_bp_list(re_dbg_session_t *s, re_dbg_bp_info_t *out,
     if (c != RE_OK)
         return note(s, c, "bp list failed");
     return note(s, RE_OK, NULL);
-}
-
-const char *re_dbg_event_kind_str(re_dbg_event_kind_t kind) {
-    switch (kind) {
-        case RE_DBG_EV_NONE:
-            return "none";
-        case RE_DBG_EV_CREATE:
-            return "create";
-        case RE_DBG_EV_EXIT:
-            return "exit";
-        case RE_DBG_EV_BREAK:
-            return "break";
-        case RE_DBG_EV_STEP:
-            return "step";
-        case RE_DBG_EV_EXCEPTION:
-            return "exception";
-        case RE_DBG_EV_LOAD_MODULE:
-            return "load_module";
-        case RE_DBG_EV_UNLOAD_MODULE:
-            return "unload_module";
-        case RE_DBG_EV_THREAD:
-            return "thread";
-        default:
-            return "unknown";
-    }
 }
 
 const char *re_dbg_backend_name(void) {

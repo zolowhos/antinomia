@@ -97,7 +97,9 @@ int re_cmd_status(re_ctx_t *ctx, const char *path, int argc, char **argv) {
     re_jw_ku64(&w, "tid", s->last_event.tid);
     re_jw_ku64(&w, "addr", s->last_event.addr);
     re_jw_ki64(&w, "code", s->last_event.code);
+    re_jw_kbool(&w, "first_chance", s->last_event.first_chance);
     re_jw_obj_end(&w);
+    re_jw_ku64(&w, "caps", re_dbg_session_caps(s).bits);
     re_jw_obj_end(&w);
     re_jw_flush(&w, re_ctx_out(ctx));
     return 0;
@@ -324,4 +326,141 @@ int re_cmd_threads(re_ctx_t *ctx, const char *path, int argc, char **argv) {
     (void)argv;
     c = sess(ctx)->backend->vt->enum_threads(sess(ctx)->backend, NULL, 0, &n);
     return finish(ctx, "threads", c, "threads is not implemented yet; waiting on OS backends");
+}
+
+static bool parse_i32(const char *s, int32_t *out) {
+    uint64_t u = 0;
+    bool neg = false;
+    if (!s || !out)
+        return false;
+    if (s[0] == '-') {
+        neg = true;
+        s++;
+    }
+    if (!parse_addr(s, &u))
+        return false;
+    *out = neg ? -(int32_t)u : (int32_t)u;
+    return true;
+}
+
+static bool parse_range(int argc, char **argv, int32_t *lo, int32_t *hi) {
+    if (!parse_i32(re_cmd_positional(argc, argv, 0), lo))
+        return false;
+    if (!re_cmd_positional(argc, argv, 1)) {
+        *hi = *lo;
+        return true;
+    }
+    return parse_i32(re_cmd_positional(argc, argv, 1), hi);
+}
+
+int re_cmd_exbp(re_ctx_t *ctx, const char *path, int argc, char **argv) {
+    int32_t code = 0;
+    re_dbg_ex_policy_t pol = RE_DBG_EX_BREAK_PASS;
+    int i;
+    (void)path;
+    if (!parse_i32(re_cmd_positional(argc, argv, 0), &code)) {
+        emit_result(ctx, "exbp", RE_E_USAGE, "exbp needs an exception/signal code", false);
+        return 2;
+    }
+    for (i = 0; i < argc; i++) {
+        if (re_str_eq_cstr(re_str(argv[i]), "--handle"))
+            pol = RE_DBG_EX_BREAK_HANDLE;
+    }
+    return finish(ctx, "exbp", re_dbg_session_ex_set(sess(ctx), code, code, pol, true),
+                  "exbp failed");
+}
+
+int re_cmd_exignore(re_ctx_t *ctx, const char *path, int argc, char **argv) {
+    int32_t lo = 0, hi = 0;
+    (void)path;
+    if (!parse_range(argc, argv, &lo, &hi)) {
+        emit_result(ctx, "exignore", RE_E_USAGE, "exignore needs lo [hi]", false);
+        return 2;
+    }
+    return finish(ctx, "exignore",
+                  re_dbg_session_ex_set(sess(ctx), lo, hi, RE_DBG_EX_IGNORE, true),
+                  "exignore failed");
+}
+
+int re_cmd_expass(re_ctx_t *ctx, const char *path, int argc, char **argv) {
+    int32_t lo = 0, hi = 0;
+    (void)path;
+    if (!parse_range(argc, argv, &lo, &hi)) {
+        emit_result(ctx, "expass", RE_E_USAGE, "expass needs lo [hi]", false);
+        return 2;
+    }
+    return finish(ctx, "expass", re_dbg_session_ex_set(sess(ctx), lo, hi, RE_DBG_EX_PASS, true),
+                  "expass failed");
+}
+
+int re_cmd_exclear(re_ctx_t *ctx, const char *path, int argc, char **argv) {
+    int32_t lo = 0, hi = 0;
+    (void)path;
+    if (!parse_range(argc, argv, &lo, &hi)) {
+        emit_result(ctx, "exclear", RE_E_USAGE, "exclear needs lo [hi]", false);
+        return 2;
+    }
+    return finish(ctx, "exclear", re_dbg_session_ex_clear(sess(ctx), lo, hi), "exclear failed");
+}
+
+int re_cmd_exlist(re_ctx_t *ctx, const char *path, int argc, char **argv) {
+    re_dbg_ex_rule_t rules[32];
+    size_t n = 0, i;
+    re_err_code_t c;
+    re_jw_t w;
+    (void)path;
+    (void)argc;
+    (void)argv;
+    c = re_dbg_session_ex_list(sess(ctx), rules, 32, &n);
+    if (c != RE_OK)
+        return finish(ctx, "exlist", c, "exlist failed");
+    re_jw_init(&w, ctx->arena);
+    re_jw_obj(&w);
+    re_jw_kcstr(&w, "schema", "antinomia/1");
+    re_jw_kcstr(&w, "tool", "exlist");
+    re_jw_kbool(&w, "ok", true);
+    re_jw_ku64(&w, "count", n);
+    re_jw_key(&w, "rules");
+    re_jw_arr(&w);
+    for (i = 0; i < n; i++) {
+        re_jw_obj(&w);
+        re_jw_ki64(&w, "lo", rules[i].code_lo);
+        re_jw_ki64(&w, "hi", rules[i].code_hi);
+        re_jw_kcstr(&w, "policy", re_dbg_ex_policy_str(rules[i].policy));
+        re_jw_kbool(&w, "first_chance_only", rules[i].first_chance_only);
+        re_jw_obj_end(&w);
+    }
+    re_jw_arr_end(&w);
+    re_jw_obj_end(&w);
+    re_jw_flush(&w, re_ctx_out(ctx));
+    return 0;
+}
+
+int re_cmd_caps(re_ctx_t *ctx, const char *path, int argc, char **argv) {
+    re_dbg_caps_t caps = re_dbg_session_caps(sess(ctx));
+    re_jw_t w;
+    (void)path;
+    (void)argc;
+    (void)argv;
+    re_jw_init(&w, ctx->arena);
+    re_jw_obj(&w);
+    re_jw_kcstr(&w, "schema", "antinomia/1");
+    re_jw_kcstr(&w, "tool", "caps");
+    re_jw_kbool(&w, "ok", true);
+    re_jw_kcstr(&w, "backend", re_dbg_backend_name());
+    re_jw_ku64(&w, "bits", caps.bits);
+    re_jw_kbool(&w, "sw_bp", (caps.bits & RE_DBG_CAP_SW_BP) != 0);
+    re_jw_kbool(&w, "hw_bp", (caps.bits & RE_DBG_CAP_HW_BP) != 0);
+    re_jw_kbool(&w, "mem_bp", (caps.bits & RE_DBG_CAP_MEM_BP) != 0);
+    re_jw_kbool(&w, "step", (caps.bits & RE_DBG_CAP_STEP) != 0);
+    re_jw_kbool(&w, "pause", (caps.bits & RE_DBG_CAP_PAUSE) != 0);
+    re_jw_kbool(&w, "attach", (caps.bits & RE_DBG_CAP_ATTACH) != 0);
+    re_jw_kbool(&w, "modules", (caps.bits & RE_DBG_CAP_MODULES) != 0);
+    re_jw_kbool(&w, "threads", (caps.bits & RE_DBG_CAP_THREADS) != 0);
+    re_jw_kbool(&w, "exception_bp", (caps.bits & RE_DBG_CAP_EXCEPTION_BP) != 0);
+    re_jw_kbool(&w, "signal_pass", (caps.bits & RE_DBG_CAP_SIGNAL_PASS) != 0);
+    re_jw_kbool(&w, "first_chance", (caps.bits & RE_DBG_CAP_FIRST_CHANCE) != 0);
+    re_jw_obj_end(&w);
+    re_jw_flush(&w, re_ctx_out(ctx));
+    return 0;
 }

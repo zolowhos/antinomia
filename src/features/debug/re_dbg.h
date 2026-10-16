@@ -17,17 +17,25 @@ extern "C" {
 #include "utils/mem/re_arena.h"
 #include "utils/sys/re_err.h"
 
+/* Unified event model (roadmap): breakpoint, step, exception, load, unload,
+ * thread create/exit, output, exit. CREATE is process birth; BREAK aliases BREAKPOINT. */
 typedef enum {
     RE_DBG_EV_NONE = 0,
     RE_DBG_EV_CREATE,
     RE_DBG_EV_EXIT,
-    RE_DBG_EV_BREAK,
+    RE_DBG_EV_BREAKPOINT,
     RE_DBG_EV_STEP,
     RE_DBG_EV_EXCEPTION,
     RE_DBG_EV_LOAD_MODULE,
     RE_DBG_EV_UNLOAD_MODULE,
-    RE_DBG_EV_THREAD
+    RE_DBG_EV_THREAD_CREATE,
+    RE_DBG_EV_THREAD_EXIT,
+    RE_DBG_EV_OUTPUT
 } re_dbg_event_kind_t;
+
+#define RE_DBG_EV_BREAK RE_DBG_EV_BREAKPOINT
+#define RE_DBG_EV_UNLOAD RE_DBG_EV_UNLOAD_MODULE
+#define RE_DBG_EV_THREAD RE_DBG_EV_THREAD_CREATE
 
 typedef struct {
     re_dbg_event_kind_t kind;
@@ -35,7 +43,43 @@ typedef struct {
     uint32_t tid;
     uint64_t addr;
     int32_t code;
+    bool first_chance; /* Win first-chance; Linux signal stops are first-chance */
 } re_dbg_event_t;
+
+/* Backend capability bits: what this OS backend actually supports. */
+enum {
+    RE_DBG_CAP_SW_BP = 1u << 0,
+    RE_DBG_CAP_HW_BP = 1u << 1,
+    RE_DBG_CAP_MEM_BP = 1u << 2,
+    RE_DBG_CAP_STEP = 1u << 3,
+    RE_DBG_CAP_PAUSE = 1u << 4,
+    RE_DBG_CAP_ATTACH = 1u << 5,
+    RE_DBG_CAP_MODULES = 1u << 6,
+    RE_DBG_CAP_THREADS = 1u << 7,
+    RE_DBG_CAP_EXCEPTION_BP = 1u << 8,
+    RE_DBG_CAP_SIGNAL_PASS = 1u << 9,  /* Linux: PTRACE_CONT(sig) */
+    RE_DBG_CAP_FIRST_CHANCE = 1u << 10 /* Win: first- vs second-chance */
+};
+
+typedef struct {
+    uint32_t bits;
+} re_dbg_caps_t;
+
+/* Exception/signal policy: break (stop), pass to inferior, or ignore/swallow. */
+typedef enum {
+    RE_DBG_EX_BREAK_PASS = 0, /* stop; on cont deliver to inferior */
+    RE_DBG_EX_BREAK_HANDLE,   /* stop; on cont swallow */
+    RE_DBG_EX_PASS,           /* do not stop; deliver */
+    RE_DBG_EX_IGNORE          /* do not stop; swallow */
+} re_dbg_ex_policy_t;
+
+typedef struct {
+    int32_t code_lo; /* inclusive; Win exception code or Linux signo */
+    int32_t code_hi;
+    re_dbg_ex_policy_t policy;
+    bool first_chance_only; /* if set, second-chance always breaks */
+    bool used;
+} re_dbg_ex_rule_t;
 
 typedef struct {
     uint64_t rax, rbx, rcx, rdx;
@@ -99,12 +143,15 @@ typedef struct re_dbg_backend_vtbl {
                                   size_t *n_out);
     re_err_code_t (*enum_modules)(re_dbg_backend_t *b, re_dbg_module_t *out, size_t cap,
                                   size_t *n_out);
+    /* Before cont after EXCEPTION: pass=true delivers code (sig/EXCEPTION_*), else swallow. */
+    re_err_code_t (*set_pass)(re_dbg_backend_t *b, bool pass, int32_t code);
     void (*destroy)(re_dbg_backend_t *b);
 } re_dbg_backend_vtbl_t;
 
 struct re_dbg_backend {
     const re_dbg_backend_vtbl_t *vt;
     void *impl;
+    re_dbg_caps_t caps;
 };
 
 // Long-lived debug session. Lives longer than a single CLI/MCP command arena.
@@ -158,8 +205,18 @@ re_err_code_t re_dbg_session_bp_disable(re_dbg_session_t *s, uint64_t addr);
 re_err_code_t re_dbg_session_bp_list(re_dbg_session_t *s, re_dbg_bp_info_t *out, size_t cap,
                                      size_t *n_out);
 
+/* Exception/signal BP + ignore/pass ranges (first-chance aware). */
+re_err_code_t re_dbg_session_ex_set(re_dbg_session_t *s, int32_t lo, int32_t hi,
+                                    re_dbg_ex_policy_t policy, bool first_chance_only);
+re_err_code_t re_dbg_session_ex_clear(re_dbg_session_t *s, int32_t lo, int32_t hi);
+re_err_code_t re_dbg_session_ex_list(re_dbg_session_t *s, re_dbg_ex_rule_t *out, size_t cap,
+                                     size_t *n_out);
+re_dbg_caps_t re_dbg_session_caps(const re_dbg_session_t *s);
+
 const char *re_dbg_event_kind_str(re_dbg_event_kind_t kind);
+const char *re_dbg_ex_policy_str(re_dbg_ex_policy_t p);
 const char *re_dbg_backend_name(void);
+re_dbg_caps_t re_dbg_backend_caps(const re_dbg_backend_t *b);
 
 // Module list, symbol resolve v0 (PE export / ELF dynsym), and stack walk v0.
 re_err_code_t re_dbg_session_enum_modules(re_dbg_session_t *s, re_dbg_module_t *out, size_t cap,

@@ -91,13 +91,19 @@ static re_err_code_t stub_modules(re_dbg_backend_t *b, re_dbg_module_t *out, siz
         *n_out = 0;
     return RE_E_UNSUPPORTED;
 }
+static re_err_code_t stub_set_pass(re_dbg_backend_t *b, bool pass, int32_t code) {
+    (void)b;
+    (void)pass;
+    (void)code;
+    return RE_E_UNSUPPORTED;
+}
 static void stub_destroy(re_dbg_backend_t *b) {
     (void)b;
 }
-static const re_dbg_backend_vtbl_t kVtbl = {stub_launch,   stub_attach,   stub_detach, stub_kill,
-                                            stub_wait,     stub_cont,     stub_step,   stub_pause,
-                                            stub_get_regs, stub_set_regs, stub_read,   stub_write,
-                                            stub_threads,  stub_modules,  stub_destroy};
+static const re_dbg_backend_vtbl_t kVtbl = {
+    stub_launch,   stub_attach,   stub_detach, stub_kill,     stub_wait,     stub_cont,
+    stub_step,     stub_pause,    stub_get_regs, stub_set_regs, stub_read,   stub_write,
+    stub_threads,  stub_modules,  stub_set_pass, stub_destroy};
 
 re_dbg_backend_t *re_dbg_backend_win_create(re_arena_t *a) {
     re_dbg_backend_t *b = (re_dbg_backend_t *)re_arena_alloc(a, sizeof(*b));
@@ -105,6 +111,7 @@ re_dbg_backend_t *re_dbg_backend_win_create(re_arena_t *a) {
         return NULL;
     b->vt = &kVtbl;
     b->impl = NULL;
+    b->caps.bits = 0;
     return b;
 }
 
@@ -256,7 +263,12 @@ static const re_dbg_backend_vtbl_t kVtbl = {win_launch,
                                             re_dbg_win_write_mem,
                                             re_dbg_win_enum_threads,
                                             re_dbg_win_enum_modules,
+                                            re_dbg_win_set_pass,
                                             win_destroy};
+
+static const uint32_t kWinCaps =
+    RE_DBG_CAP_SW_BP | RE_DBG_CAP_STEP | RE_DBG_CAP_PAUSE | RE_DBG_CAP_ATTACH |
+    RE_DBG_CAP_MODULES | RE_DBG_CAP_THREADS | RE_DBG_CAP_EXCEPTION_BP | RE_DBG_CAP_FIRST_CHANCE;
 
 re_dbg_backend_t *re_dbg_backend_win_create(re_arena_t *a) {
     re_dbg_backend_t *b = (re_dbg_backend_t *)re_arena_alloc(a, sizeof(*b));
@@ -268,6 +280,7 @@ re_dbg_backend_t *re_dbg_backend_win_create(re_arena_t *a) {
         return NULL;
     b->vt = &kVtbl;
     b->impl = w;
+    b->caps.bits = kWinCaps;
     return b;
 }
 

@@ -37,7 +37,7 @@ static re_err_code_t wait_stop(re_dbg_linux_t *st, pid_t tid, int *status_out) {
 static void queue_create_break(re_dbg_linux_t *st, pid_t tid) {
     uint64_t rip = re_dbg_linux_rip(tid);
     re_dbg_linux_q_push(st, RE_DBG_EV_CREATE, tid, rip, 0);
-    re_dbg_linux_q_push(st, RE_DBG_EV_BREAK, tid, rip, SIGTRAP);
+    re_dbg_linux_q_push(st, RE_DBG_EV_BREAKPOINT, tid, rip, SIGTRAP);
 }
 
 static size_t copy_cstr(char *dst, size_t cap, const char *src) {

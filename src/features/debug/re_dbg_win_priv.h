@@ -63,6 +63,7 @@ re_err_code_t re_dbg_win_enum_threads(re_dbg_backend_t *b, re_dbg_thread_t *out,
 HANDLE re_dbg_win_thread_handle(re_dbg_win_impl_t *w, DWORD tid);
 re_err_code_t re_dbg_win_enum_modules(re_dbg_backend_t *b, re_dbg_module_t *out, size_t cap,
                                       size_t *n_out);
+re_err_code_t re_dbg_win_set_pass(re_dbg_backend_t *b, bool pass, int32_t code);
 void re_dbg_win_mod_clear(re_dbg_win_impl_t *w);
 void re_dbg_win_mod_note(re_dbg_win_impl_t *w, uint64_t base, HANDLE file, const void *name_ptr,
                          bool unicode);

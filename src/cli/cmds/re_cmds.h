@@ -37,6 +37,12 @@ int re_cmd_threads(re_ctx_t *ctx, const char *path, int argc, char **argv);
 int re_cmd_modules(re_ctx_t *ctx, const char *path, int argc, char **argv);
 int re_cmd_sym(re_ctx_t *ctx, const char *path, int argc, char **argv);
 int re_cmd_bt(re_ctx_t *ctx, const char *path, int argc, char **argv);
+int re_cmd_exbp(re_ctx_t *ctx, const char *path, int argc, char **argv);
+int re_cmd_exignore(re_ctx_t *ctx, const char *path, int argc, char **argv);
+int re_cmd_expass(re_ctx_t *ctx, const char *path, int argc, char **argv);
+int re_cmd_exclear(re_ctx_t *ctx, const char *path, int argc, char **argv);
+int re_cmd_exlist(re_ctx_t *ctx, const char *path, int argc, char **argv);
+int re_cmd_caps(re_ctx_t *ctx, const char *path, int argc, char **argv);
 
 #ifdef __cplusplus
 }
