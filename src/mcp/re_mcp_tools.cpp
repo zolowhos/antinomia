@@ -45,13 +45,17 @@ int fill_argv(re_arena_t *a, const re_jr_t *args, char **argv) {
         return 0;
     re_str_t pid = re_jr_str(re_jr_get(args, "pid"), "");
     re_str_t addr = re_jr_str(re_jr_get(args, "addr"), "");
+    re_str_t pattern = re_jr_str(re_jr_get(args, "pattern"), "");
     if (pid.n && argc < 15)
         argv[argc++] = (char *)re_arena_strndup(a, pid.p, pid.n);
     if (addr.n && argc < 15)
         argv[argc++] = (char *)re_arena_strndup(a, addr.p, addr.n);
+    if (pattern.n && argc < 15)
+        argv[argc++] = (char *)re_arena_strndup(a, pattern.p, pattern.n);
     push_flag_i64(a, argv, &argc, "--limit", re_jr_i64(re_jr_get(args, "limit"), -1));
     push_flag_i64(a, argv, &argc, "--offset", re_jr_i64(re_jr_get(args, "offset"), -1));
     push_flag_i64(a, argv, &argc, "--len", re_jr_i64(re_jr_get(args, "len"), -1));
+    push_flag_i64(a, argv, &argc, "--off", re_jr_i64(re_jr_get(args, "off"), -1));
     return argc;
 }
 
@@ -93,9 +97,16 @@ void mcp_tool_schema(const re_cmd_t *cmd, re_strbuf_t *b) {
     if (re_str_eq_cstr(re_str(cmd->name), "attach"))
         prop(b, &first, "pid", "string", "Process id to attach");
     if (re_str_eq_cstr(re_str(cmd->name), "mem_read") ||
-        re_str_eq_cstr(re_str(cmd->name), "mem_write")) {
+        re_str_eq_cstr(re_str(cmd->name), "mem_write") ||
+        re_str_eq_cstr(re_str(cmd->name), "graph") || re_str_eq_cstr(re_str(cmd->name), "cfg") ||
+        re_str_eq_cstr(re_str(cmd->name), "u") || re_str_eq_cstr(re_str(cmd->name), "d")) {
         prop(b, &first, "addr", "string", "Target address (hex or decimal)");
         prop(b, &first, "len", "integer", "Byte count");
+    }
+    if (re_str_eq_cstr(re_str(cmd->name), "find") || re_str_eq_cstr(re_str(cmd->name), "search")) {
+        prop(b, &first, "pattern", "string", "Hex, quoted ASCII, or u32:value pattern");
+        prop(b, &first, "off", "integer", "Start address");
+        prop(b, &first, "len", "integer", "Span to scan (0 = modules)");
     }
     prop(b, &first, "format", "string", "json or text");
     prop(b, &first, "limit", "integer", "Row cap, default 200");

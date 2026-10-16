@@ -360,12 +360,27 @@ int re_cmd_mem_write(re_ctx_t *ctx, const char *path, int argc, char **argv) {
     return 0;
 }
 
+static void emit_insn_obj(re_jw_t *w, const re_disasm_insn_t *in) {
+    char hex[33];
+    re_hex_encode(hex, in->bytes, in->size);
+    re_jw_obj(w);
+    re_jw_khex(w, "addr", in->addr, 16);
+    re_jw_ku64(w, "size", in->size);
+    re_jw_kcstr(w, "bytes", hex);
+    re_jw_kcstr(w, "text", in->text);
+    if (in->comment[0])
+        re_jw_kcstr(w, "comment", in->comment);
+    if (in->flags & (RE_DISASM_F_CALL | RE_DISASM_F_JMP | RE_DISASM_F_JCC))
+        re_jw_khex(w, "target", in->target, 16);
+    re_jw_obj_end(w);
+}
+
 int re_cmd_disasm(re_ctx_t *ctx, const char *path, int argc, char **argv) {
     uint64_t addr = 0;
     bool have = false;
     re_dbg_regs_t regs;
     re_disasm_insn_t lines[RE_DISASM_CACHE_N];
-    size_t n = 0;
+    size_t n = 0, i;
     size_t limit = ctx->limit ? ctx->limit : 8;
     re_err_code_t c;
     re_jw_t w;
@@ -404,16 +419,8 @@ int re_cmd_disasm(re_ctx_t *ctx, const char *path, int argc, char **argv) {
     re_jw_kbool(&w, "truncated", n >= limit);
     re_jw_key(&w, "insns");
     re_jw_arr(&w);
-    for (size_t i = 0; i < n; i++) {
-        char hex[33];
-        re_hex_encode(hex, lines[i].bytes, lines[i].size);
-        re_jw_obj(&w);
-        re_jw_khex(&w, "addr", lines[i].addr, 16);
-        re_jw_ku64(&w, "size", lines[i].size);
-        re_jw_kcstr(&w, "bytes", hex);
-        re_jw_kcstr(&w, "text", lines[i].text);
-        re_jw_obj_end(&w);
-    }
+    for (i = 0; i < n; i++)
+        emit_insn_obj(&w, &lines[i]);
     re_jw_arr_end(&w);
     re_jw_obj_end(&w);
     re_jw_flush(&w, re_ctx_out(ctx));

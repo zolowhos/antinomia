@@ -1,6 +1,6 @@
 // re_cpu.h - CPU-like debugger panes bound to session state.
 // Module: cli (C11).
-// Owns: disasm/regs/dump/stack/bp/log view model and screen compose.
+// Owns: disasm/regs/dump/stack/bp/graph/log view model and screen compose.
 // Depends: re_screen, re_dbg. Degrades when backend ops are unsupported.
 #pragma once
 
@@ -21,6 +21,7 @@ extern "C" {
 #define RE_CPU_DUMP_MAX 24u
 #define RE_CPU_STACK_MAX 24u
 #define RE_CPU_BP_MAX 32u
+#define RE_CPU_GRAPH_MAX 32u
 #define RE_CPU_LOG_MAX 32u
 #define RE_CPU_WATCH_MAX 16u
 
@@ -30,6 +31,7 @@ typedef enum {
     RE_CPU_PANE_DUMP,
     RE_CPU_PANE_STACK,
     RE_CPU_PANE_BP,
+    RE_CPU_PANE_GRAPH,
     RE_CPU_PANE_LOG,
     RE_CPU_PANE_COUNT
 } re_cpu_pane_t;
@@ -78,6 +80,9 @@ typedef struct {
     re_cpu_line_t bp_lines[RE_CPU_BP_MAX];
     size_t n_bp_lines;
 
+    re_cpu_line_t graph[RE_CPU_GRAPH_MAX];
+    size_t n_graph;
+
     re_cpu_line_t log[RE_CPU_LOG_MAX];
     size_t n_log;
     size_t log_head;
@@ -103,7 +108,7 @@ void re_cpu_focus_prev(re_cpu_view_t *v);
 bool re_cpu_focus_zone(re_cpu_view_t *v, uint8_t zone);
 
 // Compose the CPU panes onto a cleared screen. Zones are assigned in pane order
-// so Tab/focus walking matches disasm -> regs -> dump -> stack -> bp -> log.
+// so Tab/focus walking matches disasm -> regs -> dump -> stack -> bp -> graph -> log.
 void re_cpu_paint(re_screen_t *s, re_cpu_view_t *v);
 
 #ifdef __cplusplus

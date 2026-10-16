@@ -42,6 +42,11 @@ re_err_code_t re_disasm_cache_fill(re_disasm_cache_t *c, uint64_t addr, const ui
     rc = re_disasm_x64_many(addr, buf, n, max_n, c->lines, &got);
     if (rc != RE_OK)
         return rc;
+    {
+        size_t i;
+        for (i = 0; i < got; i++)
+            re_disasm_enrich(&c->lines[i]);
+    }
     c->valid = true;
     c->base = addr;
     c->span = n;

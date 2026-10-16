@@ -25,6 +25,7 @@ static void test_focus_cycles(void) {
     RE_CHECK_EQ_U(v.focus, RE_CPU_PANE_DISASM);
     re_cpu_focus_prev(&v);
     RE_CHECK_EQ_U(v.focus, RE_CPU_PANE_LOG);
+    RE_CHECK_EQ_U((unsigned)RE_CPU_PANE_GRAPH + 1u, (unsigned)RE_CPU_PANE_LOG);
 }
 
 static void test_refresh_detached(void) {

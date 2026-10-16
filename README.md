@@ -98,7 +98,9 @@ vtable so both OSes link.
 | `regs` | Read GPRs + RIP/RSP/RFLAGS |
 | `set_regs` | Write GPRs as `name=value` pairs |
 | `d [addr]` | Hex dump at address (default RIP) |
-| `u [addr]` | Disassemble at address (default RIP) |
+| `u [addr]` | Disassemble at address (default RIP); comments for strings/modules |
+| `graph` / `cfg` | Function-local control-flow graph (basic blocks) |
+| `find` / `search` | Search memory for hex / `"str"` / `u32:value` patterns |
 | `mem_read` | Read target memory as hex |
 | `mem_write` | Write hex bytes; invalidates disasm cache |
 | `threads` | List threads (stub) |
