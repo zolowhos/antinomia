@@ -149,6 +149,8 @@ re_err_code_t re_dbg_session_launch(re_dbg_session_t *s, const char *path, const
     if (!s->backend->vt->launch)
         return note(s, RE_E_UNSUPPORTED, "launch is not available on this backend");
     c = s->backend->vt->launch(s->backend, path, args);
+    if (c == RE_E_PRIVILEGE)
+        return note(s, c, "launch privilege denied (Yama/SeDebugPrivilege)");
     if (c != RE_OK)
         return note(s, c, "launch failed or is not implemented");
     save_db_if_dirty(s);
@@ -173,6 +175,8 @@ re_err_code_t re_dbg_session_attach(re_dbg_session_t *s, uint32_t pid) {
     if (!s->backend->vt->attach)
         return note(s, RE_E_UNSUPPORTED, "attach is not available on this backend");
     c = s->backend->vt->attach(s->backend, pid);
+    if (c == RE_E_PRIVILEGE)
+        return note(s, c, "attach privilege denied (Yama ptrace_scope or SeDebugPrivilege)");
     if (c != RE_OK)
         return note(s, c, "attach failed or is not implemented");
     clear_target(s);

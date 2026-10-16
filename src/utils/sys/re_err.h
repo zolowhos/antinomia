@@ -22,6 +22,7 @@ typedef enum {
     RE_E_NOMEM,
     RE_E_RANGE,
     RE_E_NOTFOUND,
+    RE_E_PRIVILEGE, /* Yama / SeDebugPrivilege / access-denied attach */
     RE_E_INTERNAL
 } re_err_code_t;
 
@@ -35,6 +36,8 @@ typedef struct {
 } re_err_t;
 
 const char *re_err_str(re_err_code_t code);
+/* Stable antinomia/1 JSON error.code slug for agents (never a prose sentence). */
+const char *re_err_json_code(re_err_code_t code);
 
 // Process exit code for an error code. Documented in .rules/rules.md section 7.
 static inline int re_err_exit_code(re_err_code_t code) {
@@ -52,6 +55,7 @@ static inline int re_err_exit_code(re_err_code_t code) {
             return 5;
         case RE_E_IO:
         case RE_E_NOMEM:
+        case RE_E_PRIVILEGE:
             return 6;
         default:
             return 1;

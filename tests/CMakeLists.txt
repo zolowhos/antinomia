@@ -205,3 +205,9 @@ add_test(NAME smoke_mcp_tools
         -DANTINOMIA=$<TARGET_FILE:antinomia>
         -DINPUT=${CMAKE_CURRENT_SOURCE_DIR}/mcp_tools_list.jsonl
         -P ${CMAKE_CURRENT_SOURCE_DIR}/run_mcp_tools_list.cmake)
+
+add_test(NAME smoke_mcp_call
+    COMMAND ${CMAKE_COMMAND}
+        -DANTINOMIA=$<TARGET_FILE:antinomia>
+        -DINPUT=${CMAKE_CURRENT_SOURCE_DIR}/mcp_tools_call.jsonl
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/run_mcp_tools_call.cmake)
