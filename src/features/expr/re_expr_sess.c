@@ -5,6 +5,7 @@
 #include "features/debug/re_dbg.h"
 #include "features/debug/re_dbg_bp.h"
 #include "features/expr/re_expr.h"
+#include "features/script/re_script.h"
 
 #include "utils/text/re_str.h"
 
@@ -26,16 +27,9 @@ static void copy_str(char *dst, size_t cap, const char *src) {
 }
 
 static void push_bp_log(re_dbg_session_t *s, const char *text) {
-    size_t i;
     if (!s || !text || !text[0])
         return;
-    if (s->bp_log_n >= RE_DBG_BP_LOG_MAX) {
-        for (i = 1; i < RE_DBG_BP_LOG_MAX; i++)
-            memcpy(s->bp_log[i - 1], s->bp_log[i], RE_DBG_BP_COND_MAX);
-        s->bp_log_n = RE_DBG_BP_LOG_MAX - 1u;
-    }
-    copy_str(s->bp_log[s->bp_log_n], RE_DBG_BP_COND_MAX, text);
-    s->bp_log_n++;
+    (void)re_dbg_session_log_add(s, text);
 }
 
 re_err_code_t re_dbg_session_eval(re_dbg_session_t *s, const char *expr, int64_t *out) {
@@ -168,12 +162,6 @@ re_err_code_t re_dbg_session_bp_set_cond(re_dbg_session_t *s, uint64_t addr, con
     if (c != RE_OK)
         RE_ERR_SET(&s->last_err, c, "bp condition field update failed");
     return c;
-}
-
-const char *re_dbg_session_take_pending_cmd(re_dbg_session_t *s) {
-    if (!s || !s->pending_cmd[0])
-        return NULL;
-    return s->pending_cmd;
 }
 
 static bool truth(re_dbg_session_t *s, const char *expr, bool default_true) {

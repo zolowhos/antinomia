@@ -110,6 +110,10 @@ vtable so both OSes link.
 | `modules` / `lm` | List loaded modules (maps / load events) |
 | `sym` | Resolve `module:symbol` via PE export / ELF dynsym |
 | `bt` | Stack walk v0 (frame pointer or RSP dump) |
+| `script` / `source` | Run a file of debugger commands |
+| `note` / `notes` | Session notes with `{rax}` / `{$var}` formatting |
+| `log` | Append or list log lines (`{rax}` format; BP logs join this ring) |
+| `traces` | List/clear trace records with `--limit` / `--offset` paging |
 | `help` | Print usage |
 | `version` | Print version and schema |
 | `mcp` | Run the MCP server over stdio |

@@ -128,6 +128,17 @@ typedef struct {
 #define RE_DBG_MAX_VARS 32
 #define RE_DBG_MAX_WATCH 32
 #define RE_DBG_BP_LOG_MAX 16
+#define RE_DBG_NOTE_MAX 32
+#define RE_DBG_NOTE_LEN 96
+#define RE_DBG_TRACE_MAX 256
+
+/* Trace record v0 (Pack I paging surface; Pack G fills richer streams). */
+typedef struct {
+    uint64_t rip;
+    uint64_t rax;
+    uint64_t rcx;
+    uint64_t rdx;
+} re_dbg_trace_rec_t;
 
 typedef struct {
     uint64_t addr;
@@ -237,6 +248,10 @@ typedef struct re_dbg_session {
     char bp_log[RE_DBG_BP_LOG_MAX][RE_DBG_BP_COND_MAX];
     size_t bp_log_n;
     char pending_cmd[RE_DBG_BP_COND_MAX];
+    char notes[RE_DBG_NOTE_MAX][RE_DBG_NOTE_LEN];
+    size_t notes_n;
+    re_dbg_trace_rec_t traces[RE_DBG_TRACE_MAX];
+    size_t trace_n;
     uint32_t eval_hit_count; /* $hitcount during conditional BP eval */
     uint64_t follow_dump;    /* maps follow -> dump default address */
 } re_dbg_session_t;
@@ -322,8 +337,6 @@ re_err_code_t re_dbg_session_watch_list(re_dbg_session_t *s, re_dbg_watch_t *out
                                         size_t *n_out);
 re_err_code_t re_dbg_session_watch_eval(re_dbg_session_t *s, size_t index, int64_t *value_out,
                                         char *err, size_t err_cap);
-const char *re_dbg_session_take_pending_cmd(re_dbg_session_t *s);
-
 // After a software BP hit: hit count, log/cmd conditions, fast resume.
 // Returns false when the break should be swallowed (auto-continue scheduled).
 bool re_dbg_session_cond_on_break(re_dbg_session_t *s, re_dbg_event_t *ev);

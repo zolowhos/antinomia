@@ -156,6 +156,8 @@ int re_cmd_wait_event(re_ctx_t *ctx, const char *path, int argc, char **argv) {
     (void)argc;
     (void)argv;
     c = re_dbg_session_wait_event(sess(ctx), &ev, 0);
+    if (c == RE_OK)
+        (void)re_cmd_run_pending(ctx);
     return finish(ctx, "wait_event", c,
                   "wait_event is not implemented yet; waiting on OS backends");
 }
