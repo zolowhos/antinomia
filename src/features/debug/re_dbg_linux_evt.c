@@ -278,6 +278,69 @@ re_err_code_t re_dbg_linux_enum_threads(re_dbg_backend_t *b, re_dbg_thread_t *ou
     return RE_OK;
 }
 
+re_err_code_t re_dbg_linux_read_mem(re_dbg_backend_t *b, uint64_t addr, void *dst, size_t n) {
+    re_dbg_linux_t *st = re_dbg_linux(b);
+    uint8_t *out = (uint8_t *)dst;
+    pid_t tid;
+    size_t done = 0;
+    if (!st)
+        return RE_E_INTERNAL;
+    if (!st->attached)
+        return re_dbg_linux_fail(st, RE_E_USAGE, "not attached");
+    if (!dst && n)
+        return RE_E_USAGE;
+    tid = st->cur_tid > 0 ? st->cur_tid : st->pid;
+    while (done < n) {
+        uint64_t cur = addr + done;
+        uint64_t base = cur & ~(uint64_t)(sizeof(long) - 1u);
+        size_t skip = (size_t)(cur - base);
+        size_t chunk = sizeof(long) - skip;
+        long word;
+        if (chunk > n - done)
+            chunk = n - done;
+        errno = 0;
+        word = ptrace(PTRACE_PEEKDATA, tid, (void *)(uintptr_t)base, NULL);
+        if (errno != 0)
+            return re_dbg_linux_fail_errno(st, "PTRACE_PEEKDATA");
+        memcpy(out + done, ((uint8_t *)&word) + skip, chunk);
+        done += chunk;
+    }
+    return RE_OK;
+}
+
+re_err_code_t re_dbg_linux_write_mem(re_dbg_backend_t *b, uint64_t addr, const void *src,
+                                     size_t n) {
+    re_dbg_linux_t *st = re_dbg_linux(b);
+    const uint8_t *in = (const uint8_t *)src;
+    pid_t tid;
+    size_t done = 0;
+    if (!st)
+        return RE_E_INTERNAL;
+    if (!st->attached)
+        return re_dbg_linux_fail(st, RE_E_USAGE, "not attached");
+    if (!src && n)
+        return RE_E_USAGE;
+    tid = st->cur_tid > 0 ? st->cur_tid : st->pid;
+    while (done < n) {
+        uint64_t cur = addr + done;
+        uint64_t base = cur & ~(uint64_t)(sizeof(long) - 1u);
+        size_t skip = (size_t)(cur - base);
+        size_t chunk = sizeof(long) - skip;
+        long word;
+        if (chunk > n - done)
+            chunk = n - done;
+        errno = 0;
+        word = ptrace(PTRACE_PEEKDATA, tid, (void *)(uintptr_t)base, NULL);
+        if (errno != 0)
+            return re_dbg_linux_fail_errno(st, "PTRACE_PEEKDATA");
+        memcpy(((uint8_t *)&word) + skip, in + done, chunk);
+        if (ptrace(PTRACE_POKEDATA, tid, (void *)(uintptr_t)base, (void *)word) != 0)
+            return re_dbg_linux_fail_errno(st, "PTRACE_POKEDATA");
+        done += chunk;
+    }
+    return RE_OK;
+}
+
 #else
 typedef int re_dbg_linux_evt_placeholder;
 #endif /* __linux__ */

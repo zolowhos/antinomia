@@ -41,7 +41,7 @@ Every debug verb as MCP tool; side-channel attach; bounded `state` snapshots; `t
 
 ### Phase 4
 
-Installable archives, themes/keybindings, performance and soak hardening, docs (command ref, expression grammar, Yama FAQ), x64dbg user migration aliases.
+Installable archives, themes/keybindings, performance and soak hardening, docs (command ref, expression grammar, Yama FAQ in `docs/yama-ptrace.md`), x64dbg user migration aliases.
 
 ## Architecture invariants
 

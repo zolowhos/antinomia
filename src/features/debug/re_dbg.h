@@ -12,6 +12,7 @@ extern "C" {
 #include <stddef.h>
 #include <stdint.h>
 
+#include "features/debug/re_dbg_db.h"
 #include "utils/mem/re_arena.h"
 #include "utils/sys/re_err.h"
 
@@ -93,6 +94,7 @@ typedef struct re_dbg_session {
     char path[512];
     re_dbg_event_t last_event;
     re_err_t last_err;
+    re_dbg_db_t db; /* per-module annotations; load on launch, save on exit */
 } re_dbg_session_t;
 
 re_dbg_backend_t *re_dbg_backend_create(re_arena_t *a);
@@ -110,6 +112,8 @@ re_err_code_t re_dbg_session_attach(re_dbg_session_t *s, uint32_t pid);
 re_err_code_t re_dbg_session_detach(re_dbg_session_t *s);
 re_err_code_t re_dbg_session_kill(re_dbg_session_t *s);
 re_err_code_t re_dbg_session_cont(re_dbg_session_t *s);
+re_err_code_t re_dbg_session_step(re_dbg_session_t *s);
+re_err_code_t re_dbg_session_get_regs(re_dbg_session_t *s, re_dbg_regs_t *out);
 re_err_code_t re_dbg_session_wait_event(re_dbg_session_t *s, re_dbg_event_t *ev,
                                         uint32_t timeout_ms);
 

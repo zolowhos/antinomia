@@ -12,20 +12,6 @@
 
 #if defined(__linux__)
 
-static re_err_code_t linux_read(re_dbg_backend_t *b, uint64_t addr, void *dst, size_t n) {
-    (void)b;
-    (void)addr;
-    if (dst && n)
-        memset(dst, 0, n);
-    return RE_E_UNSUPPORTED;
-}
-static re_err_code_t linux_write(re_dbg_backend_t *b, uint64_t addr, const void *src, size_t n) {
-    (void)b;
-    (void)addr;
-    (void)src;
-    (void)n;
-    return RE_E_UNSUPPORTED;
-}
 static re_err_code_t linux_modules(re_dbg_backend_t *b, re_dbg_module_t *out, size_t cap,
                                    size_t *n_out) {
     (void)b;
@@ -42,10 +28,11 @@ static void linux_destroy(re_dbg_backend_t *b) {
 }
 
 static const re_dbg_backend_vtbl_t kVtbl = {
-    re_dbg_linux_launch,   re_dbg_linux_attach, re_dbg_linux_detach, re_dbg_linux_kill,
-    re_dbg_linux_wait,     re_dbg_linux_cont,   re_dbg_linux_step,   re_dbg_linux_get_regs,
-    re_dbg_linux_set_regs, linux_read,          linux_write,         re_dbg_linux_enum_threads,
-    linux_modules,         linux_destroy};
+    re_dbg_linux_launch,      re_dbg_linux_attach,     re_dbg_linux_detach,
+    re_dbg_linux_kill,        re_dbg_linux_wait,       re_dbg_linux_cont,
+    re_dbg_linux_step,        re_dbg_linux_get_regs,   re_dbg_linux_set_regs,
+    re_dbg_linux_read_mem,    re_dbg_linux_write_mem,  re_dbg_linux_enum_threads,
+    linux_modules,            linux_destroy};
 
 re_dbg_backend_t *re_dbg_backend_linux_create(re_arena_t *a) {
     re_dbg_backend_t *b = (re_dbg_backend_t *)re_arena_alloc(a, sizeof(*b));

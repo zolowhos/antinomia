@@ -31,8 +31,5 @@ add_test(NAME fixture_breakpoint_me
 add_test(NAME fixture_loop
     COMMAND loop 4)
 
-# Full launch -> BP -> regs -> step -> detach path waits on the live engine.
-add_test(NAME DISABLED_debug_launch_bp_step_detach
-    COMMAND ${CMAKE_COMMAND} -E echo
-        "skipped until debug engine lands")
-set_tests_properties(DISABLED_debug_launch_bp_step_detach PROPERTIES DISABLED TRUE)
+# Headless launch -> BP -> regs -> step -> detach is registered from tests/
+# CMakeLists.txt once re_test_debug exists (Linux live; Windows when step/regs land).
