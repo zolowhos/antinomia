@@ -38,6 +38,13 @@ typedef struct {
     uint8_t size;
     size_t len;
     char name[128];
+    bool fast_resume;
+    uint32_t hit_count;
+    char break_cond[RE_DBG_BP_COND_MAX];
+    char log_text[RE_DBG_BP_COND_MAX];
+    char log_cond[RE_DBG_BP_COND_MAX];
+    char cmd[RE_DBG_BP_COND_MAX];
+    char cmd_cond[RE_DBG_BP_COND_MAX];
 } re_dbg_bp_ex_t;
 
 typedef struct {

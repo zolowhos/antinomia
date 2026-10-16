@@ -359,6 +359,13 @@ static void fill_soft(re_dbg_bp_ex_t *dst, const re_dbg_bp_info_t *src) {
     dst->enabled = src->enabled;
     dst->temporary = src->temporary;
     dst->kind = RE_DBG_BP_KIND_SOFT;
+    dst->fast_resume = src->fast_resume;
+    dst->hit_count = src->hit_count;
+    copy_name(dst->break_cond, sizeof(dst->break_cond), src->break_cond);
+    copy_name(dst->log_text, sizeof(dst->log_text), src->log_text);
+    copy_name(dst->log_cond, sizeof(dst->log_cond), src->log_cond);
+    copy_name(dst->cmd, sizeof(dst->cmd), src->cmd);
+    copy_name(dst->cmd_cond, sizeof(dst->cmd_cond), src->cmd_cond);
 }
 
 static size_t append_hw_mem_load(re_dbg_advbp_t *adv, re_dbg_bp_ex_t *out, size_t cap, size_t n) {

@@ -50,6 +50,15 @@ if(MSVC)
 endif()
 add_test(NAME console COMMAND re_test_console)
 
+add_executable(re_test_expr test_expr.c)
+target_link_libraries(re_test_expr PRIVATE re_core re_utils re_flags)
+if(MSVC)
+    set_property(TARGET re_test_expr
+        PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+    target_compile_definitions(re_test_expr PRIVATE _CRT_SECURE_NO_WARNINGS)
+endif()
+add_test(NAME expr COMMAND re_test_expr)
+
 add_executable(re_test_debug test_debug.c)
 target_link_libraries(re_test_debug PRIVATE re_core re_utils re_flags)
 if(MSVC)

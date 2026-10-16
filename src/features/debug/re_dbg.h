@@ -102,12 +102,35 @@ typedef struct {
     char path[260];
 } re_dbg_module_t;
 
+#define RE_DBG_BP_COND_MAX 96
+#define RE_DBG_MAX_VARS 32
+#define RE_DBG_MAX_WATCH 32
+#define RE_DBG_BP_LOG_MAX 16
+
 typedef struct {
     uint64_t addr;
     uint8_t orig;
     bool enabled;
     bool temporary;
+    bool fast_resume;
+    uint32_t hit_count;
+    char break_cond[RE_DBG_BP_COND_MAX];
+    char log_text[RE_DBG_BP_COND_MAX];
+    char log_cond[RE_DBG_BP_COND_MAX];
+    char cmd[RE_DBG_BP_COND_MAX];
+    char cmd_cond[RE_DBG_BP_COND_MAX];
 } re_dbg_bp_info_t;
+
+typedef struct {
+    char name[32];
+    int64_t value;
+    bool used;
+} re_dbg_var_t;
+
+typedef struct {
+    char expr[RE_DBG_BP_COND_MAX];
+    bool used;
+} re_dbg_watch_t;
 
 typedef struct {
     uint64_t addr;
@@ -181,6 +204,12 @@ typedef struct re_dbg_session {
     re_dbg_bps_t *bps;
     re_dbg_advbp_t *advbp;
     re_dbg_db_t db; /* per-module annotations; load on launch, save on exit */
+    re_dbg_var_t vars[RE_DBG_MAX_VARS];
+    re_dbg_watch_t watches[RE_DBG_MAX_WATCH];
+    char bp_log[RE_DBG_BP_LOG_MAX][RE_DBG_BP_COND_MAX];
+    size_t bp_log_n;
+    char pending_cmd[RE_DBG_BP_COND_MAX];
+    uint32_t eval_hit_count; /* $hitcount during conditional BP eval */
 } re_dbg_session_t;
 
 re_dbg_backend_t *re_dbg_backend_create(re_arena_t *a);
@@ -216,6 +245,8 @@ re_err_code_t re_dbg_session_bp_enable(re_dbg_session_t *s, uint64_t addr);
 re_err_code_t re_dbg_session_bp_disable(re_dbg_session_t *s, uint64_t addr);
 re_err_code_t re_dbg_session_bp_list(re_dbg_session_t *s, re_dbg_bp_info_t *out, size_t cap,
                                      size_t *n_out);
+re_err_code_t re_dbg_session_bp_set_cond(re_dbg_session_t *s, uint64_t addr, const char *field,
+                                         const char *value);
 
 /* Exception/signal BP + ignore/pass ranges (first-chance aware). */
 re_err_code_t re_dbg_session_ex_set(re_dbg_session_t *s, int32_t lo, int32_t hi,
@@ -239,6 +270,22 @@ re_err_code_t re_dbg_session_resolve(re_dbg_session_t *s, const char *query, uin
                                      re_dbg_symbol_t *info_out);
 re_err_code_t re_dbg_session_bt(re_dbg_session_t *s, re_dbg_frame_t *out, size_t cap,
                                 size_t *n_out);
+
+// Expression / $vars / watch window (CLI/MCP; TUI hook via re_cpu_fill_watches).
+re_err_code_t re_dbg_session_eval(re_dbg_session_t *s, const char *expr, int64_t *out);
+re_err_code_t re_dbg_session_var_get(re_dbg_session_t *s, const char *name, int64_t *out);
+re_err_code_t re_dbg_session_var_set(re_dbg_session_t *s, const char *name, int64_t value);
+re_err_code_t re_dbg_session_watch_add(re_dbg_session_t *s, const char *expr);
+re_err_code_t re_dbg_session_watch_clear(re_dbg_session_t *s, size_t index_or_all);
+re_err_code_t re_dbg_session_watch_list(re_dbg_session_t *s, re_dbg_watch_t *out, size_t cap,
+                                        size_t *n_out);
+re_err_code_t re_dbg_session_watch_eval(re_dbg_session_t *s, size_t index, int64_t *value_out,
+                                        char *err, size_t err_cap);
+const char *re_dbg_session_take_pending_cmd(re_dbg_session_t *s);
+
+// After a software BP hit: hit count, log/cmd conditions, fast resume.
+// Returns false when the break should be swallowed (auto-continue scheduled).
+bool re_dbg_session_cond_on_break(re_dbg_session_t *s, re_dbg_event_t *ev);
 
 #ifdef __cplusplus
 }

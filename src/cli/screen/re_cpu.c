@@ -258,6 +258,28 @@ static void fill_status(re_cpu_view_t *v) {
     copy_cstr(v->status_right, sizeof(v->status_right), "tab focus  q quit");
 }
 
+void re_cpu_fill_watches(re_cpu_view_t *v, re_dbg_session_t *s) {
+    re_dbg_watch_t list[RE_DBG_MAX_WATCH];
+    size_t n = 0, i;
+    if (!v)
+        return;
+    v->n_watch = 0;
+    if (!s)
+        return;
+    (void)re_dbg_session_watch_list(s, list, RE_DBG_MAX_WATCH, &n);
+    for (i = 0; i < n && v->n_watch < RE_CPU_WATCH_MAX; i++) {
+        int64_t val = 0;
+        char err[96];
+        re_err_code_t c = re_dbg_session_watch_eval(s, i, &val, err, sizeof(err));
+        if (c == RE_OK)
+            line_set(&v->watch_lines[v->n_watch++], "%zu: %s = %lld", i, list[i].expr,
+                     (long long)val);
+        else
+            line_set(&v->watch_lines[v->n_watch++], "%zu: %s = <%s>", i, list[i].expr,
+                     err[0] ? err : re_err_str(c));
+    }
+}
+
 void re_cpu_refresh(re_cpu_view_t *v, re_dbg_session_t *s) {
     if (!v || !s)
         return;
@@ -275,6 +297,7 @@ void re_cpu_refresh(re_cpu_view_t *v, re_dbg_session_t *s) {
     fill_dump(v, s);
     fill_stack(v, s);
     fill_bps(v);
+    re_cpu_fill_watches(v, s);
     maybe_log_event(v, s);
     if (v->n_log == 0)
         re_cpu_log_push(v, v->attached ? "session attached" : "no target - panes idle");

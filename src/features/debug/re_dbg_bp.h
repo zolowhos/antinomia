@@ -16,6 +16,7 @@ extern "C" {
 
 #define RE_DBG_MAX_BP 64
 #define RE_DBG_MAX_EX 32
+#define RE_DBG_BP_EXPR_MAX 96
 
 typedef struct {
     uint64_t addr;
@@ -24,6 +25,13 @@ typedef struct {
     bool enabled;
     bool armed;
     bool temporary;
+    bool fast_resume;
+    uint32_t hit_count;
+    char break_cond[RE_DBG_BP_EXPR_MAX];
+    char log_text[RE_DBG_BP_EXPR_MAX];
+    char log_cond[RE_DBG_BP_EXPR_MAX];
+    char cmd[RE_DBG_BP_EXPR_MAX];
+    char cmd_cond[RE_DBG_BP_EXPR_MAX];
 } re_dbg_bp_slot_t;
 
 struct re_dbg_bps {
@@ -39,12 +47,15 @@ struct re_dbg_bps {
 };
 
 void re_dbg_bps_clear(re_dbg_bps_t *bps);
+re_dbg_bp_slot_t *re_dbg_bp_find(re_dbg_bps_t *bps, uint64_t addr);
 re_err_code_t re_dbg_bp_set(re_dbg_bps_t *bps, re_dbg_backend_t *b, uint64_t addr, bool temporary);
 re_err_code_t re_dbg_bp_clear(re_dbg_bps_t *bps, re_dbg_backend_t *b, uint64_t addr);
 re_err_code_t re_dbg_bp_enable(re_dbg_bps_t *bps, re_dbg_backend_t *b, uint64_t addr);
 re_err_code_t re_dbg_bp_disable(re_dbg_bps_t *bps, re_dbg_backend_t *b, uint64_t addr);
 re_err_code_t re_dbg_bp_list(const re_dbg_bps_t *bps, re_dbg_bp_info_t *out, size_t cap,
                              size_t *n_out);
+re_err_code_t re_dbg_bp_set_field(re_dbg_bps_t *bps, uint64_t addr, const char *field,
+                                  const char *value);
 
 /* On BREAK: if int3 was ours, restore orig, rewind RIP, mark re-arm. */
 bool re_dbg_bp_on_hit(re_dbg_bps_t *bps, re_dbg_backend_t *b, uint32_t tid, uint64_t *addr_inout);

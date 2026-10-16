@@ -49,6 +49,17 @@ int re_cmd_expass(re_ctx_t *ctx, const char *path, int argc, char **argv);
 int re_cmd_exclear(re_ctx_t *ctx, const char *path, int argc, char **argv);
 int re_cmd_exlist(re_ctx_t *ctx, const char *path, int argc, char **argv);
 int re_cmd_caps(re_ctx_t *ctx, const char *path, int argc, char **argv);
+int re_cmd_expr(re_ctx_t *ctx, const char *path, int argc, char **argv);
+int re_cmd_var(re_ctx_t *ctx, const char *path, int argc, char **argv);
+int re_cmd_watch(re_ctx_t *ctx, const char *path, int argc, char **argv);
+int re_cmd_watchc(re_ctx_t *ctx, const char *path, int argc, char **argv);
+int re_cmd_watchlist(re_ctx_t *ctx, const char *path, int argc, char **argv);
+int re_cmd_bpc(re_ctx_t *ctx, const char *path, int argc, char **argv);
+int re_cmd_bplog(re_ctx_t *ctx, const char *path, int argc, char **argv);
+int re_cmd_bplogc(re_ctx_t *ctx, const char *path, int argc, char **argv);
+int re_cmd_bpcmd(re_ctx_t *ctx, const char *path, int argc, char **argv);
+int re_cmd_bpcmdc(re_ctx_t *ctx, const char *path, int argc, char **argv);
+int re_cmd_bpfr(re_ctx_t *ctx, const char *path, int argc, char **argv);
 
 #ifdef __cplusplus
 }
