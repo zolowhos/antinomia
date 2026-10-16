@@ -181,47 +181,6 @@ int re_cmd_step(re_ctx_t *ctx, const char *path, int argc, char **argv) {
     return finish(ctx, "step", c, "step is not implemented yet; waiting on OS backends");
 }
 
-int re_cmd_regs(re_ctx_t *ctx, const char *path, int argc, char **argv) {
-    re_dbg_regs_t regs;
-    re_err_code_t c;
-    (void)path;
-    (void)argc;
-    (void)argv;
-    c = sess(ctx)->backend->vt->get_regs(sess(ctx)->backend, sess(ctx)->tid, &regs);
-    return finish(ctx, "regs", c, "regs is not implemented yet; waiting on OS backends");
-}
-
-int re_cmd_set_regs(re_ctx_t *ctx, const char *path, int argc, char **argv) {
-    re_dbg_regs_t regs;
-    re_err_code_t c;
-    (void)path;
-    (void)argc;
-    (void)argv;
-    memset(&regs, 0, sizeof(regs));
-    c = sess(ctx)->backend->vt->set_regs(sess(ctx)->backend, sess(ctx)->tid, &regs);
-    return finish(ctx, "set_regs", c, "set_regs is not implemented yet; waiting on OS backends");
-}
-
-int re_cmd_mem_read(re_ctx_t *ctx, const char *path, int argc, char **argv) {
-    uint8_t buf[16];
-    re_err_code_t c;
-    (void)path;
-    (void)argc;
-    (void)argv;
-    c = sess(ctx)->backend->vt->read_mem(sess(ctx)->backend, ctx->off, buf, sizeof(buf));
-    return finish(ctx, "mem_read", c, "mem_read is not implemented yet; waiting on OS backends");
-}
-
-int re_cmd_mem_write(re_ctx_t *ctx, const char *path, int argc, char **argv) {
-    uint8_t z = 0;
-    re_err_code_t c;
-    (void)path;
-    (void)argc;
-    (void)argv;
-    c = sess(ctx)->backend->vt->write_mem(sess(ctx)->backend, ctx->off, &z, 1);
-    return finish(ctx, "mem_write", c, "mem_write is not implemented yet; waiting on OS backends");
-}
-
 int re_cmd_threads(re_ctx_t *ctx, const char *path, int argc, char **argv) {
     size_t n = 0;
     re_err_code_t c;
