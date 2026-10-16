@@ -49,6 +49,9 @@ int re_cmd_ida_decompile(re_ctx_t *ctx, const char *path, int argc, char **argv)
 int re_cmd_ida_get_xrefs_to(re_ctx_t *ctx, const char *path, int argc, char **argv);
 int re_cmd_ida_execute_query(re_ctx_t *ctx, const char *path, int argc, char **argv);
 int re_cmd_headless(re_ctx_t *ctx, const char *path, int argc, char **argv);
+int re_cmd_explain(re_ctx_t *ctx, const char *path, int argc, char **argv);
+int re_cmd_suggest_bp(re_ctx_t *ctx, const char *path, int argc, char **argv);
+int re_cmd_summarize_ex(re_ctx_t *ctx, const char *path, int argc, char **argv);
 int re_cmd_threads(re_ctx_t *ctx, const char *path, int argc, char **argv);
 int re_cmd_thread(re_ctx_t *ctx, const char *path, int argc, char **argv);
 int re_cmd_suspend(re_ctx_t *ctx, const char *path, int argc, char **argv);
