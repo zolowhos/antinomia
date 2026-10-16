@@ -1,7 +1,7 @@
-// re_dbg_win.c - Windows Debug API backend stub (Phase 0: links, not live).
+// re_dbg_win.c - Windows Debug API backend stub (links; live ops in Phase 1 pack B).
 // Module: feature (C11).
 // Owns: the Windows stub vtable that returns RE_E_UNSUPPORTED for every op.
-// Depends: re_dbg.h. Real WinDebug arrives in Phase 1.
+// Depends: re_dbg.h. Keep the vtable layout stable for parallel backend PRs.
 #include "features/debug/re_dbg.h"
 
 #include <string.h>
@@ -18,6 +18,10 @@ static re_err_code_t stub_attach(re_dbg_backend_t *b, uint32_t pid) {
     return RE_E_UNSUPPORTED;
 }
 static re_err_code_t stub_detach(re_dbg_backend_t *b) {
+    (void)b;
+    return RE_E_UNSUPPORTED;
+}
+static re_err_code_t stub_kill(re_dbg_backend_t *b) {
     (void)b;
     return RE_E_UNSUPPORTED;
 }
@@ -85,8 +89,8 @@ static void stub_destroy(re_dbg_backend_t *b) {
     (void)b;
 }
 static const re_dbg_backend_vtbl_t kVtbl = {
-    stub_launch,   stub_attach, stub_detach, stub_wait,    stub_cont,    stub_step,   stub_get_regs,
-    stub_set_regs, stub_read,   stub_write,  stub_threads, stub_modules, stub_destroy};
+    stub_launch, stub_attach,   stub_detach, stub_kill,    stub_wait,    stub_cont,   stub_step,
+    stub_get_regs, stub_set_regs, stub_read, stub_write, stub_threads, stub_modules, stub_destroy};
 
 re_dbg_backend_t *re_dbg_backend_win_create(re_arena_t *a) {
     re_dbg_backend_t *b = (re_dbg_backend_t *)re_arena_alloc(a, sizeof(*b));
