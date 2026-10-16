@@ -21,6 +21,8 @@ int re_cmd_cont(re_ctx_t *ctx, const char *path, int argc, char **argv);
 int re_cmd_step(re_ctx_t *ctx, const char *path, int argc, char **argv);
 int re_cmd_regs(re_ctx_t *ctx, const char *path, int argc, char **argv);
 int re_cmd_set_regs(re_ctx_t *ctx, const char *path, int argc, char **argv);
+int re_cmd_dump(re_ctx_t *ctx, const char *path, int argc, char **argv);
+int re_cmd_disasm(re_ctx_t *ctx, const char *path, int argc, char **argv);
 int re_cmd_mem_read(re_ctx_t *ctx, const char *path, int argc, char **argv);
 int re_cmd_mem_write(re_ctx_t *ctx, const char *path, int argc, char **argv);
 int re_cmd_threads(re_ctx_t *ctx, const char *path, int argc, char **argv);

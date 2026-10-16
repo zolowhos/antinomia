@@ -1,10 +1,12 @@
 // re_dbg_session.c - long-lived debug session arena and control API.
 // Module: feature (C11).
 // Owns: session init/reset/free, global handle, and session-to-backend wiring.
-// Depends: re_dbg.h. Session arena is not the per-command arena.
+// Depends: re_dbg.h, re_disasm. Session arena is not the per-command arena.
 #include "features/debug/re_dbg.h"
 
 #include <string.h>
+
+#define RE_DBG_DISASM_WINDOW 256u
 
 static re_dbg_session_t g_session;
 static bool g_ready;
@@ -53,6 +55,7 @@ void re_dbg_session_init(re_dbg_session_t *s) {
     re_arena_init(&s->arena, 64u * 1024u);
     s->backend = re_dbg_backend_create(&s->arena);
     s->last_err.code = RE_OK;
+    re_disasm_cache_clear(&s->disasm_cache);
 }
 
 void re_dbg_session_reset(re_dbg_session_t *s) {
@@ -60,6 +63,7 @@ void re_dbg_session_reset(re_dbg_session_t *s) {
         s->backend->vt->detach(s->backend);
     clear_target(s);
     RE_ERR_OK(&s->last_err);
+    re_disasm_cache_clear(&s->disasm_cache);
     re_arena_reset(&s->arena);
     s->backend = re_dbg_backend_create(&s->arena);
 }
@@ -91,6 +95,7 @@ re_err_code_t re_dbg_session_launch(re_dbg_session_t *s, const char *path, const
     if (c != RE_OK)
         return note(s, c, "launch failed or is not implemented");
     clear_target(s);
+    re_disasm_cache_clear(&s->disasm_cache);
     s->attached = true;
     copy_path(s, path);
     return note(s, RE_OK, NULL);
@@ -108,6 +113,7 @@ re_err_code_t re_dbg_session_attach(re_dbg_session_t *s, uint32_t pid) {
     if (c != RE_OK)
         return note(s, c, "attach failed or is not implemented");
     clear_target(s);
+    re_disasm_cache_clear(&s->disasm_cache);
     s->attached = true;
     s->pid = pid;
     return note(s, RE_OK, NULL);
@@ -123,6 +129,7 @@ re_err_code_t re_dbg_session_detach(re_dbg_session_t *s) {
     if (c != RE_OK)
         return note(s, c, "detach failed or is not implemented");
     clear_target(s);
+    re_disasm_cache_clear(&s->disasm_cache);
     return note(s, RE_OK, NULL);
 }
 
@@ -136,6 +143,7 @@ re_err_code_t re_dbg_session_kill(re_dbg_session_t *s) {
     if (c != RE_OK)
         return note(s, c, "kill failed or is not implemented");
     clear_target(s);
+    re_disasm_cache_clear(&s->disasm_cache);
     return note(s, RE_OK, NULL);
 }
 
@@ -173,6 +181,91 @@ re_err_code_t re_dbg_session_wait_event(re_dbg_session_t *s, re_dbg_event_t *ev,
     return note(s, RE_OK, NULL);
 }
 
+re_err_code_t re_dbg_session_get_regs(re_dbg_session_t *s, uint32_t tid, re_dbg_regs_t *out) {
+    re_err_code_t c = need_backend(s);
+    uint32_t use = tid ? tid : s->tid;
+    if (c != RE_OK)
+        return c;
+    if (!out)
+        return note(s, RE_E_USAGE, "get_regs needs an output buffer");
+    if (!s->backend->vt->get_regs)
+        return note(s, RE_E_UNSUPPORTED, "get_regs is not available on this backend");
+    c = s->backend->vt->get_regs(s->backend, use, out);
+    if (c != RE_OK)
+        return note(s, c, "get_regs failed or is not implemented");
+    return note(s, RE_OK, NULL);
+}
+
+re_err_code_t re_dbg_session_set_regs(re_dbg_session_t *s, uint32_t tid, const re_dbg_regs_t *in) {
+    re_err_code_t c = need_backend(s);
+    uint32_t use = tid ? tid : s->tid;
+    if (c != RE_OK)
+        return c;
+    if (!in)
+        return note(s, RE_E_USAGE, "set_regs needs register values");
+    if (!s->backend->vt->set_regs)
+        return note(s, RE_E_UNSUPPORTED, "set_regs is not available on this backend");
+    c = s->backend->vt->set_regs(s->backend, use, in);
+    if (c != RE_OK)
+        return note(s, c, "set_regs failed or is not implemented");
+    return note(s, RE_OK, NULL);
+}
+
+re_err_code_t re_dbg_session_read_mem(re_dbg_session_t *s, uint64_t addr, void *dst, size_t n) {
+    re_err_code_t c = need_backend(s);
+    if (c != RE_OK)
+        return c;
+    if (!s->backend->vt->read_mem)
+        return note(s, RE_E_UNSUPPORTED, "read_mem is not available on this backend");
+    c = s->backend->vt->read_mem(s->backend, addr, dst, n);
+    if (c != RE_OK)
+        return note(s, c, "read_mem failed or is not implemented");
+    return note(s, RE_OK, NULL);
+}
+
+re_err_code_t re_dbg_session_write_mem(re_dbg_session_t *s, uint64_t addr, const void *src,
+                                       size_t n) {
+    re_err_code_t c = need_backend(s);
+    if (c != RE_OK)
+        return c;
+    if (!s->backend->vt->write_mem)
+        return note(s, RE_E_UNSUPPORTED, "write_mem is not available on this backend");
+    c = s->backend->vt->write_mem(s->backend, addr, src, n);
+    if (c != RE_OK)
+        return note(s, c, "write_mem failed or is not implemented");
+    re_disasm_cache_invalidate(&s->disasm_cache, addr, n);
+    return note(s, RE_OK, NULL);
+}
+
+re_err_code_t re_dbg_session_disasm(re_dbg_session_t *s, uint64_t addr, size_t count,
+                                    re_disasm_insn_t *out, size_t *n_out) {
+    uint8_t win[RE_DBG_DISASM_WINDOW];
+    size_t want = RE_DBG_DISASM_WINDOW;
+    re_err_code_t c;
+    size_t i;
+    if (n_out)
+        *n_out = 0;
+    c = need_backend(s);
+    if (c != RE_OK)
+        return c;
+    if (!out || count == 0)
+        return note(s, RE_E_USAGE, "disasm needs an output buffer");
+    if (count > RE_DISASM_CACHE_N)
+        count = RE_DISASM_CACHE_N;
+    memset(win, 0, sizeof(win));
+    c = re_dbg_session_read_mem(s, addr, win, want);
+    if (c != RE_OK)
+        return c;
+    c = re_disasm_cache_fill(&s->disasm_cache, addr, win, want, count);
+    if (c != RE_OK)
+        return note(s, c, "disasm decode failed");
+    for (i = 0; i < s->disasm_cache.n && i < count; i++)
+        out[i] = s->disasm_cache.lines[i];
+    if (n_out)
+        *n_out = i;
+    return note(s, RE_OK, NULL);
+}
+
 const char *re_dbg_event_kind_str(re_dbg_event_kind_t kind) {
     switch (kind) {
         case RE_DBG_EV_NONE:
@@ -200,8 +293,10 @@ const char *re_dbg_event_kind_str(re_dbg_event_kind_t kind) {
 
 const char *re_dbg_backend_name(void) {
 #if defined(_WIN32)
-    return "windows-stub";
+    return "windows";
+#elif defined(__linux__)
+    return "linux";
 #else
-    return "linux-stub";
+    return "stub";
 #endif
 }

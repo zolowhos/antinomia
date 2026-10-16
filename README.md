@@ -91,10 +91,12 @@ vtable so both OSes link.
 | `wait_event` | Wait for the next debug event (stub) |
 | `cont` | Continue execution (stub) |
 | `step` | Single step (stub) |
-| `regs` | Read general purpose registers (stub) |
-| `set_regs` | Write general purpose registers (stub) |
-| `mem_read` | Read target memory (stub) |
-| `mem_write` | Write target memory (stub) |
+| `regs` | Read GPRs + RIP/RSP/RFLAGS |
+| `set_regs` | Write GPRs as `name=value` pairs |
+| `d [addr]` | Hex dump at address (default RIP) |
+| `u [addr]` | Disassemble at address (default RIP) |
+| `mem_read` | Read target memory as hex |
+| `mem_write` | Write hex bytes; invalidates disasm cache |
 | `threads` | List threads (stub) |
 | `modules` | List loaded modules (stub) |
 | `help` | Print usage |

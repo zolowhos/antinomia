@@ -72,10 +72,10 @@ static void test_win_inactive(void) {
                   RE_E_IO);
     RE_CHECK_EQ_U(s.backend->vt->attach(s.backend, 0), RE_E_USAGE);
     RE_CHECK_EQ_U(s.backend->vt->step(s.backend), RE_E_UNSUPPORTED);
-    RE_CHECK_EQ_U(s.backend->vt->get_regs(s.backend, 0, &regs), RE_E_UNSUPPORTED);
-    RE_CHECK_EQ_U(s.backend->vt->set_regs(s.backend, 0, &regs), RE_E_UNSUPPORTED);
-    RE_CHECK_EQ_U(s.backend->vt->read_mem(s.backend, 0, NULL, 0), RE_E_UNSUPPORTED);
-    RE_CHECK_EQ_U(s.backend->vt->write_mem(s.backend, 0, NULL, 0), RE_E_UNSUPPORTED);
+    RE_CHECK_EQ_U(s.backend->vt->get_regs(s.backend, 0, &regs), RE_E_USAGE);
+    RE_CHECK_EQ_U(s.backend->vt->set_regs(s.backend, 0, &regs), RE_E_USAGE);
+    RE_CHECK_EQ_U(s.backend->vt->read_mem(s.backend, 0, NULL, 0), RE_E_USAGE);
+    RE_CHECK_EQ_U(s.backend->vt->write_mem(s.backend, 0, NULL, 0), RE_E_USAGE);
     RE_CHECK_EQ_U(s.backend->vt->enum_modules(s.backend, NULL, 0, &n), RE_E_UNSUPPORTED);
     RE_CHECK_EQ_U(re_dbg_session_detach(&s), RE_E_USAGE);
     RE_CHECK_EQ_U(re_dbg_session_kill(&s), RE_E_USAGE);
@@ -181,6 +181,49 @@ static void test_session_api_live(void) {
     re_dbg_session_free(&s);
 }
 
+static void test_regs_mem_disasm(void) {
+    re_dbg_session_t s;
+    re_dbg_event_t ev;
+    re_dbg_regs_t regs;
+    re_disasm_insn_t lines[8];
+    size_t n = 0;
+    uint8_t buf[16];
+    uint8_t patch[1] = {0x90};
+    uint8_t saved;
+    re_dbg_session_init(&s);
+    RE_CHECK(g_inferior != NULL);
+    RE_CHECK_EQ_U(re_dbg_session_launch(&s, g_inferior, NULL), RE_OK);
+    RE_CHECK_EQ_U(re_dbg_session_wait_event(&s, &ev, 2000), RE_OK);
+    RE_CHECK_EQ_U(ev.kind, RE_DBG_EV_CREATE);
+    RE_CHECK_EQ_U(re_dbg_session_wait_event(&s, &ev, 2000), RE_OK);
+    RE_CHECK_EQ_U(ev.kind, RE_DBG_EV_BREAK);
+    memset(&regs, 0, sizeof(regs));
+    RE_CHECK_EQ_U(re_dbg_session_get_regs(&s, 0, &regs), RE_OK);
+    RE_CHECK(regs.rip != 0);
+    RE_CHECK(regs.rsp != 0);
+    regs.rax = 0x1122334455667788ull;
+    RE_CHECK_EQ_U(re_dbg_session_set_regs(&s, 0, &regs), RE_OK);
+    memset(&regs, 0, sizeof(regs));
+    RE_CHECK_EQ_U(re_dbg_session_get_regs(&s, 0, &regs), RE_OK);
+    RE_CHECK(regs.rax == 0x1122334455667788ull);
+    memset(buf, 0, sizeof(buf));
+    RE_CHECK_EQ_U(re_dbg_session_read_mem(&s, regs.rip, buf, sizeof(buf)), RE_OK);
+    saved = buf[0];
+    RE_CHECK_EQ_U(re_dbg_session_disasm(&s, regs.rip, 4, lines, &n), RE_OK);
+    RE_CHECK(n >= 1);
+    RE_CHECK(s.disasm_cache.valid);
+    RE_CHECK_EQ_U(re_dbg_session_write_mem(&s, regs.rip, patch, 1), RE_OK);
+    RE_CHECK(!s.disasm_cache.valid);
+    RE_CHECK_EQ_U(re_dbg_session_read_mem(&s, regs.rip, buf, 1), RE_OK);
+    RE_CHECK(buf[0] == 0x90);
+    patch[0] = saved;
+    RE_CHECK_EQ_U(re_dbg_session_write_mem(&s, regs.rip, patch, 1), RE_OK);
+    RE_CHECK_EQ_U(re_dbg_session_disasm(&s, regs.rip, 2, lines, &n), RE_OK);
+    RE_CHECK(s.disasm_cache.valid);
+    RE_CHECK_EQ_U(re_dbg_session_kill(&s), RE_OK);
+    re_dbg_session_free(&s);
+}
+
 #else /* non-Linux, non-Windows host */
 
 static void test_stubs(void) {
@@ -244,6 +287,7 @@ int main(int argc, char **argv) {
     test_detach_leaves_alive();
     test_attach_detach();
     test_session_api_live();
+    test_regs_mem_disasm();
 #else
     test_stubs();
     test_session_api_degrades();

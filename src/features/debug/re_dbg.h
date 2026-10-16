@@ -12,6 +12,7 @@ extern "C" {
 #include <stddef.h>
 #include <stdint.h>
 
+#include "features/disasm/re_disasm.h"
 #include "utils/mem/re_arena.h"
 #include "utils/sys/re_err.h"
 
@@ -93,6 +94,7 @@ typedef struct re_dbg_session {
     char path[512];
     re_dbg_event_t last_event;
     re_err_t last_err;
+    re_disasm_cache_t disasm_cache;
 } re_dbg_session_t;
 
 re_dbg_backend_t *re_dbg_backend_create(re_arena_t *a);
@@ -112,6 +114,13 @@ re_err_code_t re_dbg_session_kill(re_dbg_session_t *s);
 re_err_code_t re_dbg_session_cont(re_dbg_session_t *s);
 re_err_code_t re_dbg_session_wait_event(re_dbg_session_t *s, re_dbg_event_t *ev,
                                         uint32_t timeout_ms);
+re_err_code_t re_dbg_session_get_regs(re_dbg_session_t *s, uint32_t tid, re_dbg_regs_t *out);
+re_err_code_t re_dbg_session_set_regs(re_dbg_session_t *s, uint32_t tid, const re_dbg_regs_t *in);
+re_err_code_t re_dbg_session_read_mem(re_dbg_session_t *s, uint64_t addr, void *dst, size_t n);
+re_err_code_t re_dbg_session_write_mem(re_dbg_session_t *s, uint64_t addr, const void *src,
+                                       size_t n);
+re_err_code_t re_dbg_session_disasm(re_dbg_session_t *s, uint64_t addr, size_t count,
+                                    re_disasm_insn_t *out, size_t *n_out);
 
 const char *re_dbg_event_kind_str(re_dbg_event_kind_t kind);
 const char *re_dbg_backend_name(void);
