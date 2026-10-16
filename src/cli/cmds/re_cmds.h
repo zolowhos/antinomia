@@ -72,6 +72,13 @@ int re_cmd_bm(re_ctx_t *ctx, const char *path, int argc, char **argv);
 int re_cmd_bmlist(re_ctx_t *ctx, const char *path, int argc, char **argv);
 int re_cmd_patches(re_ctx_t *ctx, const char *path, int argc, char **argv);
 int re_cmd_funcs(re_ctx_t *ctx, const char *path, int argc, char **argv);
+int re_cmd_script(re_ctx_t *ctx, const char *path, int argc, char **argv);
+int re_cmd_note(re_ctx_t *ctx, const char *path, int argc, char **argv);
+int re_cmd_notes(re_ctx_t *ctx, const char *path, int argc, char **argv);
+int re_cmd_log(re_ctx_t *ctx, const char *path, int argc, char **argv);
+int re_cmd_traces(re_ctx_t *ctx, const char *path, int argc, char **argv);
+/* Run and clear a pending on-BP command string, if any. */
+int re_cmd_run_pending(re_ctx_t *ctx);
 
 #ifdef __cplusplus
 }
