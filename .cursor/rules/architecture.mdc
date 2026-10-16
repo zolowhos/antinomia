@@ -7,4 +7,16 @@ alwaysApply: true
 
 C11 in `src/utils` and `src/features`. C++17 in `src/cli` and `src/mcp`.
 OS debug APIs stay behind `re_dbg_backend` vtables. One command table feeds argv and
-MCP `tools/list`. Session arena != per-command arena.
+MCP `tools/list`.
+
+## Session lifetime
+
+Session arena != per-command arena.
+
+- `re_dbg_session_t.arena` owns the backend object and any session-scoped state. It
+  outlives CLI/MCP/TUI command invocations (shell loop, MCP tools/call, one-shot argv).
+- Each command gets a short-lived arena on `re_ctx_t` for JSON emit and scratch only.
+  Freeing or resetting the command arena must never destroy the session or backend.
+- CLI/MCP/TUI call `re_dbg_session_*` (launch/attach/detach/kill/cont/wait_event).
+  Those functions dispatch through the backend vtable and update pid/tid/last_event.
+  Do not call OS APIs from command handlers.
