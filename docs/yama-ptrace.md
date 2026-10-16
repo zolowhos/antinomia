@@ -28,9 +28,19 @@ $ cat /proc/sys/kernel/yama/ptrace_scope
   to descendants (or with `CAP_SYS_PTRACE` / root). Scope `0` restores classic
   same-uid attach.
 
-When attach is denied, antinomia returns `RE_E_PRIVILEGE` with structured JSON
-`error.code` = `"privilege"` (schema `antinomia/1`) and prints a stderr hint that
-names `/proc/sys/kernel/yama/ptrace_scope` (never setuid the debugger).
+When attach (or launch) is denied, antinomia returns `RE_E_PRIVILEGE` with
+structured JSON under schema `antinomia/1`:
+
+| Field | Example | Meaning |
+|---|---|---|
+| `error.code` | `"privilege"` | Stable slug for agents |
+| `error.kind` | `"attach"` / `"launch"` / `"access"` | Which debug op failed |
+| `error.platform` | `"linux"` / `"windows"` | Host OS of the denial |
+| `error.hint` | `"/proc/sys/kernel/yama/ptrace_scope"` | Stable remediation token |
+| `error.message` | prose | Human-readable detail |
+
+Stderr may also name `/proc/sys/kernel/yama/ptrace_scope` (never setuid the
+debugger). On Windows, `error.hint` is `"SeDebugPrivilege"`.
 
 ## CI and local tests
 

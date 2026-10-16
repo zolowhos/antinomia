@@ -61,6 +61,15 @@ if(MSVC)
 endif()
 add_test(NAME expr COMMAND re_test_expr)
 
+add_executable(re_test_ai test_ai.c)
+target_link_libraries(re_test_ai PRIVATE re_core re_utils re_flags)
+if(MSVC)
+    set_property(TARGET re_test_ai
+        PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+    target_compile_definitions(re_test_ai PRIVATE _CRT_SECURE_NO_WARNINGS)
+endif()
+add_test(NAME ai COMMAND re_test_ai)
+
 add_executable(re_test_script test_script.c)
 target_link_libraries(re_test_script PRIVATE re_core re_utils re_flags)
 if(MSVC)
@@ -196,6 +205,44 @@ if(UNIX AND NOT APPLE)
             -DANTINOMIA=$<TARGET_FILE:antinomia>
             -DSCRIPT=${CMAKE_CURRENT_BINARY_DIR}/phase3_state_demo_ready.re
             -P ${CMAKE_CURRENT_SOURCE_DIR}/run_phase3_state_demo.cmake)
+    # Phase 3 Pack D: triage-live + headless JSON exit.
+    add_custom_command(
+        OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/phase3_headless_ci_ready.re
+        COMMAND ${CMAKE_COMMAND}
+            -DIN=$<TARGET_FILE:loop_inferior>
+            -DTEMPLATE=${CMAKE_SOURCE_DIR}/scripts/phase3_headless_ci.re.in
+            -DOUT=${CMAKE_CURRENT_BINARY_DIR}/phase3_headless_ci_ready.re
+            -P ${CMAKE_CURRENT_SOURCE_DIR}/gen_phase3_headless_ci.cmake
+        DEPENDS loop_inferior ${CMAKE_SOURCE_DIR}/scripts/phase3_headless_ci.re.in
+            ${CMAKE_CURRENT_SOURCE_DIR}/gen_phase3_headless_ci.cmake
+        COMMENT "Generate Phase 3 Pack D headless CI script with fixture path"
+        VERBATIM)
+    add_custom_target(phase3_headless_ci_script ALL
+        DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/phase3_headless_ci_ready.re)
+    add_test(NAME phase3_headless_ci
+        COMMAND ${CMAKE_COMMAND}
+            -DANTINOMIA=$<TARGET_FILE:antinomia>
+            -DSCRIPT=${CMAKE_CURRENT_BINARY_DIR}/phase3_headless_ci_ready.re
+            -P ${CMAKE_CURRENT_SOURCE_DIR}/run_phase3_headless_ci.cmake)
+    # Phase 3 Pack E: explain / suggest_bp / summarize_ex.
+    add_custom_command(
+        OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/phase3_ai_demo_ready.re
+        COMMAND ${CMAKE_COMMAND}
+            -DIN=$<TARGET_FILE:loop_inferior>
+            -DTEMPLATE=${CMAKE_SOURCE_DIR}/scripts/phase3_ai_demo.re.in
+            -DOUT=${CMAKE_CURRENT_BINARY_DIR}/phase3_ai_demo_ready.re
+            -P ${CMAKE_CURRENT_SOURCE_DIR}/gen_phase3_ai_demo.cmake
+        DEPENDS loop_inferior ${CMAKE_SOURCE_DIR}/scripts/phase3_ai_demo.re.in
+            ${CMAKE_CURRENT_SOURCE_DIR}/gen_phase3_ai_demo.cmake
+        COMMENT "Generate Phase 3 Pack E AI demo script with fixture path"
+        VERBATIM)
+    add_custom_target(phase3_ai_demo_script ALL
+        DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/phase3_ai_demo_ready.re)
+    add_test(NAME phase3_ai_demo
+        COMMAND ${CMAKE_COMMAND}
+            -DANTINOMIA=$<TARGET_FILE:antinomia>
+            -DSCRIPT=${CMAKE_CURRENT_BINARY_DIR}/phase3_ai_demo_ready.re
+            -P ${CMAKE_CURRENT_SOURCE_DIR}/run_phase3_ai_demo.cmake)
 else()
     add_test(NAME debug COMMAND re_test_debug)
     add_test(NAME debug_p2 COMMAND re_test_debug_p2)
@@ -230,6 +277,11 @@ add_test(NAME smoke_mcp_call
         -DANTINOMIA=$<TARGET_FILE:antinomia>
         -DINPUT=${CMAKE_CURRENT_SOURCE_DIR}/mcp_tools_call.jsonl
         -P ${CMAKE_CURRENT_SOURCE_DIR}/run_mcp_tools_call.cmake)
+
+add_test(NAME smoke_ida_shims
+    COMMAND ${CMAKE_COMMAND}
+        -DANTINOMIA=$<TARGET_FILE:antinomia>
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/run_smoke_ida_shims.cmake)
 
 add_executable(re_test_dbg_lock test_dbg_lock.c)
 target_link_libraries(re_test_dbg_lock PRIVATE re_core re_utils re_flags)

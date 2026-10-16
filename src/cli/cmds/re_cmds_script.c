@@ -133,7 +133,8 @@ static int exec_line(re_ctx_t *parent, const char *line, char *name_buf, size_t 
         return 0;
     }
     copy_name(name_buf, name_cap, argv[0]);
-    if (re_str_eq_cstr(re_str(argv[0]), "script") || re_str_eq_cstr(re_str(argv[0]), "source")) {
+    if (re_str_eq_cstr(re_str(argv[0]), "script") || re_str_eq_cstr(re_str(argv[0]), "source") ||
+        re_str_eq_cstr(re_str(argv[0]), "headless")) {
         re_arena_free(&a);
         return 2;
     }
@@ -205,25 +206,25 @@ static int emit_page_strings(re_ctx_t *ctx, const char *tool, const char **rows,
     return 0;
 }
 
-int re_cmd_script(re_ctx_t *ctx, const char *path, int argc, char **argv) {
-    const char *file = path && path[0] ? path : re_cmd_positional(argc, argv, 0);
+static int run_script_file(re_ctx_t *ctx, const char *tool, const char *file) {
     FILE *fp;
     char line[SCRIPT_LINE_MAX];
     size_t ran = 0, failed = 0;
+    int exit_code;
     re_jw_t w;
     if (!file || !file[0]) {
-        emit_err(ctx, "script", RE_E_USAGE, "script needs a file path");
+        emit_err(ctx, tool, RE_E_USAGE, "script needs a file path");
         return 2;
     }
     fp = fopen(file, "rb");
     if (!fp) {
-        emit_err(ctx, "script", RE_E_IO, "could not open script file");
+        emit_err(ctx, tool, RE_E_IO, "could not open script file");
         return re_err_exit_code(RE_E_IO);
     }
     re_jw_init(&w, ctx->arena);
     re_jw_obj(&w);
     re_jw_kcstr(&w, "schema", "antinomia/1");
-    re_jw_kcstr(&w, "tool", "script");
+    re_jw_kcstr(&w, "tool", tool);
     re_jw_kcstr(&w, "path", file);
     re_jw_key(&w, "lines");
     re_jw_arr(&w);
@@ -247,13 +248,25 @@ int re_cmd_script(re_ctx_t *ctx, const char *path, int argc, char **argv) {
         re_jw_obj_end(&w);
     }
     fclose(fp);
+    exit_code = failed ? 1 : 0;
     re_jw_arr_end(&w);
     re_jw_ku64(&w, "ran", ran);
     re_jw_ku64(&w, "failed", failed);
+    re_jw_ki64(&w, "exit", exit_code);
     re_jw_kbool(&w, "ok", failed == 0);
     re_jw_obj_end(&w);
     re_jw_flush(&w, re_ctx_out(ctx));
-    return failed ? 1 : 0;
+    return exit_code;
+}
+
+int re_cmd_script(re_ctx_t *ctx, const char *path, int argc, char **argv) {
+    const char *file = path && path[0] ? path : re_cmd_positional(argc, argv, 0);
+    return run_script_file(ctx, "script", file);
+}
+
+int re_cmd_headless(re_ctx_t *ctx, const char *path, int argc, char **argv) {
+    const char *file = path && path[0] ? path : re_cmd_positional(argc, argv, 0);
+    return run_script_file(ctx, "headless", file);
 }
 
 int re_cmd_note(re_ctx_t *ctx, const char *path, int argc, char **argv) {

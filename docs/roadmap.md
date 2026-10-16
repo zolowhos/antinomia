@@ -42,8 +42,10 @@ map/threads/graph/trace panes, PE/ELF patch write-back.
 
 Every debug verb as MCP tool; side-channel attach; bounded `state` snapshots
 (regs + disasm window + open BPs + last N log lines); `trace.query` / `mem.page`
-with hard limits and `next_cursor`; `triage-live`; headless script mode; native
-plugin ABI decision gate (SDK vs “MCP is the plugin API”).
+with hard limits and `next_cursor`; `triage-live`; honest ida-mcp shims
+(`docs/ida-mcp-shims.md`); `headless` script mode with JSON `exit`; native
+plugin ABI **frozen** as MCP-as-plugin (see `docs/plugin-abi.md`); local AI
+helpers `explain` / `suggest_bp` / `summarize_ex`.
 
 ### Phase 4
 

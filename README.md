@@ -111,6 +111,9 @@ vtable so both OSes link.
 | `sym` | Resolve `module:symbol` via PE export / ELF dynsym |
 | `bt` | Stack walk v0 (frame pointer or RSP dump) |
 | `script` / `source` | Run a file of debugger commands |
+| `headless` | Same as script; JSON summary includes `exit` for CI |
+| `triage-live` | Live triage: modules, entry, interesting imports, anti-debug |
+| ida-mcp shims | Optional honest aliases — see `docs/ida-mcp-shims.md` |
 | `note` / `notes` | Session notes with `{rax}` / `{$var}` formatting |
 | `log` | Append or list log lines (`{rax}` format; BP logs join this ring) |
 | `traces` | List/clear trace records with `--limit` / `--offset` paging |
@@ -168,6 +171,11 @@ $ antinomia mcp --attach           # or: antinomia mcp --attach tcp:127.0.0.1:52
 `--attach` reads the path file written by the GUI (`/tmp/antinomia-mcp.path`).
 Headless listen for CI: `antinomia mcp --side-listen` (endpoint on stderr).
 MCP tool calls queue into the session owner thread so they never block `wait_event`.
+
+**Plugin ABI (frozen):** MCP is the plugin API - no in-process C SDK. See
+`docs/plugin-abi.md`. Local AI helpers on the same command table:
+`explain`, `suggest_bp`, `summarize_ex` (aliases `ai.explain` / `ai.suggest_bp` /
+`ai.ex`).
 
 ## Development
 

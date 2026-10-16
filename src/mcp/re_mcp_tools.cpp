@@ -98,6 +98,7 @@ int fill_argv(re_arena_t *a, const re_jr_t *args, char **argv) {
     push_str(a, argv, &argc, re_jr_str(re_jr_get(args, "pattern"), ""));
     push_str(a, argv, &argc, re_jr_str(re_jr_get(args, "hex"), ""));
     push_str(a, argv, &argc, re_jr_str(re_jr_get(args, "value"), ""));
+    push_str(a, argv, &argc, re_jr_str(re_jr_get(args, "index"), ""));
     push_str(a, argv, &argc, re_jr_str(re_jr_get(args, "size"), ""));
     push_str(a, argv, &argc, re_jr_str(re_jr_get(args, "access"), ""));
     push_str(a, argv, &argc, re_jr_str(re_jr_get(args, "code"), ""));
@@ -169,8 +170,10 @@ void schema_common(re_strbuf_t *b, bool *first) {
 
 void schema_props(const re_cmd_t *cmd, re_strbuf_t *b, bool *first) {
     static const char *kAddr[] = {
-        "bp", "bc", "be",    "bd",  "bph",      "bphw",      "bphc", "bpm", "bpmc", "bpc", "bpfr",
-        "d",  "u",  "graph", "cfg", "mem_read", "mem_write", "src",  "a",   "asm",  "bm",  NULL};
+        "bp",  "bc",        "be",           "bd",        "bph",        "bphw", "bphc",
+        "bpm", "bpmc",      "bpc",          "bpfr",      "d",          "u",    "graph",
+        "cfg", "mem_read",  "mem_write",    "get_bytes", "src",        "a",    "asm",
+        "bm",  "decompile", "get_xrefs_to", "explain",   "ai.explain", NULL};
     static const char *kExpr[] = {"expr", "?", "watch", "wa", "bplogc", "bpcmdc", NULL};
     static const char *kText[] = {"note", "log", "bplog", "bpcmd", NULL};
     static const char *kTid[] = {"thread", "switch", "suspend", "resume", NULL};
@@ -211,7 +214,8 @@ void schema_props(const re_cmd_t *cmd, re_strbuf_t *b, bool *first) {
     if (name_is(cmd, "a") || name_is(cmd, "asm"))
         prop(b, first, "asm", "string", "Assembly text to encode at addr");
     if (name_is(cmd, "exbp") || name_is(cmd, "exignore") || name_is(cmd, "expass") ||
-        name_is(cmd, "exclear"))
+        name_is(cmd, "exclear") || name_is(cmd, "summarize_ex") || name_is(cmd, "ai.ex") ||
+        name_is(cmd, "exsum"))
         prop(b, first, "code", "string", "Exception or signal code (lo)");
     if (name_is(cmd, "exbp"))
         prop(b, first, "handle", "boolean", "Break and handle (do not pass)");
@@ -220,9 +224,16 @@ void schema_props(const re_cmd_t *cmd, re_strbuf_t *b, bool *first) {
         prop(b, first, "sub", "string", "Subcommand (start/stop/clear/follow/...)");
     if (name_is(cmd, "tracestep"))
         prop(b, first, "value", "string", "Step count while recording");
-    if (name_is(cmd, "trace.query") || name_is(cmd, "mem.page") || name_is(cmd, "mem_page") ||
-        name_is(cmd, "maps") || name_is(cmd, "modules") || name_is(cmd, "state"))
+    if (name_is(cmd, "trace.query") || name_is(cmd, "replay.query") || name_is(cmd, "mem.page") ||
+        name_is(cmd, "mem_page") || name_is(cmd, "maps") || name_is(cmd, "modules") ||
+        name_is(cmd, "state") || name_is(cmd, "triage-live") || name_is(cmd, "triage_live"))
         prop(b, first, "cursor", "string", "Opaque page cursor (same as offset decimal)");
+    if (name_is(cmd, "get_bytes"))
+        prop(b, first, "len", "integer", "Byte count (maps to mem_read --len)");
+    if (name_is(cmd, "replay.frame")) {
+        prop(b, first, "index", "string", "Absolute frame index from the Phase 2 trace file");
+        prop(b, first, "value", "string", "Alias for index");
+    }
     schema_common(b, first);
 }
 
@@ -245,6 +256,16 @@ void mcp_tool_error(re_strbuf_t *out, re_err_code_t code, const char *msg, bool 
     re_strbuf_puts(out, re_err_json_code(code));
     re_strbuf_puts(out, "\",\"message\":");
     re_jr_escape(out, re_str(msg ? msg : re_err_str(code)));
+    if (code == RE_E_PRIVILEGE) {
+        re_err_privilege_t priv;
+        re_err_privilege_fill("access", &priv);
+        re_strbuf_puts(out, ",\"kind\":\"");
+        re_strbuf_puts(out, priv.kind);
+        re_strbuf_puts(out, "\",\"platform\":\"");
+        re_strbuf_puts(out, priv.platform);
+        re_strbuf_puts(out, "\",\"hint\":");
+        re_jr_escape(out, re_str(priv.hint));
+    }
     re_strbuf_puts(out, "}}");
     *is_error = true;
 }
