@@ -80,6 +80,12 @@ static const re_cmd_t kCommands[] = {
      true},
     {"mem_write", "write hex bytes to memory", "mem_write <addr> <hex>", re_cmd_mem_write, false,
      false, true},
+    {"mem.page", "paged memory dump (--limit/--offset/--cursor)",
+     "mem.page [addr] [--limit N] [--offset N]", re_cmd_mem_page, false, false, true},
+    {"mem_page", "alias for mem.page", "mem_page [addr] [--limit N] [--offset N]", re_cmd_mem_page,
+     false, false, true},
+    {"state", "agent snapshot: regs+disasm+BPs+log (bounded)", "state [--limit N]", re_cmd_state,
+     false, false, true},
     {"threads", "list threads", "threads", re_cmd_threads, false, false, true},
     {"thread", "switch current thread", "thread <tid>", re_cmd_thread, false, false, true},
     {"switch", "alias for thread", "switch <tid>", re_cmd_thread, false, false, true},
@@ -138,8 +144,8 @@ static const re_cmd_t kCommands[] = {
      true},
     {"traceload", "load trace from JSON file", "traceload <file>", re_cmd_traceload, false, false,
      true},
-    {"trace.query", "paged trace frames (--limit/--offset)", "trace.query [--limit N] [--offset N]",
-     re_cmd_trace_query, false, false, true},
+    {"trace.query", "paged trace frames with hard limit/cursors",
+     "trace.query [--limit N] [--offset N|--cursor C]", re_cmd_trace_query, false, false, true},
     {"exbp", "break on exception/signal code", "exbp <code> [--handle]", re_cmd_exbp, false, false,
      true},
     {"exignore", "ignore/swallow exception code range", "exignore <lo> [hi]", re_cmd_exignore,
@@ -203,8 +209,8 @@ static bool parse_u64(const char *s, uint64_t *out) {
 
 static bool takes_value(re_str_t a) {
     return re_str_eq_cstr(a, "--format") || re_str_eq_cstr(a, "--limit") ||
-           re_str_eq_cstr(a, "--offset") || re_str_eq_cstr(a, "--off") ||
-           re_str_eq_cstr(a, "--len") || re_str_eq_cstr(a, "--rva");
+           re_str_eq_cstr(a, "--offset") || re_str_eq_cstr(a, "--cursor") ||
+           re_str_eq_cstr(a, "--off") || re_str_eq_cstr(a, "--len") || re_str_eq_cstr(a, "--rva");
 }
 
 static const char *glued_value(re_str_t a) {
@@ -213,6 +219,8 @@ static const char *glued_value(re_str_t a) {
     if (re_str_starts_cstr(a, "--limit="))
         return a.p + 8;
     if (re_str_starts_cstr(a, "--offset="))
+        return a.p + 9;
+    if (re_str_starts_cstr(a, "--cursor="))
         return a.p + 9;
     if (re_str_starts_cstr(a, "--len="))
         return a.p + 6;
@@ -243,7 +251,7 @@ static bool apply_flag(re_ctx_t *ctx, re_str_t a, const char *val, re_err_t *err
     }
     if (re_str_starts_cstr(a, "--limit"))
         ctx->limit = (size_t)n;
-    else if (re_str_starts_cstr(a, "--offset"))
+    else if (re_str_starts_cstr(a, "--offset") || re_str_starts_cstr(a, "--cursor"))
         ctx->offset = (size_t)n;
     else if (re_str_starts_cstr(a, "--len"))
         ctx->len = n;

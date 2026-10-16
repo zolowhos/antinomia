@@ -177,6 +177,25 @@ if(UNIX AND NOT APPLE)
             -DSCRIPT=${CMAKE_CURRENT_BINARY_DIR}/phase2_demo_ready.re
             -P ${CMAKE_CURRENT_SOURCE_DIR}/run_phase2_demo.cmake)
     set_tests_properties(phase2_demo PROPERTIES FIXTURES_REQUIRED "")
+    # Phase 3 Pack C: state snapshot + mem.page + trace.query cursors.
+    add_custom_command(
+        OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/phase3_state_demo_ready.re
+        COMMAND ${CMAKE_COMMAND}
+            -DIN=$<TARGET_FILE:loop_inferior>
+            -DTEMPLATE=${CMAKE_SOURCE_DIR}/scripts/phase3_state_demo.re.in
+            -DOUT=${CMAKE_CURRENT_BINARY_DIR}/phase3_state_demo_ready.re
+            -P ${CMAKE_CURRENT_SOURCE_DIR}/gen_phase3_state_demo.cmake
+        DEPENDS loop_inferior ${CMAKE_SOURCE_DIR}/scripts/phase3_state_demo.re.in
+            ${CMAKE_CURRENT_SOURCE_DIR}/gen_phase3_state_demo.cmake
+        COMMENT "Generate Phase 3 Pack C demo script with fixture path"
+        VERBATIM)
+    add_custom_target(phase3_state_demo_script ALL
+        DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/phase3_state_demo_ready.re)
+    add_test(NAME phase3_state_demo
+        COMMAND ${CMAKE_COMMAND}
+            -DANTINOMIA=$<TARGET_FILE:antinomia>
+            -DSCRIPT=${CMAKE_CURRENT_BINARY_DIR}/phase3_state_demo_ready.re
+            -P ${CMAKE_CURRENT_SOURCE_DIR}/run_phase3_state_demo.cmake)
 else()
     add_test(NAME debug COMMAND re_test_debug)
     add_test(NAME debug_p2 COMMAND re_test_debug_p2)

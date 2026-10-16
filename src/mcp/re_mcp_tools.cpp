@@ -118,6 +118,13 @@ flags:
             push_str(a, argv, &argc, fmt);
         }
     }
+    {
+        re_str_t cursor = re_jr_str(re_jr_get(args, "cursor"), "");
+        if (cursor.n && argc + 1 < 15) {
+            push_cstr(a, argv, &argc, "--cursor");
+            push_str(a, argv, &argc, cursor);
+        }
+    }
     return argc;
 }
 
@@ -190,10 +197,13 @@ void schema_props(const re_cmd_t *cmd, re_strbuf_t *b, bool *first) {
         prop(b, first, "off", "integer", "Start address");
         prop(b, first, "len", "integer", "Span to scan (0 = modules)");
     }
-    if (name_is(cmd, "mem_read") || name_is(cmd, "d") || name_is(cmd, "u"))
+    if (name_is(cmd, "mem_read") || name_is(cmd, "d") || name_is(cmd, "u") ||
+        name_is(cmd, "mem.page") || name_is(cmd, "mem_page"))
         prop(b, first, "len", "integer", "Byte or instruction count");
     if (name_is(cmd, "mem_write"))
         prop(b, first, "hex", "string", "Hex bytes to write");
+    if (name_is(cmd, "mem.page") || name_is(cmd, "mem_page"))
+        prop(b, first, "addr", "string", "Target address (hex or decimal)");
     if (name_is(cmd, "bph") || name_is(cmd, "bphw") || name_is(cmd, "bpm")) {
         prop(b, first, "size", "string", "Watch size: 1, 2, 4, or 8");
         prop(b, first, "access", "string", "Access: x, w, or rw");
@@ -210,6 +220,9 @@ void schema_props(const re_cmd_t *cmd, re_strbuf_t *b, bool *first) {
         prop(b, first, "sub", "string", "Subcommand (start/stop/clear/follow/...)");
     if (name_is(cmd, "tracestep"))
         prop(b, first, "value", "string", "Step count while recording");
+    if (name_is(cmd, "trace.query") || name_is(cmd, "mem.page") || name_is(cmd, "mem_page") ||
+        name_is(cmd, "maps") || name_is(cmd, "modules") || name_is(cmd, "state"))
+        prop(b, first, "cursor", "string", "Opaque page cursor (same as offset decimal)");
     schema_common(b, first);
 }
 
