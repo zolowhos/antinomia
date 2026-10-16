@@ -56,10 +56,13 @@ typedef struct {
 
 typedef struct re_dbg_backend re_dbg_backend_t;
 
+// Stable OS backend contract. Parallel Linux/Windows PRs implement these ops;
+// stubs return RE_E_UNSUPPORTED so CLI/MCP can degrade gracefully.
 typedef struct re_dbg_backend_vtbl {
     re_err_code_t (*launch)(re_dbg_backend_t *b, const char *path, const char *args);
     re_err_code_t (*attach)(re_dbg_backend_t *b, uint32_t pid);
     re_err_code_t (*detach)(re_dbg_backend_t *b);
+    re_err_code_t (*kill)(re_dbg_backend_t *b);
     re_err_code_t (*wait_event)(re_dbg_backend_t *b, re_dbg_event_t *ev, uint32_t timeout_ms);
     re_err_code_t (*cont)(re_dbg_backend_t *b);
     re_err_code_t (*step)(re_dbg_backend_t *b);
@@ -80,12 +83,15 @@ struct re_dbg_backend {
 };
 
 // Long-lived debug session. Lives longer than a single CLI/MCP command arena.
+// Session arena owns the backend object; command arenas must never free it.
 typedef struct re_dbg_session {
     re_arena_t arena;
     re_dbg_backend_t *backend;
     bool attached;
     uint32_t pid;
+    uint32_t tid;
     char path[512];
+    re_dbg_event_t last_event;
     re_err_t last_err;
 } re_dbg_session_t;
 
@@ -96,6 +102,19 @@ void re_dbg_session_free(re_dbg_session_t *s);
 
 // Process-wide session for CLI/MCP until Phase 1 multi-session lands.
 re_dbg_session_t *re_dbg_session_global(void);
+
+// Session control: CLI/MCP/TUI call these; they dispatch to the backend vtable
+// and update pid/tid/last_event on success. Stubs return RE_E_UNSUPPORTED.
+re_err_code_t re_dbg_session_launch(re_dbg_session_t *s, const char *path, const char *args);
+re_err_code_t re_dbg_session_attach(re_dbg_session_t *s, uint32_t pid);
+re_err_code_t re_dbg_session_detach(re_dbg_session_t *s);
+re_err_code_t re_dbg_session_kill(re_dbg_session_t *s);
+re_err_code_t re_dbg_session_cont(re_dbg_session_t *s);
+re_err_code_t re_dbg_session_wait_event(re_dbg_session_t *s, re_dbg_event_t *ev,
+                                        uint32_t timeout_ms);
+
+const char *re_dbg_event_kind_str(re_dbg_event_kind_t kind);
+const char *re_dbg_backend_name(void);
 
 #ifdef __cplusplus
 }
