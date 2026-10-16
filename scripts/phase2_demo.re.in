@@ -1,0 +1,34 @@
+# phase2_demo.re - Phase 2 competitive gate demo (CLI command script).
+# Module: demo (antinomia script).
+# Owns: dual-OS documented RE workflow: attach/self-debuggee through DB export.
+# Depends: antinomia CLI. Linux ELF fixture substituted at configure time.
+#
+# Linux (headless CTest): configured copy with @INFERIOR@ -> loop_inferior.
+# Windows PE fixture path (run manually / CI when Win backend is live):
+#   init tests/fixtures/breakpoint_me.exe
+#   # or: init <build>/bin/loop.exe
+# Symbol names below match loop_inferior exports; on Windows use the PE exports
+# of breakpoint_me / loop (adjust module:symbol accordingly).
+#
+# wait_event takes an optional timeout_ms so headless CI cannot hang forever.
+
+init @INFERIOR@
+wait_event 5000
+wait_event 5000
+modules
+signals
+maps
+bp loop_inferior:antinomia_touch
+bpc loop_inferior:antinomia_touch 1
+bplog loop_inferior:antinomia_touch touch_hit
+bph loop_inferior:antinomia_watch 4 w
+run
+wait_event 5000
+bpdll libm
+bt
+tracestart
+tracestep 4
+tracesave @TRACE_OUT@
+bm 0x0 phase2_demo
+dbsave
+kill

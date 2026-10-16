@@ -31,7 +31,9 @@ if(MSVC)
 endif()
 add_test(NAME screen COMMAND re_test_screen)
 
-add_executable(re_test_cpu test_cpu.c ${CMAKE_SOURCE_DIR}/src/cli/screen/re_cpu.c)
+add_executable(re_test_cpu test_cpu.c
+    ${CMAKE_SOURCE_DIR}/src/cli/screen/re_cpu.c
+    ${CMAKE_SOURCE_DIR}/src/cli/screen/re_cpu_panes.c)
 target_include_directories(re_test_cpu PRIVATE ${CMAKE_SOURCE_DIR}/src)
 target_link_libraries(re_test_cpu PRIVATE re_core re_utils re_flags)
 if(MSVC)
@@ -50,6 +52,33 @@ if(MSVC)
 endif()
 add_test(NAME console COMMAND re_test_console)
 
+add_executable(re_test_expr test_expr.c)
+target_link_libraries(re_test_expr PRIVATE re_core re_utils re_flags)
+if(MSVC)
+    set_property(TARGET re_test_expr
+        PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+    target_compile_definitions(re_test_expr PRIVATE _CRT_SECURE_NO_WARNINGS)
+endif()
+add_test(NAME expr COMMAND re_test_expr)
+
+add_executable(re_test_script test_script.c)
+target_link_libraries(re_test_script PRIVATE re_core re_utils re_flags)
+if(MSVC)
+    set_property(TARGET re_test_script
+        PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+    target_compile_definitions(re_test_script PRIVATE _CRT_SECURE_NO_WARNINGS)
+endif()
+add_test(NAME script COMMAND re_test_script)
+
+add_executable(re_test_disasm_p2 test_disasm_p2.c)
+target_link_libraries(re_test_disasm_p2 PRIVATE re_core re_utils re_flags)
+if(MSVC)
+    set_property(TARGET re_test_disasm_p2
+        PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+    target_compile_definitions(re_test_disasm_p2 PRIVATE _CRT_SECURE_NO_WARNINGS)
+endif()
+add_test(NAME disasm_p2 COMMAND re_test_disasm_p2)
+
 add_executable(re_test_debug test_debug.c)
 target_link_libraries(re_test_debug PRIVATE re_core re_utils re_flags)
 if(MSVC)
@@ -57,9 +86,45 @@ if(MSVC)
         PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
     target_compile_definitions(re_test_debug PRIVATE _CRT_SECURE_NO_WARNINGS)
 endif()
+add_executable(re_test_debug_p2 test_debug_p2.c)
+target_link_libraries(re_test_debug_p2 PRIVATE re_core re_utils re_flags)
+if(MSVC)
+    set_property(TARGET re_test_debug_p2
+        PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+    target_compile_definitions(re_test_debug_p2 PRIVATE _CRT_SECURE_NO_WARNINGS)
+endif()
+add_executable(re_test_sym_p2 test_sym_p2.c)
+target_link_libraries(re_test_sym_p2 PRIVATE re_core re_utils re_flags)
+if(MSVC)
+    set_property(TARGET re_test_sym_p2
+        PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+    target_compile_definitions(re_test_sym_p2 PRIVATE _CRT_SECURE_NO_WARNINGS)
+endif()
+add_executable(re_test_trace_p2 test_trace_p2.c)
+target_link_libraries(re_test_trace_p2 PRIVATE re_core re_utils re_flags)
+if(MSVC)
+    set_property(TARGET re_test_trace_p2
+        PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+    target_compile_definitions(re_test_trace_p2 PRIVATE _CRT_SECURE_NO_WARNINGS)
+endif()
+add_executable(re_test_patch_p2 test_patch_p2.c)
+target_link_libraries(re_test_patch_p2 PRIVATE re_core re_utils re_flags)
+if(MSVC)
+    set_property(TARGET re_test_patch_p2
+        PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+    target_compile_definitions(re_test_patch_p2 PRIVATE _CRT_SECURE_NO_WARNINGS)
+endif()
+add_test(NAME patch_p2 COMMAND re_test_patch_p2)
+add_executable(re_test_os_p2 test_os_p2.c)
+target_link_libraries(re_test_os_p2 PRIVATE re_core re_utils re_flags)
+if(MSVC)
+    set_property(TARGET re_test_os_p2
+        PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+    target_compile_definitions(re_test_os_p2 PRIVATE _CRT_SECURE_NO_WARNINGS)
+endif()
 if(UNIX AND NOT APPLE)
     add_executable(loop_inferior fixtures/loop_inferior.c)
-    target_link_libraries(loop_inferior PRIVATE re_flags)
+    target_link_libraries(loop_inferior PRIVATE re_flags dl)
     target_link_options(loop_inferior PRIVATE -Wl,--export-dynamic)
     add_test(NAME debug
         COMMAND re_test_debug $<TARGET_FILE:loop_inferior>)
@@ -70,8 +135,54 @@ if(UNIX AND NOT APPLE)
         COMMAND re_test_debug $<TARGET_FILE:loop_inferior>)
     set_tests_properties(debug_launch_bp_step_detach PROPERTIES
         ENVIRONMENT "RE_TEST_INFERIOR=$<TARGET_FILE:loop_inferior>")
+    add_test(NAME debug_p2
+        COMMAND re_test_debug_p2 $<TARGET_FILE:loop_inferior>)
+    set_tests_properties(debug_p2 PROPERTIES
+        ENVIRONMENT "RE_TEST_INFERIOR=$<TARGET_FILE:loop_inferior>")
+    add_executable(dwarf_src fixtures/dwarf_src.c)
+    target_link_libraries(dwarf_src PRIVATE re_flags)
+    # DWARF 4 line tables (v1 parser); DWARF 5 directory forms are deferred.
+    target_compile_options(dwarf_src PRIVATE -gdwarf-4 -g -O0)
+    add_test(NAME sym_p2
+        COMMAND re_test_sym_p2 $<TARGET_FILE:dwarf_src>)
+    set_tests_properties(sym_p2 PROPERTIES
+        ENVIRONMENT "RE_TEST_DWARF=$<TARGET_FILE:dwarf_src>")
+    add_test(NAME trace_p2
+        COMMAND re_test_trace_p2 $<TARGET_FILE:loop_inferior>)
+    set_tests_properties(trace_p2 PROPERTIES
+        ENVIRONMENT "RE_TEST_INFERIOR=$<TARGET_FILE:loop_inferior>")
+    add_test(NAME os_p2
+        COMMAND re_test_os_p2 $<TARGET_FILE:loop_inferior>)
+    set_tests_properties(os_p2 PROPERTIES
+        ENVIRONMENT "RE_TEST_INFERIOR=$<TARGET_FILE:loop_inferior>")
+    # Phase 2 competitive gate demo script (CLI) on Linux ELF fixture.
+    set(RE_PHASE2_TRACE_OUT "${CMAKE_CURRENT_BINARY_DIR}/phase2_demo_trace.json")
+    add_custom_command(
+        OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/phase2_demo_ready.re
+        COMMAND ${CMAKE_COMMAND}
+            -DIN=$<TARGET_FILE:loop_inferior>
+            -DTRACEOUT=${RE_PHASE2_TRACE_OUT}
+            -DTEMPLATE=${CMAKE_SOURCE_DIR}/scripts/phase2_demo.re.in
+            -DOUT=${CMAKE_CURRENT_BINARY_DIR}/phase2_demo_ready.re
+            -P ${CMAKE_CURRENT_SOURCE_DIR}/gen_phase2_demo.cmake
+        DEPENDS loop_inferior ${CMAKE_SOURCE_DIR}/scripts/phase2_demo.re.in
+            ${CMAKE_CURRENT_SOURCE_DIR}/gen_phase2_demo.cmake
+        COMMENT "Generate Phase 2 demo script with fixture path"
+        VERBATIM)
+    add_custom_target(phase2_demo_script ALL
+        DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/phase2_demo_ready.re)
+    add_test(NAME phase2_demo
+        COMMAND ${CMAKE_COMMAND}
+            -DANTINOMIA=$<TARGET_FILE:antinomia>
+            -DSCRIPT=${CMAKE_CURRENT_BINARY_DIR}/phase2_demo_ready.re
+            -P ${CMAKE_CURRENT_SOURCE_DIR}/run_phase2_demo.cmake)
+    set_tests_properties(phase2_demo PROPERTIES FIXTURES_REQUIRED "")
 else()
     add_test(NAME debug COMMAND re_test_debug)
+    add_test(NAME debug_p2 COMMAND re_test_debug_p2)
+    add_test(NAME sym_p2 COMMAND re_test_sym_p2)
+    add_test(NAME trace_p2 COMMAND re_test_trace_p2)
+    add_test(NAME os_p2 COMMAND re_test_os_p2)
     # Windows: enable when backend step + get_regs are live (Pack E).
     add_test(NAME DISABLED_debug_launch_bp_step_detach
         COMMAND ${CMAKE_COMMAND} -E echo

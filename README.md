@@ -98,13 +98,22 @@ vtable so both OSes link.
 | `regs` | Read GPRs + RIP/RSP/RFLAGS |
 | `set_regs` | Write GPRs as `name=value` pairs |
 | `d [addr]` | Hex dump at address (default RIP) |
-| `u [addr]` | Disassemble at address (default RIP) |
+| `u [addr]` | Disassemble at address (default RIP); comments for strings/modules |
+| `graph` / `cfg` | Function-local control-flow graph (basic blocks) |
+| `find` / `search` | Search memory for hex / `"str"` / `u32:value` patterns |
 | `mem_read` | Read target memory as hex |
 | `mem_write` | Write hex bytes; invalidates disasm cache |
+| `a` / `asm` | Assemble at address and patch memory |
+| `patchlist` | List live memory patches |
+| `patchwrite` / `writeback` | Write patches back to PE/ELF (`*.patched`) |
 | `threads` | List threads (stub) |
 | `modules` / `lm` | List loaded modules (maps / load events) |
 | `sym` | Resolve `module:symbol` via PE export / ELF dynsym |
 | `bt` | Stack walk v0 (frame pointer or RSP dump) |
+| `script` / `source` | Run a file of debugger commands |
+| `note` / `notes` | Session notes with `{rax}` / `{$var}` formatting |
+| `log` | Append or list log lines (`{rax}` format; BP logs join this ring) |
+| `traces` | List/clear trace records with `--limit` / `--offset` paging |
 | `help` | Print usage |
 | `version` | Print version and schema |
 | `mcp` | Run the MCP server over stdio |

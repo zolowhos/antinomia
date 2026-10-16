@@ -11,6 +11,14 @@
 
 #    include <stdio.h>
 #    include <string.h>
+#    include <unistd.h>
+#    ifndef SYS_tgkill
+#        include <sys/syscall.h>
+#    endif
+
+static int linux_tgkill(pid_t tgid, pid_t tid, int sig) {
+    return (int)syscall(SYS_tgkill, tgid, tid, sig);
+}
 
 re_err_code_t re_dbg_linux_fail(re_dbg_linux_t *st, re_err_code_t code, const char *msg) {
     if (st)
@@ -56,7 +64,9 @@ bool re_dbg_linux_tid_add(re_dbg_linux_t *st, pid_t tid) {
     }
     if (st->n_tids >= RE_DBG_LINUX_MAX_TIDS)
         return false;
-    st->tids[st->n_tids++] = tid;
+    st->tids[st->n_tids] = tid;
+    st->susp[st->n_tids] = false;
+    st->n_tids++;
     return true;
 }
 
@@ -67,9 +77,64 @@ void re_dbg_linux_tid_del(re_dbg_linux_t *st, pid_t tid) {
         if (st->tids[i] != tid)
             continue;
         st->tids[i] = st->tids[st->n_tids - 1];
+        st->susp[i] = st->susp[st->n_tids - 1];
         st->n_tids--;
         return;
     }
+}
+
+static int linux_tid_index(re_dbg_linux_t *st, pid_t tid) {
+    size_t i;
+    for (i = 0; i < st->n_tids; i++) {
+        if (st->tids[i] == tid)
+            return (int)i;
+    }
+    return -1;
+}
+
+re_err_code_t re_dbg_linux_thread_suspend(re_dbg_backend_t *b, uint32_t tid) {
+    re_dbg_linux_t *st = re_dbg_linux(b);
+    int idx;
+    pid_t t;
+    if (!st)
+        return RE_E_INTERNAL;
+    if (!st->attached)
+        return re_dbg_linux_fail(st, RE_E_USAGE, "not attached");
+    t = tid ? (pid_t)tid : (st->cur_tid > 0 ? st->cur_tid : st->pid);
+    idx = linux_tid_index(st, t);
+    if (idx < 0)
+        return re_dbg_linux_fail(st, RE_E_NOTFOUND, "thread not found");
+    if (st->susp[idx])
+        return RE_OK;
+    /* Mark suspended; at a stop this is a soft freeze until resume. */
+    st->susp[idx] = true;
+    if (!st->stopped && t != st->cur_tid) {
+        if (linux_tgkill(st->pid, t, SIGSTOP) != 0)
+            return re_dbg_linux_fail_errno(st, "tgkill SIGSTOP");
+    }
+    return RE_OK;
+}
+
+re_err_code_t re_dbg_linux_thread_resume(re_dbg_backend_t *b, uint32_t tid) {
+    re_dbg_linux_t *st = re_dbg_linux(b);
+    int idx;
+    pid_t t;
+    if (!st)
+        return RE_E_INTERNAL;
+    if (!st->attached)
+        return re_dbg_linux_fail(st, RE_E_USAGE, "not attached");
+    t = tid ? (pid_t)tid : (st->cur_tid > 0 ? st->cur_tid : st->pid);
+    idx = linux_tid_index(st, t);
+    if (idx < 0)
+        return re_dbg_linux_fail(st, RE_E_NOTFOUND, "thread not found");
+    if (!st->susp[idx])
+        return RE_OK;
+    st->susp[idx] = false;
+    if (!st->stopped) {
+        if (ptrace(PTRACE_CONT, t, NULL, NULL) != 0)
+            return re_dbg_linux_fail_errno(st, "PTRACE_CONT resume");
+    }
+    return RE_OK;
 }
 
 uint64_t re_dbg_linux_rip(pid_t tid) {

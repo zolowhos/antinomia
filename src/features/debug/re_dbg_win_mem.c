@@ -95,6 +95,8 @@ re_err_code_t re_dbg_win_get_regs(re_dbg_backend_t *b, uint32_t tid, re_dbg_regs
     if (!GetThreadContext(th, &ctx))
         return RE_E_IO;
     win_fill_regs(out, &ctx);
+    if (tid)
+        w->last_tid = t; /* thread switch focuses this tid */
     return RE_OK;
 }
 
@@ -322,6 +324,127 @@ re_err_code_t re_dbg_win_enum_modules(re_dbg_backend_t *b, re_dbg_module_t *out,
 /* Used from re_dbg_win_track when unload arrives. */
 void re_dbg_win_mod_unload(re_dbg_win_impl_t *w, uint64_t base) {
     win_mod_del(w, base);
+}
+
+static DWORD win_len_bits(uint8_t size) {
+    if (size == 2u)
+        return 1u;
+    if (size == 8u)
+        return 2u;
+    if (size == 4u)
+        return 3u;
+    return 0u;
+}
+
+static re_err_code_t win_get_dr_ctx(re_dbg_win_impl_t *w, uint32_t tid, CONTEXT *ctx) {
+    HANDLE th;
+    memset(ctx, 0, sizeof(*ctx));
+    ctx->ContextFlags = CONTEXT_DEBUG_REGISTERS;
+    th = re_dbg_win_thread_handle(w, tid ? (DWORD)tid : w->last_tid);
+    if (!th)
+        return RE_E_NOTFOUND;
+    if (!GetThreadContext(th, ctx))
+        return RE_E_IO;
+    return RE_OK;
+}
+
+static re_err_code_t win_set_dr_ctx(re_dbg_win_impl_t *w, uint32_t tid, CONTEXT *ctx) {
+    HANDLE th = re_dbg_win_thread_handle(w, tid ? (DWORD)tid : w->last_tid);
+    if (!th)
+        return RE_E_NOTFOUND;
+    ctx->ContextFlags = CONTEXT_DEBUG_REGISTERS;
+    if (!SetThreadContext(th, ctx))
+        return RE_E_IO;
+    return RE_OK;
+}
+
+static DWORD64 *win_dr_ptr(CONTEXT *ctx, int slot) {
+    if (slot == 0)
+        return &ctx->Dr0;
+    if (slot == 1)
+        return &ctx->Dr1;
+    if (slot == 2)
+        return &ctx->Dr2;
+    return &ctx->Dr3;
+}
+
+re_err_code_t re_dbg_win_hw_bp_set(re_dbg_backend_t *b, int slot, uint64_t addr, uint8_t size,
+                                   uint8_t access) {
+    re_dbg_win_impl_t *w = re_dbg_win_impl(b);
+    CONTEXT ctx;
+    DWORD shift;
+    re_err_code_t c;
+    if (!w || !w->active)
+        return RE_E_USAGE;
+    if (slot < 0 || slot > 3)
+        return RE_E_RANGE;
+    if (access != 0u && access != 1u && access != 3u)
+        return RE_E_USAGE;
+    c = win_get_dr_ctx(w, 0, &ctx);
+    if (c != RE_OK)
+        return c;
+    *win_dr_ptr(&ctx, slot) = (DWORD64)addr;
+    ctx.Dr7 |= (1ull << (unsigned)(slot * 2));
+    shift = 16u + (DWORD)slot * 4u;
+    ctx.Dr7 &= ~(0xfull << shift);
+    ctx.Dr7 |= ((DWORD64)access & 3u) << shift;
+    ctx.Dr7 |= ((DWORD64)win_len_bits(size) & 3u) << (shift + 2u);
+    return win_set_dr_ctx(w, 0, &ctx);
+}
+
+re_err_code_t re_dbg_win_hw_bp_clear(re_dbg_backend_t *b, int slot) {
+    re_dbg_win_impl_t *w = re_dbg_win_impl(b);
+    CONTEXT ctx;
+    DWORD shift;
+    re_err_code_t c;
+    if (!w || !w->active)
+        return RE_E_USAGE;
+    if (slot < 0 || slot > 3)
+        return RE_E_RANGE;
+    c = win_get_dr_ctx(w, 0, &ctx);
+    if (c != RE_OK)
+        return c;
+    ctx.Dr7 &= ~(3ull << (unsigned)(slot * 2));
+    shift = 16u + (DWORD)slot * 4u;
+    ctx.Dr7 &= ~(0xfull << shift);
+    *win_dr_ptr(&ctx, slot) = 0;
+    return win_set_dr_ctx(w, 0, &ctx);
+}
+
+re_err_code_t re_dbg_win_hw_bp_hit(re_dbg_backend_t *b, uint32_t tid, int *slot_out,
+                                   uint64_t *addr_out) {
+    re_dbg_win_impl_t *w = re_dbg_win_impl(b);
+    CONTEXT ctx;
+    int i;
+    re_err_code_t c;
+    if (slot_out)
+        *slot_out = -1;
+    if (addr_out)
+        *addr_out = 0;
+    if (!w || !w->active)
+        return RE_E_USAGE;
+    c = win_get_dr_ctx(w, tid, &ctx);
+    if (c != RE_OK)
+        return c;
+    for (i = 0; i < 4; i++) {
+        if ((ctx.Dr6 & (1ull << (unsigned)i)) == 0)
+            continue;
+        if (slot_out)
+            *slot_out = i;
+        if (addr_out)
+            *addr_out = (uint64_t)*win_dr_ptr(&ctx, i);
+        ctx.Dr6 = 0;
+        (void)win_set_dr_ctx(w, tid, &ctx);
+        return RE_OK;
+    }
+    return RE_E_NOTFOUND;
+}
+
+re_err_code_t re_dbg_win_rendezvous_addr(re_dbg_backend_t *b, uint64_t *addr_out) {
+    (void)b;
+    if (addr_out)
+        *addr_out = 0; /* LOAD_DLL_DEBUG_EVENT covers module-load BP */
+    return RE_OK;
 }
 
 #endif /* _WIN32 */
