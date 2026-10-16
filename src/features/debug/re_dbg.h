@@ -13,6 +13,7 @@ extern "C" {
 #include <stdint.h>
 
 #include "features/disasm/re_disasm.h"
+#include "features/patch/re_patch.h"
 #include "features/persist/re_dbg_db.h"
 #include "utils/mem/re_arena.h"
 #include "utils/sys/re_err.h"
@@ -227,7 +228,8 @@ typedef struct re_dbg_session {
     re_disasm_cache_t disasm_cache;
     re_dbg_bps_t *bps;
     re_dbg_advbp_t *advbp;
-    re_dbg_db_t db; /* per-module annotations; load on launch, save on exit */
+    re_dbg_db_t db;          /* per-module annotations; load on launch, save on exit */
+    re_patch_list_t patches; /* live assemble/mem patches for list + write-back */
     re_dbg_var_t vars[RE_DBG_MAX_VARS];
     re_dbg_watch_t watches[RE_DBG_MAX_WATCH];
     char bp_log[RE_DBG_BP_LOG_MAX][RE_DBG_BP_COND_MAX];

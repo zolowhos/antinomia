@@ -72,6 +72,9 @@ int re_cmd_bm(re_ctx_t *ctx, const char *path, int argc, char **argv);
 int re_cmd_bmlist(re_ctx_t *ctx, const char *path, int argc, char **argv);
 int re_cmd_patches(re_ctx_t *ctx, const char *path, int argc, char **argv);
 int re_cmd_funcs(re_ctx_t *ctx, const char *path, int argc, char **argv);
+int re_cmd_asm(re_ctx_t *ctx, const char *path, int argc, char **argv);
+int re_cmd_patchlist(re_ctx_t *ctx, const char *path, int argc, char **argv);
+int re_cmd_patchwrite(re_ctx_t *ctx, const char *path, int argc, char **argv);
 
 #ifdef __cplusplus
 }

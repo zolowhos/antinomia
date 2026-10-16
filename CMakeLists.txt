@@ -111,6 +111,7 @@ add_executable(antinomia
     src/cli/cmds/re_cmds_expr.c
     src/cli/cmds/re_cmds_view.c
     src/cli/cmds/re_cmds_db.c
+    src/cli/cmds/re_cmds_patch.c
     src/cli/screen/re_input.c
     src/cli/screen/re_focus.c
     src/cli/screen/re_draw.c

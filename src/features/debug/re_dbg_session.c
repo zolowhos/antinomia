@@ -1,7 +1,7 @@
 // re_dbg_session.c - long-lived debug session arena and control API.
 // Module: feature (C11).
 // Owns: session init/reset/free, regs/mem/disasm/db wrappers, wait post-process.
-// Depends: re_dbg.h, re_dbg_bp.h, re_dbg_advbp.h, re_dbg_db, re_disasm.
+// Depends: re_dbg.h, re_dbg_bp.h, re_dbg_advbp.h, re_dbg_db, re_patch, re_disasm.
 #include "features/bp/re_dbg_advbp.h"
 #include "features/debug/re_dbg.h"
 #include "features/debug/re_dbg_bp.h"
@@ -90,6 +90,7 @@ void re_dbg_session_init(re_dbg_session_t *s) {
     s->last_err.code = RE_OK;
     re_disasm_cache_clear(&s->disasm_cache);
     re_dbg_db_init(&s->db);
+    re_patch_list_init(&s->patches);
 }
 
 void re_dbg_session_reset(re_dbg_session_t *s) {
@@ -103,6 +104,7 @@ void re_dbg_session_reset(re_dbg_session_t *s) {
     }
     clear_target(s);
     re_dbg_db_clear(&s->db);
+    re_patch_list_clear(&s->patches);
     RE_ERR_OK(&s->last_err);
     re_disasm_cache_clear(&s->disasm_cache);
     re_arena_reset(&s->arena);
