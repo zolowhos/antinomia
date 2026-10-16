@@ -74,6 +74,7 @@ int re_cmd_modules(re_ctx_t *ctx, const char *path, int argc, char **argv) {
         re_jw_khex(&w, "base", m->base, 16);
         re_jw_ku64(&w, "size", m->size);
         re_jw_kcstr(&w, "path", m->path);
+        re_jw_kcstr(&w, "build_id", m->build_id);
         re_jw_obj_end(&w);
     }
     re_jw_arr_end(&w);

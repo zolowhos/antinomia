@@ -1,8 +1,9 @@
 // re_dbg_stack.c - stack walk v0: frame-pointer chain or simple RSP dump.
 // Module: feature/sym (C11).
 // Owns: re_dbg_session_bt and best-effort module/symbol annotate per frame.
-// Depends: re_dbg.h. Uses backend get_regs and read_mem only.
+// Depends: re_dbg.h, re_dbg_os. Uses backend get_regs and read_mem only.
 #include "features/debug/re_dbg.h"
+#include "features/os/re_dbg_os.h"
 
 #include "utils/sys/re_path.h"
 
@@ -140,13 +141,22 @@ static re_err_code_t dump_rsp(re_dbg_backend_t *b, uint64_t rip, uint64_t rsp, r
 
 re_err_code_t re_dbg_session_enum_modules(re_dbg_session_t *s, re_dbg_module_t *out, size_t cap,
                                           size_t *n_out) {
+    re_err_code_t c;
+    size_t n = 0;
     if (n_out)
         *n_out = 0;
     if (!s || !s->backend || !s->backend->vt || !s->backend->vt->enum_modules)
         return RE_E_INTERNAL;
     if (!s->attached)
         return RE_E_USAGE;
-    return s->backend->vt->enum_modules(s->backend, out, cap, n_out);
+    c = s->backend->vt->enum_modules(s->backend, out, cap, &n);
+    if (c != RE_OK)
+        return c;
+    if (out && n)
+        (void)re_dbg_os_enrich_modules(s, out, n < cap ? n : cap);
+    if (n_out)
+        *n_out = n;
+    return RE_OK;
 }
 
 re_err_code_t re_dbg_session_bt(re_dbg_session_t *s, re_dbg_frame_t *out, size_t cap,

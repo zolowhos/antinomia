@@ -10,6 +10,7 @@
 #include "utils/json/re_json.h"
 #include "utils/text/re_str.h"
 
+#include <stdlib.h>
 #include <string.h>
 
 static re_dbg_session_t *sess(re_ctx_t *ctx) {
@@ -152,10 +153,17 @@ int re_cmd_kill(re_ctx_t *ctx, const char *path, int argc, char **argv) {
 int re_cmd_wait_event(re_ctx_t *ctx, const char *path, int argc, char **argv) {
     re_dbg_event_t ev;
     re_err_code_t c;
+    uint32_t timeout_ms = 0;
+    const char *t = re_cmd_positional(argc, argv, 0);
     (void)path;
-    (void)argc;
-    (void)argv;
-    c = re_dbg_session_wait_event(sess(ctx), &ev, 0);
+    if (t && t[0]) {
+        unsigned long v = 0;
+        char *end = NULL;
+        v = strtoul(t, &end, 0);
+        if (end && end != t && *end == 0 && v <= 0xfffffffful)
+            timeout_ms = (uint32_t)v;
+    }
+    c = re_dbg_session_wait_event(sess(ctx), &ev, timeout_ms);
     if (c == RE_OK)
         (void)re_cmd_run_pending(ctx);
     return finish(ctx, "wait_event", c,

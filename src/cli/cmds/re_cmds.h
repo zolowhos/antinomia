@@ -88,6 +88,10 @@ int re_cmd_note(re_ctx_t *ctx, const char *path, int argc, char **argv);
 int re_cmd_notes(re_ctx_t *ctx, const char *path, int argc, char **argv);
 int re_cmd_log(re_ctx_t *ctx, const char *path, int argc, char **argv);
 int re_cmd_traces(re_ctx_t *ctx, const char *path, int argc, char **argv);
+int re_cmd_seh(re_ctx_t *ctx, const char *path, int argc, char **argv);
+int re_cmd_handles(re_ctx_t *ctx, const char *path, int argc, char **argv);
+int re_cmd_signals(re_ctx_t *ctx, const char *path, int argc, char **argv);
+int re_cmd_dbsave(re_ctx_t *ctx, const char *path, int argc, char **argv);
 /* Run and clear a pending on-BP command string, if any. */
 int re_cmd_run_pending(re_ctx_t *ctx);
 
