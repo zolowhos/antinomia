@@ -5,12 +5,14 @@
 #include "cli/screen/re_gui.h"
 
 #include "features/debug/re_dbg.h"
+#include "features/sess/re_dbg_lock.h"
 #include "utils/tui/re_screen.h"
 #include "cli/screen/re_cpu.h"
 #include "cli/screen/re_draw.h"
 #include "cli/screen/re_focus.h"
 #include "cli/screen/re_input.h"
 #include "cli/screen/re_term.h"
+#include "mcp/re_mcp_side.h"
 
 #include <stdio.h>
 
@@ -70,7 +72,10 @@ static bool ensure_frame(re_arena_t *arena, re_draw_t *draw, re_screen_t *frame,
 
 static void paint_frame(re_draw_t *draw, re_screen_t *frame, re_focus_t *focus, re_cpu_view_t *cpu,
                         re_dbg_session_t *session, re_term_t *term) {
+    re_dbg_lock_drain();
+    re_dbg_lock_acquire();
     re_cpu_refresh(cpu, session);
+    re_dbg_lock_release();
     re_cpu_paint(frame, cpu);
     re_focus_build(focus, frame);
     if (cpu->zones[cpu->focus])
@@ -92,6 +97,57 @@ static void resize_frame(re_arena_t *arena, re_draw_t *draw, re_screen_t *frame)
     re_screen_init(frame, arena, &draw->out, nr, nc);
 }
 
+static void seed_session_path(re_dbg_session_t *session, const char *path) {
+    size_t i = 0;
+    if (!path || !path[0] || session->path[0])
+        return;
+    while (path[i] && i + 1u < sizeof(session->path)) {
+        session->path[i] = path[i];
+        i++;
+    }
+    session->path[i] = 0;
+}
+
+static void note_mcp_endpoint(re_cpu_view_t *cpu) {
+    char ep[256];
+    char line[288];
+    size_t n = 0;
+    const char *p;
+    if (!re_mcp_side_start(ep, sizeof(ep)))
+        return;
+    p = "mcp ";
+    while (*p && n + 1u < sizeof(line))
+        line[n++] = *p++;
+    p = ep;
+    while (*p && n + 1u < sizeof(line))
+        line[n++] = *p++;
+    line[n] = 0;
+    re_cpu_log_push(cpu, line);
+}
+
+static void gui_loop(re_arena_t *arena, re_draw_t *draw, re_screen_t *frame, re_focus_t *focus,
+                     re_cpu_view_t *cpu, re_dbg_session_t *session, re_term_t *term) {
+    bool quit = false;
+    while (!quit) {
+        re_ev_t ev;
+        paint_frame(draw, frame, focus, cpu, session, term);
+        if (!re_term_wait(term, &ev, 250u)) {
+            uint16_t nr = 0, nc = 0;
+            re_term_size(&nr, &nc);
+            if (nr != frame->rows || nc != frame->cols)
+                resize_frame(arena, draw, frame);
+            continue;
+        }
+        if (ev.kind == RE_EV_RESIZE) {
+            resize_frame(arena, draw, frame);
+            continue;
+        }
+        if (handle_key(cpu, focus, &ev, &quit))
+            continue;
+        handle_click(cpu, focus, frame, &ev);
+    }
+}
+
 int re_cmd_gui(re_ctx_t *ctx, const char *path, int argc, char **argv) {
     re_term_t term;
     re_arena_t arena;
@@ -101,7 +157,6 @@ int re_cmd_gui(re_ctx_t *ctx, const char *path, int argc, char **argv) {
     re_cpu_view_t cpu;
     re_dbg_session_t *session;
     uint16_t rows = 24, cols = 80;
-    bool quit = false;
     (void)argc;
     (void)argv;
     if (!re_term_open(&term, false)) {
@@ -111,14 +166,7 @@ int re_cmd_gui(re_ctx_t *ctx, const char *path, int argc, char **argv) {
         return 2;
     }
     session = ctx && ctx->session ? ctx->session : re_dbg_session_global();
-    if (path && path[0] && !session->path[0]) {
-        size_t i = 0;
-        while (path[i] && i + 1u < sizeof(session->path)) {
-            session->path[i] = path[i];
-            i++;
-        }
-        session->path[i] = 0;
-    }
+    seed_session_path(session, path);
     re_arena_init(&arena, 256u * 1024u);
     re_term_size(&rows, &cols);
     if (!ensure_frame(&arena, &draw, &frame, rows, cols)) {
@@ -128,24 +176,11 @@ int re_cmd_gui(re_ctx_t *ctx, const char *path, int argc, char **argv) {
     }
     re_focus_init(&focus);
     re_cpu_init(&cpu);
-    while (!quit) {
-        re_ev_t ev;
-        paint_frame(&draw, &frame, &focus, &cpu, session, &term);
-        if (!re_term_wait(&term, &ev, 250u)) {
-            uint16_t nr = 0, nc = 0;
-            re_term_size(&nr, &nc);
-            if (nr != frame.rows || nc != frame.cols)
-                resize_frame(&arena, &draw, &frame);
-            continue;
-        }
-        if (ev.kind == RE_EV_RESIZE) {
-            resize_frame(&arena, &draw, &frame);
-            continue;
-        }
-        if (handle_key(&cpu, &focus, &ev, &quit))
-            continue;
-        handle_click(&cpu, &focus, &frame, &ev);
-    }
+    note_mcp_endpoint(&cpu);
+    re_dbg_lock_set_owner(true);
+    gui_loop(&arena, &draw, &frame, &focus, &cpu, session, &term);
+    re_dbg_lock_set_owner(false);
+    re_mcp_side_stop();
     re_term_close(&term);
     re_arena_free(&arena);
     return 0;

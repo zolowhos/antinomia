@@ -36,7 +36,7 @@ re_err_code_t re_dbg_linux_fail_errno(re_dbg_linux_t *st, const char *what) {
                  "%s denied (errno %d); check Yama ptrace_scope in "
                  "/proc/sys/kernel/yama/ptrace_scope",
                  what ? what : "ptrace", e);
-        return re_dbg_linux_fail(st, RE_E_IO, buf);
+        return re_dbg_linux_fail(st, RE_E_PRIVILEGE, buf);
     }
     snprintf(buf, sizeof(buf), "%s failed: errno %d", what ? what : "ptrace", e);
     return re_dbg_linux_fail(st, RE_E_IO, buf);

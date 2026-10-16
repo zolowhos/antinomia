@@ -155,8 +155,19 @@ MCP is available as a tool, so an assistant can drive the same stubs the CLI pri
 The full screen view and the shell prompt are not tools: they need the terminal
 stdio lives on.
 
-For a future live GUI side-channel, set `ANTINOMIA_MCP` to a `tcp:` endpoint or unix
-path and use `antinomia mcp --attach` (Phase 3). Phase 0 is stdio only.
+Live TUI side-channel (Phase 3): the GUI hosts a local MCP endpoint (unix socket on
+Linux, or `tcp:127.0.0.1:<port>`). Agents attach without stealing the terminal:
+
+```console
+$ antinomia gui                    # owns the session; prints mcp <endpoint> in the log
+$ export ANTINOMIA_MCP=unix:/tmp/antinomia-mcp-<pid>.sock
+$ antinomia mcp --attach           # or: antinomia mcp --attach tcp:127.0.0.1:52665
+```
+
+`ANTINOMIA_MCP` may be a `tcp:host:port` or `unix:/path` endpoint. When unset,
+`--attach` reads the path file written by the GUI (`/tmp/antinomia-mcp.path`).
+Headless listen for CI: `antinomia mcp --side-listen` (endpoint on stderr).
+MCP tool calls queue into the session owner thread so they never block `wait_event`.
 
 ## Development
 

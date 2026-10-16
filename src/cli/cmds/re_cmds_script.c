@@ -31,7 +31,7 @@ static void emit_err(re_ctx_t *ctx, const char *tool, re_err_code_t code, const 
     re_jw_kbool(&w, "ok", false);
     re_jw_key(&w, "error");
     re_jw_obj(&w);
-    re_jw_kcstr(&w, "code", re_err_str(code));
+    re_jw_kcstr(&w, "code", re_err_json_code(code));
     re_jw_kcstr(&w, "message", msg);
     re_jw_obj_end(&w);
     re_jw_obj_end(&w);

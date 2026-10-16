@@ -8,8 +8,11 @@
 #include "utils/json/re_json.h"
 #include "utils/text/re_hex.h"
 #include "utils/text/re_str.h"
+#include "utils/text/re_strbuf.h"
 
 #include <string.h>
+
+#define RE_TRACE_QUERY_HARD_LIMIT 64u
 
 static re_dbg_session_t *sess(re_ctx_t *ctx) {
     if (ctx->session)
@@ -27,7 +30,7 @@ static void emit_err(re_ctx_t *ctx, const char *tool, re_err_code_t code, const 
     re_jw_kbool(&w, "implemented", code != RE_E_UNSUPPORTED);
     re_jw_key(&w, "error");
     re_jw_obj(&w);
-    re_jw_kcstr(&w, "code", re_err_str(code));
+    re_jw_kcstr(&w, "code", re_err_json_code(code));
     re_jw_kcstr(&w, "message", msg);
     re_jw_obj_end(&w);
     re_jw_obj_end(&w);
@@ -75,16 +78,31 @@ static int emit_ok_status(re_ctx_t *ctx, const char *tool) {
     return 0;
 }
 
+static void emit_page_cursor(re_jw_t *w, re_arena_t *a, size_t offset, size_t n, bool trunc) {
+    re_strbuf_t cur;
+    re_jw_kbool(w, "truncated", trunc);
+    if (!trunc) {
+        re_jw_knull(w, "next_offset");
+        re_jw_knull(w, "next_cursor");
+        return;
+    }
+    re_jw_ku64(w, "next_offset", offset + n);
+    re_strbuf_init(&cur, a);
+    re_strbuf_put_u64(&cur, offset + n);
+    re_jw_kcstr(w, "next_cursor", cur.p ? cur.p : "");
+}
+
 static int do_query(re_ctx_t *ctx, const char *tool) {
-    re_dbg_trace_frame_t frames[64];
+    re_dbg_trace_frame_t frames[RE_TRACE_QUERY_HARD_LIMIT];
     size_t n = 0, total = 0, i;
     bool trunc = false;
     re_err_code_t c;
     re_jw_t w;
     size_t limit = ctx->limit ? ctx->limit : 200;
-    if (limit > 64)
-        limit = 64;
-    c = re_dbg_session_trace_query(sess(ctx), ctx->offset, limit, frames, 64, &n, &total, &trunc);
+    if (limit > RE_TRACE_QUERY_HARD_LIMIT)
+        limit = RE_TRACE_QUERY_HARD_LIMIT;
+    c = re_dbg_session_trace_query(sess(ctx), ctx->offset, limit, frames, RE_TRACE_QUERY_HARD_LIMIT,
+                                   &n, &total, &trunc);
     if (c != RE_OK) {
         emit_err(ctx, tool, c, "trace query failed");
         return re_err_exit_code(c);
@@ -98,7 +116,8 @@ static int do_query(re_ctx_t *ctx, const char *tool) {
     re_jw_ku64(&w, "count", total);
     re_jw_ku64(&w, "offset", ctx->offset);
     re_jw_ku64(&w, "limit", limit);
-    re_jw_kbool(&w, "truncated", trunc);
+    re_jw_ku64(&w, "hard_limit", RE_TRACE_QUERY_HARD_LIMIT);
+    emit_page_cursor(&w, ctx->arena, ctx->offset, n, trunc);
     re_jw_key(&w, "frames");
     re_jw_arr(&w);
     for (i = 0; i < n; i++) {
