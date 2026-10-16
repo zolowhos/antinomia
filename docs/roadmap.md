@@ -20,7 +20,7 @@ This file is the short in-repo pointer. Phases below are the product spine.
 | **0** | Scaffold / governance / stub | Dual-OS CI green; empty TUI + MCP hello; **no live inferior** |
 | **1** | MVP debugger | Launch → software BP → step → dump on PE **and** ELF fixtures |
 | **2** | x64dbg-competitive core | Conditional BP + HW watch + symbols + map/threads/trace v1 |
-| **3** | Differentiation (AI / MCP) | Agent completes a debug session via MCP; TUI side-channel attach works |
+| **3** | Differentiation (AI / MCP) | Agent completes a debug session via MCP; TUI side-channel attach works ([phase3-gate.md](phase3-gate.md)) |
 | **4** | Polish / packaging | Tagged dual-OS release usable on clean VMs |
 
 ### Phase 0 (current code goal)

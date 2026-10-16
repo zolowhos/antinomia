@@ -15,7 +15,8 @@ typedef void (*re_dbg_job_fn)(void *ctx);
 // Mark the calling thread as the session owner (TUI). MCP then queues work.
 void re_dbg_lock_set_owner(bool on);
 
-// Run fn on the owner thread when owned; otherwise run under the mutex now.
+// Run fn on the owner thread when owned; otherwise run inline now.
+// Jobs never run while the session mutex is held (wait_event drains).
 void re_dbg_lock_submit(re_dbg_job_fn fn, void *ctx);
 
 // Owner drains queued MCP jobs. Safe to call from the TUI frame loop.

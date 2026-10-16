@@ -26,6 +26,7 @@
 using sock_t = SOCKET;
 constexpr sock_t kInvalid = INVALID_SOCKET;
 #else
+#    include <poll.h>
 #    include <unistd.h>
 #    include <arpa/inet.h>
 #    include <netinet/in.h>
@@ -295,7 +296,11 @@ std::string resolve_endpoint(const char *endpoint) {
 }
 
 int relay_stdio(sock_t fd) {
-    std::thread up([fd]() {
+    /* After stdin EOF we SHUT_WR so the server can finish. If the peer keeps
+     * the socket open (live inferior still held by side-listen), drain until
+     * idle rather than blocking forever on recv. */
+    std::atomic<bool> wr_done{false};
+    std::thread up([fd, &wr_done]() {
         char buf[4096];
 #if defined(_WIN32)
         int got;
@@ -312,24 +317,56 @@ int relay_stdio(sock_t fd) {
         }
         shutdown(fd, SHUT_WR);
 #endif
+        wr_done.store(true);
     });
     char buf[4096];
 #if defined(_WIN32)
-    int n;
-    while ((n = recv(fd, buf, (int)sizeof(buf), 0)) > 0) {
+    for (;;) {
+        fd_set rfds;
+        FD_ZERO(&rfds);
+        FD_SET(fd, &rfds);
+        TIMEVAL tv;
+        tv.tv_sec = wr_done.load() ? 0 : 30;
+        tv.tv_usec = wr_done.load() ? 500000 : 0;
+        int pr = select((int)fd + 1, &rfds, nullptr, nullptr, &tv);
+        if (pr == 0) {
+            if (wr_done.load())
+                break;
+            continue;
+        }
+        if (pr < 0)
+            break;
+        int n = recv(fd, buf, (int)sizeof(buf), 0);
+        if (n <= 0)
+            break;
         if (std::fwrite(buf, 1, (size_t)n, stdout) != (size_t)n)
             break;
         std::fflush(stdout);
     }
 #else
-    ssize_t n;
-    while ((n = recv(fd, buf, sizeof(buf), 0)) > 0) {
+    for (;;) {
+        pollfd pfd;
+        pfd.fd = fd;
+        pfd.events = POLLIN;
+        pfd.revents = 0;
+        int pr = poll(&pfd, 1, wr_done.load() ? 500 : 30000);
+        if (pr == 0) {
+            if (wr_done.load())
+                break;
+            continue;
+        }
+        if (pr < 0)
+            break;
+        ssize_t n = recv(fd, buf, sizeof(buf), 0);
+        if (n <= 0)
+            break;
         if (std::fwrite(buf, 1, (size_t)n, stdout) != (size_t)n)
             break;
         std::fflush(stdout);
     }
 #endif
-    up.detach();
+    if (up.joinable())
+        up.join();
     return 0;
 }
 

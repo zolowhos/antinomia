@@ -172,6 +172,16 @@ $ antinomia mcp --attach           # or: antinomia mcp --attach tcp:127.0.0.1:52
 Headless listen for CI: `antinomia mcp --side-listen` (endpoint on stderr).
 MCP tool calls queue into the session owner thread so they never block `wait_event`.
 
+Phase 3 gate demos (Linux CI + repo script):
+
+```console
+$ scripts/phase3_gate_demo.sh mcp    # MCP stdio: init→bp→run→state→sti→detach
+$ scripts/phase3_gate_demo.sh side   # side-listen + mcp --attach same session
+$ scripts/phase3_gate_demo.sh tui    # interactive TUI attach steps
+```
+
+See [docs/phase3-gate.md](docs/phase3-gate.md) for CI vs interactive coverage.
+
 **Plugin ABI (frozen):** MCP is the plugin API - no in-process C SDK. See
 `docs/plugin-abi.md`. Local AI helpers on the same command table:
 `explain`, `suggest_bp`, `summarize_ex` (aliases `ai.explain` / `ai.suggest_bp` /

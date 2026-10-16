@@ -13,6 +13,7 @@
 #endif
 
 #include "features/debug/re_dbg.h"
+#include "features/sess/re_dbg_lock.h"
 #include "utils/text/re_util.h"
 #include "cli/app/re_shell.h"
 #include "cli/app/re_table.h"
@@ -20,6 +21,11 @@
 #include "cli/screen/re_gui.h"
 #include "mcp/re_mcp.h"
 #include "mcp/re_mcp_side.h"
+
+#if !defined(_WIN32)
+#    include <poll.h>
+#    include <unistd.h>
+#endif
 
 namespace {
 
@@ -107,11 +113,33 @@ static int run_mcp(int argc, char **argv) {
         }
         std::fprintf(stderr, "%s\n", ep);
         std::fflush(stderr);
+        /* Own the session like the TUI so MCP tools queue here and drain. */
+        re_dbg_lock_set_owner(true);
         for (;;) {
-            int c = std::fgetc(stdin);
-            if (c == EOF || c == 'q' || c == 'Q')
+            re_dbg_lock_drain();
+#if defined(_WIN32)
+            /* Windows CI skips side-listen; blocking getchar is fine for demos. */
+            {
+                int c = std::fgetc(stdin);
+                if (c == EOF || c == 'q' || c == 'Q')
+                    break;
+            }
+#else
+            pollfd pfd;
+            pfd.fd = STDIN_FILENO;
+            pfd.events = POLLIN;
+            pfd.revents = 0;
+            int pr = poll(&pfd, 1, 50);
+            if (pr > 0) {
+                int c = std::fgetc(stdin);
+                if (c == EOF || c == 'q' || c == 'Q')
+                    break;
+            } else if (pr < 0) {
                 break;
+            }
+#endif
         }
+        re_dbg_lock_set_owner(false);
         re_mcp_side_stop();
         return 0;
     }
