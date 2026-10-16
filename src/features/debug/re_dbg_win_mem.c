@@ -366,18 +366,6 @@ static DWORD64 *win_dr_ptr(CONTEXT *ctx, int slot) {
     return &ctx->Dr3;
 }
 
-re_err_code_t re_dbg_win_get_caps(re_dbg_backend_t *b, re_dbg_caps_t *out) {
-    (void)b;
-    if (!out)
-        return RE_E_USAGE;
-    memset(out, 0, sizeof(*out));
-    out->hw_bp = true;
-    out->mem_bp = true; /* DR watch; page-guard not yet; docs/bp-fidelity.md */
-    out->load_bp = true;
-    out->hw_slots = 4u;
-    return RE_OK;
-}
-
 re_err_code_t re_dbg_win_hw_bp_set(re_dbg_backend_t *b, int slot, uint64_t addr, uint8_t size,
                                    uint8_t access) {
     re_dbg_win_impl_t *w = re_dbg_win_impl(b);

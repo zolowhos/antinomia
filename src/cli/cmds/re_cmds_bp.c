@@ -177,30 +177,3 @@ int re_cmd_bpdll_clear(re_ctx_t *ctx, const char *path, int argc, char **argv) {
     }
     return finish(ctx, "bpdllc", re_dbg_session_load_bp_clear(sess(ctx), name), "bpdllc failed");
 }
-
-int re_cmd_caps(re_ctx_t *ctx, const char *path, int argc, char **argv) {
-    re_dbg_caps_t caps;
-    re_err_code_t c;
-    re_jw_t w;
-    (void)path;
-    (void)argc;
-    (void)argv;
-    c = re_dbg_session_caps(sess(ctx), &caps);
-    if (c != RE_OK)
-        return finish(ctx, "caps", c, "caps failed");
-    re_jw_init(&w, ctx->arena);
-    re_jw_obj(&w);
-    re_jw_kcstr(&w, "schema", "antinomia/1");
-    re_jw_kcstr(&w, "tool", "caps");
-    re_jw_kbool(&w, "ok", true);
-    re_jw_key(&w, "caps");
-    re_jw_obj(&w);
-    re_jw_kbool(&w, "hw_bp", caps.hw_bp);
-    re_jw_kbool(&w, "mem_bp", caps.mem_bp);
-    re_jw_kbool(&w, "load_bp", caps.load_bp);
-    re_jw_ku64(&w, "hw_slots", caps.hw_slots);
-    re_jw_obj_end(&w);
-    re_jw_obj_end(&w);
-    re_jw_flush(&w, re_ctx_out(ctx));
-    return 0;
-}

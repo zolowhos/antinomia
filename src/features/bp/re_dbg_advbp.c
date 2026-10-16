@@ -106,22 +106,6 @@ const char *re_dbg_bp_access_str(re_dbg_bp_access_t access) {
     }
 }
 
-re_err_code_t re_dbg_session_caps(re_dbg_session_t *s, re_dbg_caps_t *out) {
-    re_err_code_t c;
-    if (out)
-        memset(out, 0, sizeof(*out));
-    if (!s || !s->backend || !s->backend->vt)
-        return note(s, RE_E_INTERNAL, "debug session has no backend");
-    if (!out)
-        return note(s, RE_E_USAGE, "caps needs an output");
-    if (!s->backend->vt->get_caps)
-        return note(s, RE_E_UNSUPPORTED, "get_caps is not available");
-    c = s->backend->vt->get_caps(s->backend, out);
-    if (c != RE_OK)
-        return note(s, c, "get_caps failed");
-    return note(s, RE_OK, NULL);
-}
-
 static re_err_code_t plant_hw(re_dbg_session_t *s, re_dbg_hw_slot_t *hs) {
     if (!s->backend->vt->hw_bp_set)
         return note(s, RE_E_UNSUPPORTED, "hw_bp_set is not available");
@@ -188,10 +172,8 @@ re_err_code_t re_dbg_session_mem_bp_set(re_dbg_session_t *s, uint64_t addr, size
         return c;
     if (!s->advbp)
         return note(s, RE_E_INTERNAL, "advbp table missing");
-    c = re_dbg_session_caps(s, &caps);
-    if (c != RE_OK)
-        return c;
-    if (!caps.mem_bp)
+    caps = re_dbg_session_caps(s);
+    if ((caps.bits & RE_DBG_CAP_MEM_BP) == 0)
         return note(s, RE_E_UNSUPPORTED, "memory breakpoints not supported");
     if (access == RE_DBG_BP_AX_X)
         return note(s, RE_E_USAGE, "mem bp is watch-only; use bph for execute");

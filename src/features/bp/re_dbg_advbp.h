@@ -76,7 +76,6 @@ struct re_dbg_advbp {
 void re_dbg_advbp_clear(re_dbg_advbp_t *adv);
 re_err_code_t re_dbg_advbp_disarm_all(re_dbg_advbp_t *adv, re_dbg_backend_t *b);
 
-re_err_code_t re_dbg_session_caps(re_dbg_session_t *s, re_dbg_caps_t *out);
 re_err_code_t re_dbg_session_hw_bp_set(re_dbg_session_t *s, uint64_t addr, uint8_t size,
                                        re_dbg_bp_access_t access);
 re_err_code_t re_dbg_session_hw_bp_clear(re_dbg_session_t *s, uint64_t addr);

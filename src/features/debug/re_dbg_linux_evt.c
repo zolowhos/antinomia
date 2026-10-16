@@ -57,7 +57,7 @@ static void handle_clone(re_dbg_linux_t *st, pid_t tid) {
     unsigned long new_tid = 0;
     if (ptrace(PTRACE_GETEVENTMSG, tid, NULL, &new_tid) == 0 && new_tid != 0) {
         re_dbg_linux_tid_add(st, (pid_t)new_tid);
-        re_dbg_linux_q_push(st, RE_DBG_EV_THREAD, (pid_t)new_tid, 0, 1);
+        re_dbg_linux_q_push(st, RE_DBG_EV_THREAD_CREATE, (pid_t)new_tid, 0, 1);
         int st2 = 0;
         pid_t w = waitpid((pid_t)new_tid, &st2, __WALL | WNOHANG);
         if (w == (pid_t)new_tid && WIFSTOPPED(st2))
@@ -65,7 +65,7 @@ static void handle_clone(re_dbg_linux_t *st, pid_t tid) {
     }
     st->stopped = true;
     st->cur_tid = tid;
-    re_dbg_linux_q_push(st, RE_DBG_EV_BREAK, tid, re_dbg_linux_rip(tid), SIGTRAP);
+    re_dbg_linux_q_push(st, RE_DBG_EV_BREAKPOINT, tid, re_dbg_linux_rip(tid), SIGTRAP);
 }
 
 static void handle_exit_event(re_dbg_linux_t *st, pid_t tid) {
@@ -75,7 +75,7 @@ static void handle_exit_event(re_dbg_linux_t *st, pid_t tid) {
         re_dbg_linux_q_push(st, RE_DBG_EV_EXIT, tid, 0, (int32_t)code);
     } else {
         re_dbg_linux_tid_del(st, tid);
-        re_dbg_linux_q_push(st, RE_DBG_EV_THREAD, tid, 0, 0);
+        re_dbg_linux_q_push(st, RE_DBG_EV_THREAD_EXIT, tid, 0, 0);
         (void)ptrace(PTRACE_CONT, tid, NULL, NULL);
         st->stopped = false;
     }
@@ -102,10 +102,21 @@ static void decode_sigtrap(re_dbg_linux_t *st, pid_t tid, int status) {
         st->stepping = false;
         re_dbg_linux_q_push(st, RE_DBG_EV_STEP, tid, rip, SIGTRAP);
     } else {
-        re_dbg_linux_q_push(st, RE_DBG_EV_BREAK, tid, rip, SIGTRAP);
+        re_dbg_linux_q_push(st, RE_DBG_EV_BREAKPOINT, tid, rip, SIGTRAP);
     }
     st->stopped = true;
     st->cur_tid = tid;
+}
+
+static void push_exception(re_dbg_linux_t *st, pid_t tid, int32_t code) {
+    re_dbg_event_t *slot;
+    if (!re_dbg_linux_q_push(st, RE_DBG_EV_EXCEPTION, tid, re_dbg_linux_rip(tid), code))
+        return;
+    /* q_push leaves first_chance false; Linux signal stops are first-chance. */
+    if (st->q_n > 0) {
+        slot = &st->q[st->q_n - 1];
+        slot->first_chance = true;
+    }
 }
 
 static void decode_stop(re_dbg_linux_t *st, pid_t tid, int status) {
@@ -116,12 +127,12 @@ static void decode_stop(re_dbg_linux_t *st, pid_t tid, int status) {
         return;
     }
     if (sig == SIGSTOP) {
-        re_dbg_linux_q_push(st, RE_DBG_EV_BREAK, tid, re_dbg_linux_rip(tid), SIGSTOP);
+        re_dbg_linux_q_push(st, RE_DBG_EV_BREAKPOINT, tid, re_dbg_linux_rip(tid), SIGSTOP);
         st->stopped = true;
         st->cur_tid = tid;
         return;
     }
-    re_dbg_linux_q_push(st, RE_DBG_EV_EXCEPTION, tid, re_dbg_linux_rip(tid), sig);
+    push_exception(st, tid, sig);
     st->stopped = true;
     st->cur_tid = tid;
 }
@@ -192,15 +203,28 @@ re_err_code_t re_dbg_linux_wait(re_dbg_backend_t *b, re_dbg_event_t *ev, uint32_
 
 re_err_code_t re_dbg_linux_cont(re_dbg_backend_t *b) {
     re_dbg_linux_t *st = re_dbg_linux(b);
+    long sig;
     if (!st)
         return RE_E_INTERNAL;
     if (!st->attached)
         return re_dbg_linux_fail(st, RE_E_USAGE, "not attached");
     pid_t tid = st->cur_tid > 0 ? st->cur_tid : st->pid;
-    if (ptrace(PTRACE_CONT, tid, NULL, NULL) != 0)
+    sig = st->pass_sig;
+    st->pass_sig = 0;
+    if (ptrace(PTRACE_CONT, tid, NULL, (void *)(uintptr_t)(unsigned long)sig) != 0)
         return re_dbg_linux_fail_errno(st, "PTRACE_CONT");
     st->stopped = false;
     st->stepping = false;
+    return RE_OK;
+}
+
+re_err_code_t re_dbg_linux_set_pass(re_dbg_backend_t *b, bool pass, int32_t code) {
+    re_dbg_linux_t *st = re_dbg_linux(b);
+    if (!st)
+        return RE_E_INTERNAL;
+    if (!st->attached)
+        return re_dbg_linux_fail(st, RE_E_USAGE, "not attached");
+    st->pass_sig = pass ? (int)code : 0;
     return RE_OK;
 }
 
@@ -329,18 +353,6 @@ static re_err_code_t peek_dr(re_dbg_linux_t *st, pid_t tid, int idx, uint64_t *o
 static re_err_code_t poke_dr(re_dbg_linux_t *st, pid_t tid, int idx, uint64_t val) {
     if (ptrace(PTRACE_POKEUSER, tid, (void *)(uintptr_t)dr_off(idx), (void *)(uintptr_t)val) != 0)
         return re_dbg_linux_fail_errno(st, "PTRACE_POKEUSER debugreg");
-    return RE_OK;
-}
-
-re_err_code_t re_dbg_linux_get_caps(re_dbg_backend_t *b, re_dbg_caps_t *out) {
-    (void)b;
-    if (!out)
-        return RE_E_USAGE;
-    memset(out, 0, sizeof(*out));
-    out->hw_bp = true;
-    out->mem_bp = true; /* fidelity: DR watch only; see docs/bp-fidelity.md */
-    out->load_bp = true;
-    out->hw_slots = 4u;
     return RE_OK;
 }
 

@@ -43,13 +43,52 @@ static void test_session_arena_isolation(void) {
     re_arena_init(&cmd, 4096);
     scratch = re_arena_alloc(&cmd, 64);
     RE_CHECK(scratch != NULL);
-    RE_CHECK(strcmp(re_dbg_event_kind_str(RE_DBG_EV_BREAK), "break") == 0);
+    RE_CHECK(strcmp(re_dbg_event_kind_str(RE_DBG_EV_BREAKPOINT), "breakpoint") == 0);
+    RE_CHECK(strcmp(re_dbg_event_kind_str(RE_DBG_EV_THREAD_CREATE), "thread_create") == 0);
+    RE_CHECK(strcmp(re_dbg_event_kind_str(RE_DBG_EV_THREAD_EXIT), "thread_exit") == 0);
+    RE_CHECK(strcmp(re_dbg_event_kind_str(RE_DBG_EV_OUTPUT), "output") == 0);
+    RE_CHECK(strcmp(re_dbg_event_kind_str(RE_DBG_EV_UNLOAD), "unload") == 0);
     RE_CHECK(re_dbg_backend_name()[0] != 0);
     // Command arena reset must not touch the session arena or backend.
     re_arena_reset(&cmd);
     RE_CHECK(s.backend != NULL);
     RE_CHECK(s.backend->vt != NULL);
     re_arena_free(&cmd);
+    re_dbg_session_free(&s);
+}
+
+static void test_exception_policy_and_caps(void) {
+    re_dbg_session_t s;
+    re_dbg_ex_rule_t rules[8];
+    size_t n = 0;
+    re_dbg_caps_t caps;
+    re_dbg_session_init(&s);
+    caps = re_dbg_session_caps(&s);
+#if defined(__linux__) || defined(_WIN32)
+    RE_CHECK((caps.bits & RE_DBG_CAP_SW_BP) != 0);
+    RE_CHECK((caps.bits & RE_DBG_CAP_HW_BP) != 0);
+    RE_CHECK((caps.bits & RE_DBG_CAP_MEM_BP) != 0);
+    RE_CHECK((caps.bits & RE_DBG_CAP_LOAD_BP) != 0);
+    RE_CHECK((caps.bits & RE_DBG_CAP_EXCEPTION_BP) != 0);
+    RE_CHECK((caps.bits & RE_DBG_CAP_STEP) != 0);
+    RE_CHECK_EQ_U(caps.hw_slots, 4u);
+#endif
+#if defined(__linux__)
+    RE_CHECK((caps.bits & RE_DBG_CAP_SIGNAL_PASS) != 0);
+#elif defined(_WIN32)
+    RE_CHECK((caps.bits & RE_DBG_CAP_FIRST_CHANCE) != 0);
+#endif
+    RE_CHECK_EQ_U(re_dbg_session_ex_set(&s, 11, 11, RE_DBG_EX_IGNORE, true), RE_OK); /* SIGSEGV */
+    RE_CHECK_EQ_U(re_dbg_session_ex_set(&s, 4, 8, RE_DBG_EX_PASS, true), RE_OK);
+    RE_CHECK_EQ_U(re_dbg_session_ex_set(&s, 0xC0000005, 0xC0000005, RE_DBG_EX_BREAK_PASS, true),
+                  RE_OK);
+    RE_CHECK_EQ_U(re_dbg_session_ex_list(&s, rules, 8, &n), RE_OK);
+    RE_CHECK_EQ_U(n, 3);
+    RE_CHECK(strcmp(re_dbg_ex_policy_str(rules[0].policy), "ignore") == 0);
+    RE_CHECK_EQ_U(re_dbg_session_ex_clear(&s, 4, 8), RE_OK);
+    RE_CHECK_EQ_U(re_dbg_session_ex_list(&s, rules, 8, &n), RE_OK);
+    RE_CHECK_EQ_U(n, 2);
+    RE_CHECK(RE_DBG_EV_BREAK == RE_DBG_EV_BREAKPOINT);
     re_dbg_session_free(&s);
 }
 
@@ -375,10 +414,10 @@ static void test_caps_hw_mem_load_bp(void) {
     uint64_t watch = 0;
     uint64_t rend = 0;
     re_dbg_session_init(&s);
-    RE_CHECK_EQ_U(re_dbg_session_caps(&s, &caps), RE_OK);
-    RE_CHECK(caps.hw_bp);
-    RE_CHECK(caps.mem_bp);
-    RE_CHECK(caps.load_bp);
+    caps = re_dbg_session_caps(&s);
+    RE_CHECK((caps.bits & RE_DBG_CAP_HW_BP) != 0);
+    RE_CHECK((caps.bits & RE_DBG_CAP_MEM_BP) != 0);
+    RE_CHECK((caps.bits & RE_DBG_CAP_LOAD_BP) != 0);
     RE_CHECK_EQ_U(caps.hw_slots, 4u);
     RE_CHECK_EQ_U(re_dbg_session_launch(&s, g_inferior, NULL), RE_OK);
     RE_CHECK_EQ_U(re_dbg_session_wait_event(&s, &ev, 2000), RE_OK);
@@ -472,6 +511,7 @@ int main(int argc, char **argv) {
 #endif
     test_session_lifecycle();
     test_session_arena_isolation();
+    test_exception_policy_and_caps();
 #if defined(_WIN32)
     test_win_inactive();
 #elif defined(__linux__)

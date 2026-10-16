@@ -32,12 +32,18 @@ static const re_dbg_backend_vtbl_t kVtbl = {re_dbg_linux_launch,
                                             re_dbg_linux_write_mem,
                                             re_dbg_linux_enum_threads,
                                             re_dbg_linux_enum_modules,
-                                            re_dbg_linux_get_caps,
                                             re_dbg_linux_hw_bp_set,
                                             re_dbg_linux_hw_bp_clear,
                                             re_dbg_linux_hw_bp_hit,
                                             re_dbg_linux_rendezvous_addr,
+                                            re_dbg_linux_set_pass,
                                             linux_destroy};
+
+static const uint32_t kLinuxCaps = RE_DBG_CAP_SW_BP | RE_DBG_CAP_HW_BP | RE_DBG_CAP_MEM_BP |
+                                   RE_DBG_CAP_STEP | RE_DBG_CAP_PAUSE | RE_DBG_CAP_ATTACH |
+                                   RE_DBG_CAP_MODULES | RE_DBG_CAP_THREADS |
+                                   RE_DBG_CAP_EXCEPTION_BP | RE_DBG_CAP_SIGNAL_PASS |
+                                   RE_DBG_CAP_LOAD_BP;
 
 re_dbg_backend_t *re_dbg_backend_linux_create(re_arena_t *a) {
     re_dbg_backend_t *b = (re_dbg_backend_t *)re_arena_alloc(a, sizeof(*b));
@@ -46,6 +52,8 @@ re_dbg_backend_t *re_dbg_backend_linux_create(re_arena_t *a) {
         return NULL;
     b->vt = &kVtbl;
     b->impl = st;
+    b->caps.bits = kLinuxCaps;
+    b->caps.hw_slots = 4u;
     RE_ERR_OK(&st->last_err);
     return b;
 }
@@ -135,12 +143,6 @@ static re_err_code_t stub_modules(re_dbg_backend_t *b, re_dbg_module_t *out, siz
         *n_out = 0;
     return RE_E_UNSUPPORTED;
 }
-static re_err_code_t stub_caps(re_dbg_backend_t *b, re_dbg_caps_t *out) {
-    (void)b;
-    if (out)
-        memset(out, 0, sizeof(*out));
-    return RE_E_UNSUPPORTED;
-}
 static re_err_code_t stub_hw_set(re_dbg_backend_t *b, int slot, uint64_t addr, uint8_t size,
                                  uint8_t access) {
     (void)b;
@@ -171,13 +173,20 @@ static re_err_code_t stub_rend(re_dbg_backend_t *b, uint64_t *addr_out) {
         *addr_out = 0;
     return RE_E_UNSUPPORTED;
 }
+static re_err_code_t stub_set_pass(re_dbg_backend_t *b, bool pass, int32_t code) {
+    (void)b;
+    (void)pass;
+    (void)code;
+    return RE_E_UNSUPPORTED;
+}
 static void stub_destroy(re_dbg_backend_t *b) {
     (void)b;
 }
 static const re_dbg_backend_vtbl_t kVtbl = {
-    stub_launch, stub_attach,   stub_detach,   stub_kill,   stub_wait,  stub_cont,    stub_step,
-    stub_pause,  stub_get_regs, stub_set_regs, stub_read,   stub_write, stub_threads, stub_modules,
-    stub_caps,   stub_hw_set,   stub_hw_clear, stub_hw_hit, stub_rend,  stub_destroy};
+    stub_launch,  stub_attach,   stub_detach,   stub_kill,    stub_wait,  stub_cont,
+    stub_step,    stub_pause,    stub_get_regs, stub_set_regs, stub_read, stub_write,
+    stub_threads, stub_modules,  stub_hw_set,   stub_hw_clear, stub_hw_hit, stub_rend,
+    stub_set_pass, stub_destroy};
 
 re_dbg_backend_t *re_dbg_backend_linux_create(re_arena_t *a) {
     re_dbg_backend_t *b = (re_dbg_backend_t *)re_arena_alloc(a, sizeof(*b));
@@ -185,7 +194,9 @@ re_dbg_backend_t *re_dbg_backend_linux_create(re_arena_t *a) {
         return NULL;
     b->vt = &kVtbl;
     b->impl = NULL;
+    b->caps.bits = 0;
+    b->caps.hw_slots = 0;
     return b;
 }
 
-#endif /* __linux__ */
+#endif
