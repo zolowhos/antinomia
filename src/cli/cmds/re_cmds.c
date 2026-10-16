@@ -44,7 +44,8 @@ static void emit_result(re_ctx_t *ctx, const char *tool, re_err_code_t code, con
         RE_ERR_SET(ctx->err, code, msg);
 }
 
-static int finish(re_ctx_t *ctx, const char *tool, re_err_code_t code, const char *unsupported_msg) {
+static int finish(re_ctx_t *ctx, const char *tool, re_err_code_t code,
+                  const char *unsupported_msg) {
     const char *msg = unsupported_msg;
     if (code != RE_E_UNSUPPORTED && code != RE_OK && sess(ctx)->last_err.msg[0])
         msg = sess(ctx)->last_err.msg;
@@ -151,7 +152,8 @@ int re_cmd_wait_event(re_ctx_t *ctx, const char *path, int argc, char **argv) {
     (void)argc;
     (void)argv;
     c = re_dbg_session_wait_event(sess(ctx), &ev, 0);
-    return finish(ctx, "wait_event", c, "wait_event is not implemented yet; waiting on OS backends");
+    return finish(ctx, "wait_event", c,
+                  "wait_event is not implemented yet; waiting on OS backends");
 }
 
 int re_cmd_run(re_ctx_t *ctx, const char *path, int argc, char **argv) {
