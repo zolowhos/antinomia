@@ -178,8 +178,8 @@ static re_err_code_t scan_range(re_dbg_session_t *s, uint64_t start, uint64_t le
 }
 
 re_err_code_t re_dbg_session_find(re_dbg_session_t *s, uint64_t start, uint64_t len,
-                                  const re_dbg_find_pat_t *pat, re_dbg_find_hit_t *hits,
-                                  size_t cap, size_t *n_out, bool *truncated) {
+                                  const re_dbg_find_pat_t *pat, re_dbg_find_hit_t *hits, size_t cap,
+                                  size_t *n_out, bool *truncated) {
     re_dbg_module_t mods[64];
     size_t nmod = 0, i;
     if (n_out)

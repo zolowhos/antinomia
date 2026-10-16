@@ -156,8 +156,8 @@ static void fill_disasm(re_cpu_view_t *v, re_dbg_session_t *s) {
     v->n_disasm = 0;
     v->rip_row = 0;
     v->have_mem = false;
-    if (v->attached && v->rip &&
-        re_dbg_session_disasm(s, v->rip, 16, lines, &n) == RE_OK && n > 0) {
+    if (v->attached && v->rip && re_dbg_session_disasm(s, v->rip, 16, lines, &n) == RE_OK &&
+        n > 0) {
         v->have_mem = true;
         for (i = 0; i < n && v->n_disasm < RE_CPU_DISASM_MAX; i++) {
             char hex[33];

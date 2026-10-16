@@ -97,7 +97,8 @@ int re_cmd_graph(re_ctx_t *ctx, const char *path, int argc, char **argv) {
     }
     c = re_dbg_session_cfg(sess(ctx), entry, &g);
     if (c != RE_OK) {
-        emit_err(ctx, "graph", c, c == RE_E_USAGE ? "graph needs an attached target" : "cfg failed");
+        emit_err(ctx, "graph", c,
+                 c == RE_E_USAGE ? "graph needs an attached target" : "cfg failed");
         return re_err_exit_code(c);
     }
     re_jw_init(&w, ctx->arena);

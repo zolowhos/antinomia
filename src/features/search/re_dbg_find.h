@@ -29,8 +29,8 @@ re_err_code_t re_dbg_find_parse(const char *spec, re_dbg_find_pat_t *out);
 
 // Search [start, start+len). When len==0, walk loaded modules.
 re_err_code_t re_dbg_session_find(re_dbg_session_t *s, uint64_t start, uint64_t len,
-                                  const re_dbg_find_pat_t *pat, re_dbg_find_hit_t *hits,
-                                  size_t cap, size_t *n_out, bool *truncated);
+                                  const re_dbg_find_pat_t *pat, re_dbg_find_hit_t *hits, size_t cap,
+                                  size_t *n_out, bool *truncated);
 
 #ifdef __cplusplus
 }
