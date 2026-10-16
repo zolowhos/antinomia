@@ -1,6 +1,6 @@
-# tests/CMakeLists.txt - CTest targets for utils, TUI, fixtures, and Phase 0 smokes.
+# tests/CMakeLists.txt - CTest targets for utils, TUI, fixtures, debug, and smokes.
 # Module: test (CMake).
-# Owns: utility and TUI suites, debug inferiors, plus CLI/MCP smoke tests.
+# Owns: utility and TUI suites, debug inferiors, Linux debug fixture, CLI/MCP smokes.
 # Depends: re_utils, re_core, antinomia. Style and format gates live in the root.
 
 add_subdirectory(fixtures)
@@ -47,7 +47,16 @@ if(MSVC)
         PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
     target_compile_definitions(re_test_debug PRIVATE _CRT_SECURE_NO_WARNINGS)
 endif()
-add_test(NAME debug COMMAND re_test_debug)
+if(UNIX AND NOT APPLE)
+    add_executable(loop_inferior fixtures/loop_inferior.c)
+    target_link_libraries(loop_inferior PRIVATE re_flags)
+    add_test(NAME debug
+        COMMAND re_test_debug $<TARGET_FILE:loop_inferior>)
+    set_tests_properties(debug PROPERTIES
+        ENVIRONMENT "RE_TEST_INFERIOR=$<TARGET_FILE:loop_inferior>")
+else()
+    add_test(NAME debug COMMAND re_test_debug)
+endif()
 
 add_test(NAME smoke_version
     COMMAND ${CMAKE_COMMAND}

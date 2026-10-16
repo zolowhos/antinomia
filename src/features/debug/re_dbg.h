@@ -1,6 +1,6 @@
 // re_dbg.h - opaque debug session and OS backend vtable.
 // Module: feature (C11).
-// Owns: session lifetime, backend selection, and the stub-safe debug API surface.
+// Owns: session lifetime, backend selection, and the debug API surface.
 // Depends: re_arena, re_err. No OS headers leak past the backend .c files.
 #pragma once
 
