@@ -225,6 +225,56 @@ static void test_regs_mem_disasm(void) {
     re_dbg_session_free(&s);
 }
 
+
+/* Headless CLI/MCP surface: session API only, no TTY. */
+static void test_launch_bp_regs_step_detach(void) {
+    re_dbg_session_t s;
+    re_dbg_event_t ev;
+    re_dbg_regs_t regs;
+    uint8_t byte = 0;
+    uint8_t orig = 0;
+    uint32_t pid = 0;
+    uint64_t rip = 0;
+    re_dbg_session_init(&s);
+    RE_CHECK(g_inferior != NULL);
+    RE_CHECK_EQ_U(re_dbg_session_launch(&s, g_inferior, NULL), RE_OK);
+    RE_CHECK(s.db.loaded);
+    RE_CHECK_EQ_U(re_dbg_db_add_label(&s.db, 0x0u, "entry_bp"), RE_OK);
+    RE_CHECK_EQ_U(re_dbg_session_wait_event(&s, &ev, 2000), RE_OK);
+    RE_CHECK_EQ_U(ev.kind, RE_DBG_EV_CREATE);
+    RE_CHECK_EQ_U(re_dbg_session_wait_event(&s, &ev, 2000), RE_OK);
+    RE_CHECK_EQ_U(ev.kind, RE_DBG_EV_BREAK);
+    pid = s.pid;
+    RE_CHECK(pid != 0);
+    RE_CHECK_EQ_U(re_dbg_session_get_regs(&s, 0, &regs), RE_OK);
+    RE_CHECK(regs.rip != 0);
+    RE_CHECK_EQ_U(re_dbg_session_step(&s), RE_OK);
+    RE_CHECK_EQ_U(re_dbg_session_wait_event(&s, &ev, 2000), RE_OK);
+    RE_CHECK_EQ_U(ev.kind, RE_DBG_EV_STEP);
+    RE_CHECK_EQ_U(re_dbg_session_get_regs(&s, 0, &regs), RE_OK);
+    rip = regs.rip;
+    RE_CHECK(rip != 0);
+    RE_CHECK_EQ_U(s.backend->vt->read_mem(s.backend, rip, &orig, 1), RE_OK);
+    RE_CHECK_EQ_U(re_dbg_session_bp_set(&s, rip), RE_OK);
+    RE_CHECK_EQ_U(s.backend->vt->read_mem(s.backend, rip, &byte, 1), RE_OK);
+    RE_CHECK_EQ_U(byte, 0xcc);
+    RE_CHECK_EQ_U(re_dbg_session_bp_clear(&s, rip), RE_OK);
+    RE_CHECK_EQ_U(s.backend->vt->read_mem(s.backend, rip, &byte, 1), RE_OK);
+    RE_CHECK_EQ_U(byte, orig);
+    RE_CHECK_EQ_U(re_dbg_session_detach(&s), RE_OK);
+    RE_CHECK(!s.attached);
+    if (s.db.db_path[0])
+        remove(s.db.db_path);
+    RE_CHECK(kill((pid_t)pid, 0) == 0);
+    RE_CHECK(kill((pid_t)pid, SIGKILL) == 0);
+    {
+        int st = 0;
+        while (waitpid((pid_t)pid, &st, 0) < 0 && errno == EINTR) {
+        }
+    }
+    re_dbg_session_free(&s);
+}
+
 static void test_soft_bp_step_pause(void) {
     re_dbg_session_t s;
     re_dbg_event_t ev;
@@ -380,6 +430,7 @@ int main(int argc, char **argv) {
     test_regs_mem_disasm();
     test_soft_bp_step_pause();
     test_modules_sym_bt();
+    test_launch_bp_regs_step_detach();
 #else
     test_stubs();
     test_session_api_degrades();

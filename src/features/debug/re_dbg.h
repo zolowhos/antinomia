@@ -12,6 +12,7 @@ extern "C" {
 #include <stddef.h>
 #include <stdint.h>
 
+#include "features/debug/re_dbg_db.h"
 #include "features/disasm/re_disasm.h"
 #include "utils/mem/re_arena.h"
 #include "utils/sys/re_err.h"
@@ -120,6 +121,7 @@ typedef struct re_dbg_session {
     re_err_t last_err;
     re_disasm_cache_t disasm_cache;
     re_dbg_bps_t *bps;
+    re_dbg_db_t db; /* per-module annotations; load on launch, save on exit */
 } re_dbg_session_t;
 
 re_dbg_backend_t *re_dbg_backend_create(re_arena_t *a);

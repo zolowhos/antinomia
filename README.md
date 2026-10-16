@@ -74,6 +74,9 @@ presets: `clang-release`, `clang-debug`, `clang-asan`, `clang-cl-release`,
 
 Windows builds are covered by CI (`clang-cl-release` on `windows-2022`).
 
+Linux attach needs a workable Yama `ptrace_scope` (launch works on the common
+default of `1`). See [`docs/yama-ptrace.md`](docs/yama-ptrace.md).
+
 ## Commands
 
 Every command also works as a plain command, so nothing is locked inside a session.

@@ -55,8 +55,18 @@ if(UNIX AND NOT APPLE)
         COMMAND re_test_debug $<TARGET_FILE:loop_inferior>)
     set_tests_properties(debug PROPERTIES
         ENVIRONMENT "RE_TEST_INFERIOR=$<TARGET_FILE:loop_inferior>")
+    # Headless CLI/MCP session path (no TTY): launch -> BP -> regs -> step -> detach.
+    add_test(NAME debug_launch_bp_step_detach
+        COMMAND re_test_debug $<TARGET_FILE:loop_inferior>)
+    set_tests_properties(debug_launch_bp_step_detach PROPERTIES
+        ENVIRONMENT "RE_TEST_INFERIOR=$<TARGET_FILE:loop_inferior>")
 else()
     add_test(NAME debug COMMAND re_test_debug)
+    # Windows: enable when backend step + get_regs are live (Pack E).
+    add_test(NAME DISABLED_debug_launch_bp_step_detach
+        COMMAND ${CMAKE_COMMAND} -E echo
+            "skipped until Windows step/regs land; see docs/yama-ptrace.md")
+    set_tests_properties(DISABLED_debug_launch_bp_step_detach PROPERTIES DISABLED TRUE)
 endif()
 
 add_test(NAME smoke_version
