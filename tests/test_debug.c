@@ -1,6 +1,7 @@
-// test_debug.c - session lifetime, stubs, and Linux process-control checks.
+// test_debug.c - session lifetime, Linux process-control, Windows inactive checks.
 // Module: test (C11).
-// Owns: session != command arena; stubs degrade; launch/attach/detach/kill/wait.
+// Owns: session != command arena; live Linux launch/attach/detach/kill/wait;
+//       Windows inactive-op shape checks; non-host stubs degrade cleanly.
 // Depends: re_dbg, re_test. Prints to stdout, which is fine for a test binary.
 #if defined(__linux__)
 #define _GNU_SOURCE
@@ -52,46 +53,37 @@ static void test_session_arena_isolation(void) {
     re_dbg_session_free(&s);
 }
 
-#if !defined(__linux__)
+#if defined(_WIN32)
 
-static void test_stubs(void) {
+static void test_win_inactive(void) {
     re_dbg_session_t s;
     re_dbg_event_t ev;
     re_dbg_regs_t regs;
     size_t n = 0;
     re_dbg_session_init(&s);
-    RE_CHECK_EQ_U(s.backend->vt->launch(s.backend, "x", NULL), RE_E_UNSUPPORTED);
-    RE_CHECK_EQ_U(s.backend->vt->attach(s.backend, 1), RE_E_UNSUPPORTED);
-    RE_CHECK_EQ_U(s.backend->vt->detach(s.backend), RE_E_UNSUPPORTED);
-    RE_CHECK_EQ_U(s.backend->vt->kill(s.backend), RE_E_UNSUPPORTED);
-    RE_CHECK_EQ_U(s.backend->vt->wait_event(s.backend, &ev, 0), RE_E_UNSUPPORTED);
-    RE_CHECK_EQ_U(s.backend->vt->cont(s.backend), RE_E_UNSUPPORTED);
+    RE_CHECK(s.backend != NULL);
+    RE_CHECK(s.backend->vt != NULL);
+    RE_CHECK(s.backend->impl != NULL);
+    RE_CHECK_EQ_U(s.backend->vt->detach(s.backend), RE_E_USAGE);
+    RE_CHECK_EQ_U(s.backend->vt->kill(s.backend), RE_E_USAGE);
+    RE_CHECK_EQ_U(s.backend->vt->wait_event(s.backend, &ev, 0), RE_E_USAGE);
+    RE_CHECK_EQ_U(s.backend->vt->cont(s.backend), RE_E_USAGE);
+    RE_CHECK_EQ_U(s.backend->vt->launch(s.backend, "", NULL), RE_E_USAGE);
+    RE_CHECK_EQ_U(s.backend->vt->launch(s.backend, "Z:\\no-such-antinomia-target.exe", NULL),
+                  RE_E_IO);
+    RE_CHECK_EQ_U(s.backend->vt->attach(s.backend, 0), RE_E_USAGE);
     RE_CHECK_EQ_U(s.backend->vt->step(s.backend), RE_E_UNSUPPORTED);
     RE_CHECK_EQ_U(s.backend->vt->get_regs(s.backend, 0, &regs), RE_E_UNSUPPORTED);
     RE_CHECK_EQ_U(s.backend->vt->set_regs(s.backend, 0, &regs), RE_E_UNSUPPORTED);
     RE_CHECK_EQ_U(s.backend->vt->read_mem(s.backend, 0, NULL, 0), RE_E_UNSUPPORTED);
     RE_CHECK_EQ_U(s.backend->vt->write_mem(s.backend, 0, NULL, 0), RE_E_UNSUPPORTED);
-    RE_CHECK_EQ_U(s.backend->vt->enum_threads(s.backend, NULL, 0, &n), RE_E_UNSUPPORTED);
     RE_CHECK_EQ_U(s.backend->vt->enum_modules(s.backend, NULL, 0, &n), RE_E_UNSUPPORTED);
+    RE_CHECK_EQ_U(re_dbg_session_detach(&s), RE_E_USAGE);
+    RE_CHECK_EQ_U(re_dbg_session_kill(&s), RE_E_USAGE);
     re_dbg_session_free(&s);
 }
 
-static void test_session_api_degrades(void) {
-    re_dbg_session_t s;
-    re_dbg_event_t ev;
-    re_dbg_session_init(&s);
-    RE_CHECK_EQ_U(re_dbg_session_launch(&s, "/bin/true", NULL), RE_E_UNSUPPORTED);
-    RE_CHECK(!s.attached);
-    RE_CHECK_EQ_U(re_dbg_session_attach(&s, 1), RE_E_UNSUPPORTED);
-    RE_CHECK_EQ_U(re_dbg_session_detach(&s), RE_E_UNSUPPORTED);
-    RE_CHECK_EQ_U(re_dbg_session_kill(&s), RE_E_UNSUPPORTED);
-    RE_CHECK_EQ_U(re_dbg_session_cont(&s), RE_E_UNSUPPORTED);
-    RE_CHECK_EQ_U(re_dbg_session_wait_event(&s, &ev, 0), RE_E_UNSUPPORTED);
-    RE_CHECK_EQ_U(s.last_event.kind, RE_DBG_EV_NONE);
-    re_dbg_session_free(&s);
-}
-
-#else /* __linux__ */
+#elif defined(__linux__)
 
 static const char *g_inferior;
 
@@ -190,17 +182,61 @@ static void test_session_api_live(void) {
     re_dbg_session_free(&s);
 }
 
-#endif /* __linux__ */
+#else /* non-Linux, non-Windows host */
+
+static void test_stubs(void) {
+    re_dbg_session_t s;
+    re_dbg_event_t ev;
+    re_dbg_regs_t regs;
+    size_t n = 0;
+    re_dbg_session_init(&s);
+    RE_CHECK_EQ_U(s.backend->vt->launch(s.backend, "x", NULL), RE_E_UNSUPPORTED);
+    RE_CHECK_EQ_U(s.backend->vt->attach(s.backend, 1), RE_E_UNSUPPORTED);
+    RE_CHECK_EQ_U(s.backend->vt->detach(s.backend), RE_E_UNSUPPORTED);
+    RE_CHECK_EQ_U(s.backend->vt->kill(s.backend), RE_E_UNSUPPORTED);
+    RE_CHECK_EQ_U(s.backend->vt->wait_event(s.backend, &ev, 0), RE_E_UNSUPPORTED);
+    RE_CHECK_EQ_U(s.backend->vt->cont(s.backend), RE_E_UNSUPPORTED);
+    RE_CHECK_EQ_U(s.backend->vt->step(s.backend), RE_E_UNSUPPORTED);
+    RE_CHECK_EQ_U(s.backend->vt->get_regs(s.backend, 0, &regs), RE_E_UNSUPPORTED);
+    RE_CHECK_EQ_U(s.backend->vt->set_regs(s.backend, 0, &regs), RE_E_UNSUPPORTED);
+    RE_CHECK_EQ_U(s.backend->vt->read_mem(s.backend, 0, NULL, 0), RE_E_UNSUPPORTED);
+    RE_CHECK_EQ_U(s.backend->vt->write_mem(s.backend, 0, NULL, 0), RE_E_UNSUPPORTED);
+    RE_CHECK_EQ_U(s.backend->vt->enum_threads(s.backend, NULL, 0, &n), RE_E_UNSUPPORTED);
+    RE_CHECK_EQ_U(s.backend->vt->enum_modules(s.backend, NULL, 0, &n), RE_E_UNSUPPORTED);
+    re_dbg_session_free(&s);
+}
+
+static void test_session_api_degrades(void) {
+    re_dbg_session_t s;
+    re_dbg_event_t ev;
+    re_dbg_session_init(&s);
+    RE_CHECK_EQ_U(re_dbg_session_launch(&s, "/bin/true", NULL), RE_E_UNSUPPORTED);
+    RE_CHECK(!s.attached);
+    RE_CHECK_EQ_U(re_dbg_session_attach(&s, 1), RE_E_UNSUPPORTED);
+    RE_CHECK_EQ_U(re_dbg_session_detach(&s), RE_E_UNSUPPORTED);
+    RE_CHECK_EQ_U(re_dbg_session_kill(&s), RE_E_UNSUPPORTED);
+    RE_CHECK_EQ_U(re_dbg_session_cont(&s), RE_E_UNSUPPORTED);
+    RE_CHECK_EQ_U(re_dbg_session_wait_event(&s, &ev, 0), RE_E_UNSUPPORTED);
+    RE_CHECK_EQ_U(s.last_event.kind, RE_DBG_EV_NONE);
+    re_dbg_session_free(&s);
+}
+
+#endif
 
 int main(int argc, char **argv) {
 #if defined(__linux__)
     g_inferior = getenv("RE_TEST_INFERIOR");
     if (!g_inferior && argc > 1)
         g_inferior = argv[1];
+#else
+    (void)argc;
+    (void)argv;
 #endif
     test_session_lifecycle();
     test_session_arena_isolation();
-#if defined(__linux__)
+#if defined(_WIN32)
+    test_win_inactive();
+#elif defined(__linux__)
     if (!g_inferior) {
         printf("FAIL missing RE_TEST_INFERIOR / argv[1] path to loop_inferior\n");
         return 1;
@@ -210,8 +246,6 @@ int main(int argc, char **argv) {
     test_attach_detach();
     test_session_api_live();
 #else
-    (void)argc;
-    (void)argv;
     test_stubs();
     test_session_api_degrades();
 #endif
