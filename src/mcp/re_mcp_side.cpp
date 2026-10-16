@@ -26,10 +26,10 @@
 using sock_t = SOCKET;
 constexpr sock_t kInvalid = INVALID_SOCKET;
 #else
+#    include <poll.h>
 #    include <unistd.h>
 #    include <arpa/inet.h>
 #    include <netinet/in.h>
-#    include <poll.h>
 #    include <sys/socket.h>
 #    include <sys/un.h>
 using sock_t = int;

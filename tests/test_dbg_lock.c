@@ -11,8 +11,8 @@
 #if defined(_WIN32)
 #    include <windows.h>
 #else
-#    include <pthread.h>
 #    include <poll.h>
+#    include <pthread.h>
 #endif
 
 int re_test_count = 0;
