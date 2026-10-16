@@ -1,11 +1,12 @@
 // re_dbg_session.c - long-lived debug session arena and control API.
 // Module: feature (C11).
 // Owns: session init/reset/free, regs/mem/disasm/db wrappers, wait post-process.
-// Depends: re_dbg.h, re_dbg_bp.h, re_dbg_advbp.h, re_dbg_db, re_disasm.
+// Depends: re_dbg.h, re_dbg_bp.h, re_dbg_advbp.h, re_dbg_trace, re_dbg_db, re_disasm.
 #include "features/bp/re_dbg_advbp.h"
 #include "features/debug/re_dbg.h"
 #include "features/debug/re_dbg_bp.h"
 #include "features/disasm/re_disasm_annot.h"
+#include "features/trace/re_dbg_trace.h"
 
 #include <string.h>
 
@@ -87,6 +88,9 @@ void re_dbg_session_init(re_dbg_session_t *s) {
     s->backend = re_dbg_backend_create(&s->arena);
     s->bps = (re_dbg_bps_t *)re_arena_calloc(&s->arena, 1, sizeof(*s->bps));
     s->advbp = (re_dbg_advbp_t *)re_arena_calloc(&s->arena, 1, sizeof(*s->advbp));
+    s->trace = (re_dbg_trace_t *)re_arena_calloc(&s->arena, 1, sizeof(*s->trace));
+    if (s->trace)
+        re_dbg_trace_clear(s->trace);
     s->last_err.code = RE_OK;
     re_disasm_cache_clear(&s->disasm_cache);
     re_dbg_db_init(&s->db);
@@ -109,6 +113,9 @@ void re_dbg_session_reset(re_dbg_session_t *s) {
     s->backend = re_dbg_backend_create(&s->arena);
     s->bps = (re_dbg_bps_t *)re_arena_calloc(&s->arena, 1, sizeof(*s->bps));
     s->advbp = (re_dbg_advbp_t *)re_arena_calloc(&s->arena, 1, sizeof(*s->advbp));
+    s->trace = (re_dbg_trace_t *)re_arena_calloc(&s->arena, 1, sizeof(*s->trace));
+    if (s->trace)
+        re_dbg_trace_clear(s->trace);
 }
 
 void re_dbg_session_free(re_dbg_session_t *s) {
@@ -118,6 +125,7 @@ void re_dbg_session_free(re_dbg_session_t *s) {
     s->backend = NULL;
     s->bps = NULL;
     s->advbp = NULL;
+    s->trace = NULL;
     re_dbg_db_clear(&s->db);
     re_arena_free(&s->arena);
 }
@@ -366,6 +374,10 @@ re_err_code_t re_dbg_session_wait_event(re_dbg_session_t *s, re_dbg_event_t *ev,
         s->pid = ev->pid;
     if (ev->tid)
         s->tid = ev->tid;
+    /* Pack G: when recording, capture insn stream + regs on step/break stops. */
+    if (s->trace && s->trace->recording &&
+        (ev->kind == RE_DBG_EV_STEP || ev->kind == RE_DBG_EV_BREAKPOINT))
+        (void)re_dbg_session_trace_capture(s);
     return note(s, RE_OK, NULL);
 }
 

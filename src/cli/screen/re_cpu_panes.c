@@ -1,8 +1,10 @@
-// re_cpu_panes.c - maps, threads, and call-stack fill helpers for the CPU view.
+// re_cpu_panes.c - maps, threads, call-stack, and trace fill helpers.
 // Module: cli (C11).
-// Owns: re_cpu_fill_maps/threads/callstack used by re_cpu_refresh.
-// Depends: re_cpu.h, re_dbg. Keeps re_cpu.c under the line cap.
+// Owns: re_cpu_fill_maps/threads/callstack/trace used by re_cpu_refresh.
+// Depends: re_cpu.h, re_dbg, re_dbg_trace. Keeps re_cpu.c under the line cap.
 #include "cli/screen/re_cpu.h"
+
+#include "features/trace/re_dbg_trace.h"
 
 #include <stdarg.h>
 #include <stdio.h>
@@ -74,5 +76,36 @@ void re_cpu_fill_callstack(re_cpu_view_t *v, re_dbg_session_t *s) {
                      (unsigned long long)frames[i].ip);
         else
             line_set(&v->stack[v->n_stack++], "#%zu %016llx", i, (unsigned long long)frames[i].ip);
+    }
+}
+
+void re_cpu_fill_trace(re_cpu_view_t *v, re_dbg_session_t *s) {
+    re_dbg_trace_frame_t frames[RE_CPU_TRACE_MAX];
+    size_t n = 0, total = 0, i, start;
+    bool trunc = false;
+    v->n_trace = 0;
+    if (!s) {
+        line_set(&v->trace_lines[v->n_trace++], "(no trace)");
+        return;
+    }
+    total = re_dbg_session_trace_count(s);
+    if (total == 0) {
+        line_set(&v->trace_lines[v->n_trace++],
+                 re_dbg_session_trace_recording(s) ? "(recording, empty)" : "(no frames)");
+        return;
+    }
+    start = total > RE_CPU_TRACE_MAX ? total - RE_CPU_TRACE_MAX : 0;
+    if (re_dbg_session_trace_query(s, start, RE_CPU_TRACE_MAX, frames, RE_CPU_TRACE_MAX, &n, &total,
+                                   &trunc) != RE_OK ||
+        n == 0) {
+        line_set(&v->trace_lines[v->n_trace++], "(trace unavailable)");
+        return;
+    }
+    line_set(&v->trace_lines[v->n_trace++], "%s n=%zu%s",
+             re_dbg_session_trace_recording(s) ? "REC" : "trace", total, trunc ? "+" : "");
+    for (i = 0; i < n && v->n_trace < RE_CPU_TRACE_MAX; i++) {
+        line_set(&v->trace_lines[v->n_trace++], "#%llu %016llx %s",
+                 (unsigned long long)frames[i].index, (unsigned long long)frames[i].regs.rip,
+                 frames[i].text[0] ? frames[i].text : "???");
     }
 }
