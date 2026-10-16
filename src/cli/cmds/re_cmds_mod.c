@@ -63,6 +63,8 @@ int re_cmd_modules(re_ctx_t *ctx, const char *path, int argc, char **argv) {
     re_jw_kcstr(&w, "tool", "modules");
     re_jw_kbool(&w, "ok", true);
     re_jw_ku64(&w, "count", n);
+    re_jw_ku64(&w, "offset", start);
+    re_jw_ku64(&w, "limit", lim);
     re_jw_kbool(&w, "truncated", trunc);
     re_jw_key(&w, "modules");
     re_jw_arr(&w);
@@ -199,6 +201,8 @@ static int maps_list(re_ctx_t *ctx) {
     re_jw_kcstr(&w, "tool", "maps");
     re_jw_kbool(&w, "ok", true);
     re_jw_ku64(&w, "count", n);
+    re_jw_ku64(&w, "offset", start);
+    re_jw_ku64(&w, "limit", lim);
     re_jw_kbool(&w, "truncated", trunc);
     re_jw_khex(&w, "follow_dump", sess(ctx)->follow_dump, 16);
     re_jw_key(&w, "maps");

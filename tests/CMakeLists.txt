@@ -61,6 +61,15 @@ if(MSVC)
 endif()
 add_test(NAME expr COMMAND re_test_expr)
 
+add_executable(re_test_script test_script.c)
+target_link_libraries(re_test_script PRIVATE re_core re_utils re_flags)
+if(MSVC)
+    set_property(TARGET re_test_script
+        PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+    target_compile_definitions(re_test_script PRIVATE _CRT_SECURE_NO_WARNINGS)
+endif()
+add_test(NAME script COMMAND re_test_script)
+
 add_executable(re_test_disasm_p2 test_disasm_p2.c)
 target_link_libraries(re_test_disasm_p2 PRIVATE re_core re_utils re_flags)
 if(MSVC)
