@@ -43,5 +43,12 @@ bool re_dbg_win_continue(re_dbg_win_impl_t *w, DWORD status);
 re_err_code_t re_dbg_win_pump_to_break(re_dbg_win_impl_t *w);
 re_err_code_t re_dbg_win_wait(re_dbg_backend_t *b, re_dbg_event_t *ev, uint32_t timeout_ms);
 re_err_code_t re_dbg_win_cont(re_dbg_backend_t *b);
+re_err_code_t re_dbg_win_step(re_dbg_backend_t *b);
+re_err_code_t re_dbg_win_pause(re_dbg_backend_t *b);
+re_err_code_t re_dbg_win_get_regs(re_dbg_backend_t *b, uint32_t tid, re_dbg_regs_t *out);
+re_err_code_t re_dbg_win_set_regs(re_dbg_backend_t *b, uint32_t tid, const re_dbg_regs_t *in);
+re_err_code_t re_dbg_win_read(re_dbg_backend_t *b, uint64_t addr, void *dst, size_t n);
+re_err_code_t re_dbg_win_write(re_dbg_backend_t *b, uint64_t addr, const void *src, size_t n);
 re_err_code_t re_dbg_win_enum_threads(re_dbg_backend_t *b, re_dbg_thread_t *out, size_t cap,
                                       size_t *n_out);
+HANDLE re_dbg_win_thread_handle(re_dbg_win_impl_t *w, DWORD tid);

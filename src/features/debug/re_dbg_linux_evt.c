@@ -9,6 +9,7 @@
 
 #    include <string.h>
 #    include <time.h>
+#    include <unistd.h>
 
 static void fill_regs(re_dbg_regs_t *out, const struct user_regs_struct *r) {
     out->rax = r->rax;
@@ -215,6 +216,96 @@ re_err_code_t re_dbg_linux_step(re_dbg_backend_t *b) {
     st->stopped = false;
     st->stepping = true;
     return RE_OK;
+}
+
+re_err_code_t re_dbg_linux_pause(re_dbg_backend_t *b) {
+    re_dbg_linux_t *st = re_dbg_linux(b);
+    pid_t tid;
+    if (!st)
+        return RE_E_INTERNAL;
+    if (!st->attached)
+        return re_dbg_linux_fail(st, RE_E_USAGE, "not attached");
+    if (st->stopped)
+        return RE_OK;
+    tid = st->cur_tid > 0 ? st->cur_tid : st->pid;
+    if (tgkill(st->pid, tid, SIGSTOP) != 0) {
+        if (kill(st->pid, SIGSTOP) != 0)
+            return re_dbg_linux_fail_errno(st, "tgkill/SIGSTOP");
+    }
+    return RE_OK;
+}
+
+static re_err_code_t peek_bytes(re_dbg_linux_t *st, pid_t tid, uint64_t addr, void *dst, size_t n) {
+    uint8_t *out = (uint8_t *)dst;
+    size_t off = 0;
+    while (off < n) {
+        uint64_t cur = addr + off;
+        uint64_t aligned = cur & ~(uint64_t)(sizeof(long) - 1u);
+        size_t skip = (size_t)(cur - aligned);
+        size_t avail = sizeof(long) - skip;
+        size_t chunk = n - off < avail ? n - off : avail;
+        long word;
+        errno = 0;
+        word = ptrace(PTRACE_PEEKDATA, tid, (void *)(uintptr_t)aligned, NULL);
+        if (word == -1 && errno != 0)
+            return re_dbg_linux_fail_errno(st, "PTRACE_PEEKDATA");
+        memcpy(out + off, (uint8_t *)&word + skip, chunk);
+        off += chunk;
+    }
+    return RE_OK;
+}
+
+static re_err_code_t poke_bytes(re_dbg_linux_t *st, pid_t tid, uint64_t addr, const void *src,
+                                size_t n) {
+    const uint8_t *in = (const uint8_t *)src;
+    size_t off = 0;
+    while (off < n) {
+        uint64_t cur = addr + off;
+        uint64_t aligned = cur & ~(uint64_t)(sizeof(long) - 1u);
+        size_t skip = (size_t)(cur - aligned);
+        size_t avail = sizeof(long) - skip;
+        size_t chunk = n - off < avail ? n - off : avail;
+        long word;
+        errno = 0;
+        word = ptrace(PTRACE_PEEKDATA, tid, (void *)(uintptr_t)aligned, NULL);
+        if (word == -1 && errno != 0)
+            return re_dbg_linux_fail_errno(st, "PTRACE_PEEKDATA");
+        memcpy((uint8_t *)&word + skip, in + off, chunk);
+        if (ptrace(PTRACE_POKEDATA, tid, (void *)(uintptr_t)aligned, (void *)word) != 0)
+            return re_dbg_linux_fail_errno(st, "PTRACE_POKEDATA");
+        off += chunk;
+    }
+    return RE_OK;
+}
+
+re_err_code_t re_dbg_linux_read(re_dbg_backend_t *b, uint64_t addr, void *dst, size_t n) {
+    re_dbg_linux_t *st = re_dbg_linux(b);
+    pid_t tid;
+    if (dst && n)
+        memset(dst, 0, n);
+    if (!st)
+        return RE_E_INTERNAL;
+    if (!st->attached)
+        return re_dbg_linux_fail(st, RE_E_USAGE, "not attached");
+    if (!dst && n)
+        return RE_E_USAGE;
+    if (n == 0)
+        return RE_OK;
+    tid = st->cur_tid > 0 ? st->cur_tid : st->pid;
+    return peek_bytes(st, tid, addr, dst, n);
+}
+
+re_err_code_t re_dbg_linux_write(re_dbg_backend_t *b, uint64_t addr, const void *src, size_t n) {
+    re_dbg_linux_t *st = re_dbg_linux(b);
+    pid_t tid;
+    if (!st)
+        return RE_E_INTERNAL;
+    if (!st->attached)
+        return re_dbg_linux_fail(st, RE_E_USAGE, "not attached");
+    if ((!src && n) || n == 0)
+        return n == 0 ? RE_OK : RE_E_USAGE;
+    tid = st->cur_tid > 0 ? st->cur_tid : st->pid;
+    return poke_bytes(st, tid, addr, src, n);
 }
 
 re_err_code_t re_dbg_linux_get_regs(re_dbg_backend_t *b, uint32_t tid, re_dbg_regs_t *out) {
