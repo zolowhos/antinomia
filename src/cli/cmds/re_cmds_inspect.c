@@ -270,12 +270,16 @@ int re_cmd_dump(re_ctx_t *ctx, const char *path, int argc, char **argv) {
         return 2;
     }
     if (!have) {
-        memset(&regs, 0, sizeof(regs));
-        if (re_dbg_session_get_regs(sess(ctx), 0, &regs) != RE_OK) {
-            emit_err(ctx, "d", RE_E_USAGE, "d needs an address when regs are unavailable");
-            return 2;
+        if (sess(ctx)->follow_dump) {
+            addr = sess(ctx)->follow_dump;
+        } else {
+            memset(&regs, 0, sizeof(regs));
+            if (re_dbg_session_get_regs(sess(ctx), 0, &regs) != RE_OK) {
+                emit_err(ctx, "d", RE_E_USAGE, "d needs an address when regs are unavailable");
+                return 2;
+            }
+            addr = regs.rip;
         }
-        addr = regs.rip;
     }
     return emit_dump(ctx, "d", addr, len);
 }

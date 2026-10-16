@@ -156,8 +156,8 @@ static int find_mod(linux_mod_t *mods, size_t n, const char *path) {
     return -1;
 }
 
-static bool parse_map_line(const char *line, uint64_t *lo, uint64_t *hi, char *path,
-                           size_t path_cap) {
+static bool parse_map_line(const char *line, uint64_t *lo, uint64_t *hi, char *perms_out,
+                           char *path, size_t path_cap) {
     unsigned long long a = 0, b = 0;
     char perms[8];
     unsigned long long off = 0;
@@ -166,11 +166,21 @@ static bool parse_map_line(const char *line, uint64_t *lo, uint64_t *hi, char *p
     const char *p;
     int n;
     path[0] = 0;
+    if (perms_out)
+        perms_out[0] = 0;
     n = sscanf(line, "%llx-%llx %7s %llx %15s %llu", &a, &b, perms, &off, dev, &inode);
     if (n < 6)
         return false;
     *lo = (uint64_t)a;
     *hi = (uint64_t)b;
+    if (perms_out) {
+        size_t i = 0;
+        while (perms[i] && i + 1 < 8) {
+            perms_out[i] = perms[i];
+            i++;
+        }
+        perms_out[i] = 0;
+    }
     p = line;
     /* Skip address, perms, offset, device, inode; remainder is the path. */
     for (int i = 0; i < 5; i++) {
@@ -186,6 +196,39 @@ static bool parse_map_line(const char *line, uint64_t *lo, uint64_t *hi, char *p
         copy_path(path, path_cap, p, plen);
     }
     return true;
+}
+
+static uint32_t prot_from_perms(const char *perms) {
+    uint32_t p = 0;
+    if (!perms)
+        return 0;
+    if (perms[0] == 'r')
+        p |= RE_DBG_PROT_R;
+    if (perms[1] == 'w')
+        p |= RE_DBG_PROT_W;
+    if (perms[2] == 'x')
+        p |= RE_DBG_PROT_X;
+    return p;
+}
+
+static re_dbg_map_type_t map_type_from(const char *path, const char *perms) {
+    if (path && path[0] == '[') {
+        if (re_str_starts_cstr(re_str(path), "[stack"))
+            return RE_DBG_MAP_STACK;
+        if (re_str_starts_cstr(re_str(path), "[heap"))
+            return RE_DBG_MAP_HEAP;
+        return RE_DBG_MAP_OTHER;
+    }
+    if (path && path[0] == '/') {
+        if (perms && perms[3] == 'p')
+            return RE_DBG_MAP_IMAGE;
+        return RE_DBG_MAP_MAPPED;
+    }
+    if (perms && perms[3] == 'p')
+        return RE_DBG_MAP_PRIVATE;
+    if (perms && perms[3] == 's')
+        return RE_DBG_MAP_MAPPED;
+    return RE_DBG_MAP_OTHER;
 }
 
 static bool elf_magic_ok(re_dbg_backend_t *b, uint64_t base) {
@@ -260,7 +303,7 @@ re_err_code_t re_dbg_linux_enum_modules(re_dbg_backend_t *b, re_dbg_module_t *ou
     while (fgets(line, sizeof(line), fp)) {
         uint64_t lo = 0, hi = 0;
         char path[260];
-        if (!parse_map_line(line, &lo, &hi, path, sizeof(path)) || !path_is_file(path))
+        if (!parse_map_line(line, &lo, &hi, NULL, path, sizeof(path)) || !path_is_file(path))
             continue;
         merge_map(mods, &n_mod, lo, hi, path);
     }
@@ -270,6 +313,47 @@ re_err_code_t re_dbg_linux_enum_modules(re_dbg_backend_t *b, re_dbg_module_t *ou
         *n_out = n_mod;
     if (out && cap)
         fill_module_out(out, cap, mods, n_mod);
+    return RE_OK;
+}
+
+#    define RE_DBG_LINUX_MAX_MAP 256
+
+re_err_code_t re_dbg_linux_enum_maps(re_dbg_backend_t *b, re_dbg_map_t *out, size_t cap,
+                                     size_t *n_out) {
+    re_dbg_linux_t *st = re_dbg_linux(b);
+    char maps_path[64];
+    char line[512];
+    FILE *fp;
+    size_t n = 0;
+    if (n_out)
+        *n_out = 0;
+    if (!st)
+        return RE_E_INTERNAL;
+    if (!st->attached)
+        return re_dbg_linux_fail(st, RE_E_USAGE, "not attached");
+    snprintf(maps_path, sizeof(maps_path), "/proc/%d/maps", (int)st->pid);
+    fp = fopen(maps_path, "r");
+    if (!fp)
+        return re_dbg_linux_fail_errno(st, "fopen /proc/pid/maps");
+    while (fgets(line, sizeof(line), fp) && n < RE_DBG_LINUX_MAX_MAP) {
+        uint64_t lo = 0, hi = 0;
+        char path[260];
+        char perms[8];
+        if (!parse_map_line(line, &lo, &hi, perms, path, sizeof(path)))
+            continue;
+        if (out && n < cap) {
+            memset(&out[n], 0, sizeof(out[n]));
+            out[n].base = lo;
+            out[n].size = hi > lo ? hi - lo : 0;
+            out[n].protect = prot_from_perms(perms);
+            out[n].type = map_type_from(path, perms);
+            copy_path(out[n].path, sizeof(out[n].path), path, re_str(path).n);
+        }
+        n++;
+    }
+    fclose(fp);
+    if (n_out)
+        *n_out = n;
     return RE_OK;
 }
 

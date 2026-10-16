@@ -38,6 +38,8 @@ static void test_refresh_detached(void) {
     RE_CHECK(v.n_regs > 0);
     RE_CHECK(v.n_dump > 0);
     RE_CHECK(v.n_stack > 0);
+    RE_CHECK(v.n_maps > 0);
+    RE_CHECK(v.n_threads > 0);
     RE_CHECK(v.n_bp_lines > 0);
     RE_CHECK(v.n_log > 0);
     RE_CHECK(strstr(v.status_left, "pid=") != NULL);
@@ -98,7 +100,9 @@ static void test_paint_zones(void) {
     RE_CHECK(strstr(out.p, "disasm") != NULL);
     RE_CHECK(strstr(out.p, "registers") != NULL);
     RE_CHECK(strstr(out.p, "dump") != NULL);
-    RE_CHECK(strstr(out.p, "stack") != NULL);
+    RE_CHECK(strstr(out.p, "call stack") != NULL || strstr(out.p, "stack") != NULL);
+    RE_CHECK(strstr(out.p, "maps") != NULL);
+    RE_CHECK(strstr(out.p, "threads") != NULL);
     RE_CHECK(strstr(out.p, "breakpoints") != NULL);
     RE_CHECK(strstr(out.p, "log") != NULL);
     re_dbg_session_free(&sess);

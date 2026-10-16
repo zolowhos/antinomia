@@ -114,6 +114,48 @@ static void test_caps_hw_mem_load_bp(void) {
     RE_CHECK_EQ_U(re_dbg_session_kill(&s), RE_OK);
     re_dbg_session_free(&s);
 }
+
+static void test_maps_threads_stack(void) {
+    re_dbg_session_t s;
+    re_dbg_event_t ev;
+    re_dbg_map_t maps[64];
+    re_dbg_thread_t thr[16];
+    re_dbg_frame_t frames[16];
+    size_t n = 0, nt = 0, nf = 0;
+    uint32_t tid0 = 0;
+    char prot[4];
+    re_dbg_session_init(&s);
+    RE_CHECK_EQ_U(re_dbg_session_launch(&s, g_inferior, NULL), RE_OK);
+    RE_CHECK_EQ_U(re_dbg_session_wait_event(&s, &ev, 2000), RE_OK);
+    RE_CHECK_EQ_U(ev.kind, RE_DBG_EV_CREATE);
+    RE_CHECK_EQ_U(re_dbg_session_wait_event(&s, &ev, 2000), RE_OK);
+    RE_CHECK_EQ_U(ev.kind, RE_DBG_EV_BREAK);
+    RE_CHECK_EQ_U(re_dbg_session_enum_maps(&s, maps, 64, &n), RE_OK);
+    RE_CHECK(n >= 1);
+    RE_CHECK(maps[0].base != 0);
+    re_dbg_map_prot_str(maps[0].protect, prot);
+    RE_CHECK(prot[0] == 'r' || prot[0] == '-');
+    RE_CHECK_EQ_U(re_dbg_session_follow_dump(&s, maps[0].base), RE_OK);
+    RE_CHECK_EQ_U(s.follow_dump, maps[0].base);
+    RE_CHECK_EQ_U(re_dbg_session_enum_threads(&s, thr, 16, &nt), RE_OK);
+    RE_CHECK(nt >= 1);
+    tid0 = thr[0].tid;
+    RE_CHECK_EQ_U(re_dbg_session_thread_switch(&s, tid0), RE_OK);
+    RE_CHECK_EQ_U(s.tid, tid0);
+    RE_CHECK_EQ_U(re_dbg_session_thread_suspend(&s, tid0), RE_OK);
+    RE_CHECK_EQ_U(re_dbg_session_enum_threads(&s, thr, 16, &nt), RE_OK);
+    RE_CHECK(thr[0].suspended);
+    RE_CHECK_EQ_U(re_dbg_session_thread_resume(&s, tid0), RE_OK);
+    RE_CHECK_EQ_U(re_dbg_session_enum_threads(&s, thr, 16, &nt), RE_OK);
+    RE_CHECK(!thr[0].suspended);
+    RE_CHECK_EQ_U(re_dbg_session_bt(&s, frames, 16, &nf), RE_OK);
+    RE_CHECK(nf >= 1);
+    RE_CHECK(frames[0].ip != 0);
+    /* Module annotate expected for the stopped inferior image. */
+    RE_CHECK(frames[0].module[0] != 0);
+    RE_CHECK_EQ_U(re_dbg_session_kill(&s), RE_OK);
+    re_dbg_session_free(&s);
+}
 #endif
 
 int main(int argc, char **argv) {
@@ -132,6 +174,7 @@ int main(int argc, char **argv) {
         return 1;
     }
     test_caps_hw_mem_load_bp();
+    test_maps_threads_stack();
 #endif
     return re_test_report("debug_p2");
 }

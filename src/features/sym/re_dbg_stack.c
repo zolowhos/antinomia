@@ -36,12 +36,29 @@ static void annotate_frame(re_dbg_session_t *s, re_dbg_frame_t *fr, const re_dbg
     fr->module[0] = 0;
     fr->symbol[0] = 0;
     for (i = 0; i < n_mod; i++) {
+        char sym[128];
+        uint64_t sym_addr = 0;
         if (!addr_in_mod(&mods[i], fr->ip))
             continue;
         copy_name(fr->module, sizeof(fr->module), re_path_basename_ptr(mods[i].path));
+        if (s &&
+            re_dbg_sym_nearest_file(&s->arena, mods[i].path, mods[i].base, fr->ip, sym, sizeof(sym),
+                                    &sym_addr) == RE_OK &&
+            sym[0]) {
+            if (sym_addr == fr->ip)
+                copy_name(fr->symbol, sizeof(fr->symbol), sym);
+            else {
+                /* Keep offset so rich bt shows module+symbol+delta. */
+                size_t n = 0;
+                while (sym[n] && n + 1 < sizeof(fr->symbol)) {
+                    fr->symbol[n] = sym[n];
+                    n++;
+                }
+                fr->symbol[n] = 0;
+            }
+        }
         return;
     }
-    (void)s;
 }
 
 static bool looks_like_fp(uint64_t fp, uint64_t sp) {

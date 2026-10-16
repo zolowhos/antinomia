@@ -275,6 +275,8 @@ re_err_code_t re_dbg_linux_get_regs(re_dbg_backend_t *b, uint32_t tid, re_dbg_re
     if (ptrace(PTRACE_GETREGS, t, NULL, &r) != 0)
         return re_dbg_linux_fail_errno(st, "PTRACE_GETREGS");
     fill_regs(out, &r);
+    if (tid)
+        st->cur_tid = t; /* thread switch focuses this tid for cont/step */
     return RE_OK;
 }
 
@@ -316,6 +318,7 @@ re_err_code_t re_dbg_linux_enum_threads(re_dbg_backend_t *b, re_dbg_thread_t *ou
         memset(&out[i], 0, sizeof(out[i]));
         out[i].tid = (uint32_t)st->tids[i];
         out[i].rip = re_dbg_linux_rip(st->tids[i]);
+        out[i].suspended = st->susp[i];
     }
     return RE_OK;
 }

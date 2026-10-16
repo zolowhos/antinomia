@@ -18,16 +18,29 @@ static void linux_destroy(re_dbg_backend_t *b) {
         (void)re_dbg_linux_detach(b);
 }
 
-static const re_dbg_backend_vtbl_t kVtbl = {re_dbg_linux_launch,       re_dbg_linux_attach,
-                                            re_dbg_linux_detach,       re_dbg_linux_kill,
-                                            re_dbg_linux_wait,         re_dbg_linux_cont,
-                                            re_dbg_linux_step,         re_dbg_linux_pause,
-                                            re_dbg_linux_get_regs,     re_dbg_linux_set_regs,
-                                            re_dbg_linux_read_mem,     re_dbg_linux_write_mem,
-                                            re_dbg_linux_enum_threads, re_dbg_linux_enum_modules,
-                                            re_dbg_linux_hw_bp_set,    re_dbg_linux_hw_bp_clear,
-                                            re_dbg_linux_hw_bp_hit,    re_dbg_linux_rendezvous_addr,
-                                            re_dbg_linux_set_pass,     linux_destroy};
+static const re_dbg_backend_vtbl_t kVtbl = {re_dbg_linux_launch,
+                                            re_dbg_linux_attach,
+                                            re_dbg_linux_detach,
+                                            re_dbg_linux_kill,
+                                            re_dbg_linux_wait,
+                                            re_dbg_linux_cont,
+                                            re_dbg_linux_step,
+                                            re_dbg_linux_pause,
+                                            re_dbg_linux_get_regs,
+                                            re_dbg_linux_set_regs,
+                                            re_dbg_linux_read_mem,
+                                            re_dbg_linux_write_mem,
+                                            re_dbg_linux_enum_threads,
+                                            re_dbg_linux_enum_modules,
+                                            re_dbg_linux_enum_maps,
+                                            re_dbg_linux_thread_suspend,
+                                            re_dbg_linux_thread_resume,
+                                            re_dbg_linux_hw_bp_set,
+                                            re_dbg_linux_hw_bp_clear,
+                                            re_dbg_linux_hw_bp_hit,
+                                            re_dbg_linux_rendezvous_addr,
+                                            re_dbg_linux_set_pass,
+                                            linux_destroy};
 
 static const uint32_t kLinuxCaps =
     RE_DBG_CAP_SW_BP | RE_DBG_CAP_HW_BP | RE_DBG_CAP_MEM_BP | RE_DBG_CAP_STEP | RE_DBG_CAP_PAUSE |
@@ -132,6 +145,24 @@ static re_err_code_t stub_modules(re_dbg_backend_t *b, re_dbg_module_t *out, siz
         *n_out = 0;
     return RE_E_UNSUPPORTED;
 }
+static re_err_code_t stub_maps(re_dbg_backend_t *b, re_dbg_map_t *out, size_t cap, size_t *n_out) {
+    (void)b;
+    (void)out;
+    (void)cap;
+    if (n_out)
+        *n_out = 0;
+    return RE_E_UNSUPPORTED;
+}
+static re_err_code_t stub_thr_susp(re_dbg_backend_t *b, uint32_t tid) {
+    (void)b;
+    (void)tid;
+    return RE_E_UNSUPPORTED;
+}
+static re_err_code_t stub_thr_res(re_dbg_backend_t *b, uint32_t tid) {
+    (void)b;
+    (void)tid;
+    return RE_E_UNSUPPORTED;
+}
 static re_err_code_t stub_hw_set(re_dbg_backend_t *b, int slot, uint64_t addr, uint8_t size,
                                  uint8_t access) {
     (void)b;
@@ -172,9 +203,10 @@ static void stub_destroy(re_dbg_backend_t *b) {
     (void)b;
 }
 static const re_dbg_backend_vtbl_t kVtbl = {
-    stub_launch, stub_attach,   stub_detach,   stub_kill, stub_wait,     stub_cont,    stub_step,
-    stub_pause,  stub_get_regs, stub_set_regs, stub_read, stub_write,    stub_threads, stub_modules,
-    stub_hw_set, stub_hw_clear, stub_hw_hit,   stub_rend, stub_set_pass, stub_destroy};
+    stub_launch,   stub_attach,  stub_detach,   stub_kill,     stub_wait,    stub_cont,
+    stub_step,     stub_pause,   stub_get_regs, stub_set_regs, stub_read,    stub_write,
+    stub_threads,  stub_modules, stub_maps,     stub_thr_susp, stub_thr_res, stub_hw_set,
+    stub_hw_clear, stub_hw_hit,  stub_rend,     stub_set_pass, stub_destroy};
 
 re_dbg_backend_t *re_dbg_backend_linux_create(re_arena_t *a) {
     re_dbg_backend_t *b = (re_dbg_backend_t *)re_arena_alloc(a, sizeof(*b));
