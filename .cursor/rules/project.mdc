@@ -1,0 +1,9 @@
+---
+description: antinomia product identity and locked naming
+alwaysApply: true
+---
+
+# Project
+
+antinomia is an AI-driven debugger (TUI + CLI + MCP). Product name `antinomia`,
+schema `antinomia/1`, C prefix `re_` / `RE_`. Honour `RE_LOG` and `ANTINOMIA_MCP`.

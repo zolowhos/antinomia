@@ -1,0 +1,50 @@
+# .clang-tidy - advisory checks. The script gate in scripts/check.py is what fails CI.
+# Module: build (YAML).
+# Owns: naming and readability checks for project code, mirroring rule 9.
+# Depends: clang-tidy 20.x with a CMake compile_commands.json. No clang compiler
+#          is installed, so it runs against MSVC flags and stays advisory only.
+
+Checks: >
+  -*,
+  readability-identifier-naming,
+  readability-function-cognitive-complexity,
+  readability-braces-around-statements,
+  readability-implicit-bool-conversion,
+  bugprone-branch-clone,
+  bugprone-macro-parentheses,
+  bugprone-sizeof-expression,
+  bugprone-suspicious-memset-usage,
+  cert-err33-c,
+  cert-err34-c
+
+WarningsAsErrors: ''
+
+CheckOptions:
+  - key: readability-identifier-naming.Function
+    value: Prefix
+    prefix: re_
+  - key: readability-identifier-naming.Struct
+    value: Prefix
+    prefix: re_
+  - key: readability-identifier-naming.Typedef
+    value: Prefix
+    prefix: re_
+  - key: readability-identifier-naming.Variable
+    value: Prefix
+    prefix: re_
+  - key: readability-identifier-naming.GlobalConstant
+    value: Prefix
+    prefix: RE_
+  - key: readability-identifier-naming.GlobalConstantPointer
+    value: Prefix
+    prefix: re_
+  - key: readability-identifier-naming.MacroDefinition
+    value: Prefix
+    prefix: RE_
+  - key: readability-identifier-naming.EnumConstant
+    value: Prefix
+    prefix: RE_
+  - key: readability-function-cognitive-complexity.Threshold
+    value: '25'
+  - key: readability-implicit-bool-conversion.AllowIntegerConditions
+    value: 'false'

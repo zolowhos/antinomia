@@ -1,0 +1,8 @@
+{
+    "mcpServers": {
+        "antinomia": {
+            "command": "antinomia",
+            "args": ["mcp"]
+        }
+    }
+}

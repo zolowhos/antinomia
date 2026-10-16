@@ -1,0 +1,69 @@
+# pr.yml - pull request smoke build and test on Linux and Windows.
+# Module: ci (GitHub Actions).
+# Owns: clang-release and clang-cl-release PR gates with ctest.
+# Depends: CMake presets clang-release / clang-cl-release.
+name: PR
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+concurrency:
+  group: pr-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  linux:
+    name: Linux x86_64 (clang-release)
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Clang, LLVM, Ninja
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            clang llvm ninja-build build-essential
+
+      - name: Configure (clang-release)
+        run: cmake --preset clang-release
+
+      - name: Build
+        run: cmake --build --preset clang-release --parallel
+
+      - name: Test
+        run: ctest --preset clang-release --output-on-failure
+
+  windows:
+    name: Windows x86_64 (clang-cl-release)
+    runs-on: windows-2022
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: MSVC developer environment
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: Install Ninja
+        shell: bash
+        run: |
+          choco install ninja -y --no-progress
+          which clang-cl
+          clang-cl --version
+
+      - name: Configure (clang-cl-release)
+        shell: bash
+        run: cmake --preset clang-cl-release
+
+      - name: Build
+        shell: bash
+        run: cmake --build --preset clang-cl-release --parallel
+
+      - name: Test
+        shell: bash
+        run: ctest --preset clang-cl-release --output-on-failure

@@ -1,0 +1,170 @@
+# release.yml - build Clang release binaries and attach them to a GitHub Release.
+# Module: ci (GitHub Actions).
+# Owns: Linux clang-release and Windows clang-cl-release artifacts for tagged releases.
+# Depends: CMake presets clang-release / clang-cl-release.
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing tag to build and (re)attach assets to"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  linux:
+    name: Linux x86_64 (clang-release)
+    runs-on: ubuntu-24.04
+    env:
+      RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.RELEASE_TAG }}
+
+      - name: Install Clang, LLVM, Ninja
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            clang llvm ninja-build build-essential
+
+      - name: Configure (clang-release)
+        run: cmake --preset clang-release
+
+      - name: Build
+        run: cmake --build --preset clang-release --parallel
+
+      - name: Test
+        run: ctest --preset clang-release --output-on-failure
+
+      - name: Stage artifact
+        run: |
+          mkdir -p dist
+          install -m 0755 build/clang-release/bin/antinomia \
+            "dist/antinomia-${RELEASE_TAG}-linux-x86_64"
+          file "dist/antinomia-${RELEASE_TAG}-linux-x86_64"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-x86_64
+          path: dist/antinomia-*-linux-x86_64
+          if-no-files-found: error
+
+  windows:
+    name: Windows x86_64 (clang-cl-release)
+    runs-on: windows-2022
+    env:
+      RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.RELEASE_TAG }}
+
+      - name: MSVC developer environment
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: Install Ninja
+        shell: bash
+        run: |
+          # Prefer the VS-bundled clang-cl (msvc-dev-cmd PATH) over a Chocolatey
+          # LLVM install so clang-format matches the rest of the Windows SDK tools.
+          choco install ninja -y --no-progress
+          which clang-cl
+          clang-cl --version
+          which clang-format || true
+          clang-format --version || true
+
+      - name: Configure (clang-cl-release)
+        shell: bash
+        run: cmake --preset clang-cl-release
+
+      - name: Build
+        shell: bash
+        run: cmake --build --preset clang-cl-release --parallel
+
+      - name: Test
+        shell: bash
+        run: ctest --preset clang-cl-release --output-on-failure
+
+      - name: Stage artifact
+        shell: bash
+        run: |
+          mkdir -p dist
+          cp build/clang-cl-release/bin/antinomia.exe \
+            "dist/antinomia-${RELEASE_TAG}-windows-x86_64.exe"
+          ls -la dist/
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-x86_64
+          path: dist/antinomia-*-windows-x86_64.exe
+          if-no-files-found: error
+
+  publish:
+    name: Publish GitHub Release
+    needs: [linux, windows]
+    runs-on: ubuntu-24.04
+    env:
+      RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+    steps:
+      - name: Download Linux artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: linux-x86_64
+          path: dist
+
+      - name: Download Windows artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-x86_64
+          path: dist
+
+      - name: List assets
+        run: ls -la dist/
+
+      - name: Create or update release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.RELEASE_TAG }}
+          name: antinomia ${{ env.RELEASE_TAG }}
+          draft: false
+          prerelease: false
+          fail_on_unmatched_files: true
+          files: |
+            dist/antinomia-*-linux-x86_64
+            dist/antinomia-*-windows-x86_64.exe
+          body: |
+            Clang/LLVM primary release builds of **antinomia**.
+
+            ## Downloads
+            - **Linux x86_64**: `antinomia-${{ env.RELEASE_TAG }}-linux-x86_64` (preset `clang-release`, `-O2` + LTO)
+            - **Windows x86_64**: `antinomia-${{ env.RELEASE_TAG }}-windows-x86_64.exe` (preset `clang-cl-release`, static CRT + LTO)
+
+            ## Build defaults
+            - `RE_ENABLE_DISASM=OFF (Phase 0)`
+            - `RE_ENABLE_CAPSTONE=OFF (Phase 0)` (Capstone 5.x for ARM-64 and other gap arches)
+            - Phase 0 ships stub debug backends; Capstone/disasm optional later.
+
+            ## Verify
+            ```bash
+            chmod +x antinomia-*-linux-x86_64
+            ./antinomia-*-linux-x86_64 version
+            ```
+            On Windows, run `antinomia-*-windows-x86_64.exe version`.

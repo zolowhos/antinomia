@@ -1,0 +1,9 @@
+---
+description: Clang primary build presets
+alwaysApply: true
+---
+
+# Build
+
+CMake 3.25+, Ninja, Clang/LLVM primary. Presets: `clang-release`, `clang-debug`,
+`clang-cl-release`, `clang-cl-debug`. Windows ship path is clang-cl with static CRT.

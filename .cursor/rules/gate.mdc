@@ -1,0 +1,10 @@
+---
+description: Mechanical gate via scripts/check.py
+alwaysApply: true
+---
+
+# Gate
+
+`scripts/check.py` enforces banners, ASCII, arena allocation, stdout purity, folder
+caps (<=15 files), and util catalog registration. Format via clang-format. Both run
+under ctest.
