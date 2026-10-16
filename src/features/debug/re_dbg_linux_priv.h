@@ -69,5 +69,8 @@ re_err_code_t re_dbg_linux_get_regs(re_dbg_backend_t *b, uint32_t tid, re_dbg_re
 re_err_code_t re_dbg_linux_set_regs(re_dbg_backend_t *b, uint32_t tid, const re_dbg_regs_t *in);
 re_err_code_t re_dbg_linux_enum_threads(re_dbg_backend_t *b, re_dbg_thread_t *out, size_t cap,
                                         size_t *n_out);
+re_err_code_t re_dbg_linux_read_mem(re_dbg_backend_t *b, uint64_t addr, void *dst, size_t n);
+re_err_code_t re_dbg_linux_enum_modules(re_dbg_backend_t *b, re_dbg_module_t *out, size_t cap,
+                                        size_t *n_out);
 
 #endif /* __linux__ */

@@ -72,6 +72,7 @@ static void win_thr_del(re_dbg_win_impl_t *w, DWORD tid) {
 
 void re_dbg_win_reset_state(re_dbg_win_impl_t *w) {
     win_thr_clear(w);
+    re_dbg_win_mod_clear(w);
     if (w->process) {
         CloseHandle(w->process);
         w->process = NULL;
@@ -149,6 +150,8 @@ void re_dbg_win_track(re_dbg_win_impl_t *w, const DEBUG_EVENT *de) {
         w->process = i->hProcess;
         w->pid = de->dwProcessId;
         win_thr_add(w, de->dwThreadId, i->hThread);
+        re_dbg_win_mod_note(w, (uint64_t)(uintptr_t)i->lpBaseOfImage, i->hFile, i->lpImageName,
+                            i->fUnicode != 0);
         if (i->hFile)
             CloseHandle(i->hFile);
         return;
@@ -161,8 +164,16 @@ void re_dbg_win_track(re_dbg_win_impl_t *w, const DEBUG_EVENT *de) {
         win_thr_del(w, de->dwThreadId);
         return;
     }
-    if (de->dwDebugEventCode == LOAD_DLL_DEBUG_EVENT && de->u.LoadDll.hFile)
-        CloseHandle(de->u.LoadDll.hFile);
+    if (de->dwDebugEventCode == LOAD_DLL_DEBUG_EVENT) {
+        const LOAD_DLL_DEBUG_INFO *i = &de->u.LoadDll;
+        re_dbg_win_mod_note(w, (uint64_t)(uintptr_t)i->lpBaseOfDll, i->hFile, i->lpImageName,
+                            i->fUnicode != 0);
+        if (i->hFile)
+            CloseHandle(i->hFile);
+        return;
+    }
+    if (de->dwDebugEventCode == UNLOAD_DLL_DEBUG_EVENT)
+        re_dbg_win_mod_unload(w, (uint64_t)(uintptr_t)de->u.UnloadDll.lpBaseOfDll);
 }
 
 bool re_dbg_win_continue(re_dbg_win_impl_t *w, DWORD status) {
