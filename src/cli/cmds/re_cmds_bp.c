@@ -6,6 +6,7 @@
 
 #include "features/bp/re_dbg_advbp.h"
 #include "features/debug/re_dbg.h"
+#include "features/expr/re_expr.h"
 #include "utils/json/re_json.h"
 #include "utils/text/re_hex.h"
 #include "utils/text/re_str.h"
@@ -51,12 +52,16 @@ static int finish(re_ctx_t *ctx, const char *tool, re_err_code_t code, const cha
     return re_err_exit_code(code);
 }
 
-static bool parse_addr(const char *s, uint64_t *out) {
+static bool parse_addr(re_ctx_t *ctx, const char *s, uint64_t *out) {
+    char err[RE_EXPR_ERR_MAX];
     re_str_t v;
     uint64_t base = 10, acc = 0;
     size_t i = 0;
-    if (!s || !s[0])
+    if (!s || !s[0] || !out)
         return false;
+    if (ctx && re_expr_eval_u64(sess(ctx), s, out, err, sizeof(err)) == RE_OK)
+        return true;
+    /* Numeric fallback when no session expr context. */
     v = re_str(s);
     if (v.n > 2 && v.p[0] == '0' && (v.p[1] == 'x' || v.p[1] == 'X')) {
         base = 16;
@@ -97,11 +102,11 @@ int re_cmd_bph(re_ctx_t *ctx, const char *path, int argc, char **argv) {
     const char *ax = re_cmd_positional(argc, argv, 2);
     uint64_t n = 0;
     (void)path;
-    if (!parse_addr(a, &addr)) {
+    if (!parse_addr(ctx, a, &addr)) {
         emit_result(ctx, "bph", RE_E_USAGE, "bph <addr> [size] [x|w|rw]");
         return 2;
     }
-    if (sz && parse_addr(sz, &n))
+    if (sz && parse_addr(ctx, sz, &n))
         size = (uint8_t)n;
     if (ax && !parse_access(ax, &access)) {
         emit_result(ctx, "bph", RE_E_USAGE, "access must be x, w, or rw");
@@ -115,7 +120,7 @@ int re_cmd_bph_clear(re_ctx_t *ctx, const char *path, int argc, char **argv) {
     uint64_t addr = 0;
     const char *a = re_cmd_positional(argc, argv, 0);
     (void)path;
-    if (!parse_addr(a, &addr)) {
+    if (!parse_addr(ctx, a, &addr)) {
         emit_result(ctx, "bphc", RE_E_USAGE, "bphc <addr>");
         return 2;
     }
@@ -129,11 +134,11 @@ int re_cmd_bpm(re_ctx_t *ctx, const char *path, int argc, char **argv) {
     const char *ls = re_cmd_positional(argc, argv, 1);
     const char *ax = re_cmd_positional(argc, argv, 2);
     (void)path;
-    if (!parse_addr(a, &addr)) {
+    if (!parse_addr(ctx, a, &addr)) {
         emit_result(ctx, "bpm", RE_E_USAGE, "bpm <addr> [len] [w|rw]");
         return 2;
     }
-    if (ls && !parse_addr(ls, &len)) {
+    if (ls && !parse_addr(ctx, ls, &len)) {
         emit_result(ctx, "bpm", RE_E_USAGE, "bpm len must be 1, 2, 4, or 8");
         return 2;
     }
@@ -151,7 +156,7 @@ int re_cmd_bpm_clear(re_ctx_t *ctx, const char *path, int argc, char **argv) {
     uint64_t addr = 0;
     const char *a = re_cmd_positional(argc, argv, 0);
     (void)path;
-    if (!parse_addr(a, &addr)) {
+    if (!parse_addr(ctx, a, &addr)) {
         emit_result(ctx, "bpmc", RE_E_USAGE, "bpmc <addr>");
         return 2;
     }

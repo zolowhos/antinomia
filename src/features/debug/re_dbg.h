@@ -102,6 +102,7 @@ typedef struct {
     uint64_t base;
     uint64_t size;
     char path[260];
+    char build_id[48]; /* GNU build-id hex (Linux); empty when unknown */
 } re_dbg_module_t;
 
 /* Memory map region: protect bits and coarse type (image/private/mapped/...). */
