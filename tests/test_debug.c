@@ -1,10 +1,9 @@
 // test_debug.c - session lifetime, Linux process-control, Windows inactive checks.
 // Module: test (C11).
-// Owns: session != command arena; live Linux launch/attach/detach/kill/wait;
-//       Windows inactive-op shape checks; non-host stubs degrade cleanly.
+// Owns: session arena isolation, live Linux control, Windows inactive checks.
 // Depends: re_dbg, re_test. Prints to stdout, which is fine for a test binary.
 #if defined(__linux__)
-#define _GNU_SOURCE
+#    define _GNU_SOURCE
 #endif
 #include "features/debug/re_dbg.h"
 #include "re_test.h"
@@ -13,12 +12,12 @@
 #include <string.h>
 
 #if defined(__linux__)
-#include <errno.h>
-#include <signal.h>
-#include <stdlib.h>
-#include <sys/types.h>
-#include <sys/wait.h>
-#include <unistd.h>
+#    include <errno.h>
+#    include <signal.h>
+#    include <stdlib.h>
+#    include <unistd.h>
+#    include <sys/types.h>
+#    include <sys/wait.h>
 #endif
 
 int re_test_count = 0;
@@ -171,10 +170,10 @@ static void test_session_api_live(void) {
     RE_CHECK(g_inferior != NULL);
     RE_CHECK_EQ_U(re_dbg_session_launch(&s, g_inferior, NULL), RE_OK);
     RE_CHECK(s.attached);
-    RE_CHECK(s.pid != 0);
     RE_CHECK_EQ_U(re_dbg_session_wait_event(&s, &ev, 2000), RE_OK);
     RE_CHECK_EQ_U(ev.kind, RE_DBG_EV_CREATE);
     RE_CHECK_EQ_U(s.last_event.kind, RE_DBG_EV_CREATE);
+    RE_CHECK(s.pid != 0);
     RE_CHECK_EQ_U(re_dbg_session_wait_event(&s, &ev, 2000), RE_OK);
     RE_CHECK_EQ_U(ev.kind, RE_DBG_EV_BREAK);
     RE_CHECK_EQ_U(re_dbg_session_kill(&s), RE_OK);

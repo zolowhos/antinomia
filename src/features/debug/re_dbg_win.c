@@ -90,10 +90,10 @@ static re_err_code_t stub_modules(re_dbg_backend_t *b, re_dbg_module_t *out, siz
 static void stub_destroy(re_dbg_backend_t *b) {
     (void)b;
 }
-static const re_dbg_backend_vtbl_t kVtbl = {
-    stub_launch,  stub_attach,   stub_detach, stub_kill,    stub_wait,    stub_cont,
-    stub_step,    stub_get_regs, stub_set_regs, stub_read,  stub_write,   stub_threads,
-    stub_modules, stub_destroy};
+static const re_dbg_backend_vtbl_t kVtbl = {stub_launch,   stub_attach, stub_detach, stub_kill,
+                                            stub_wait,     stub_cont,   stub_step,   stub_get_regs,
+                                            stub_set_regs, stub_read,   stub_write,  stub_threads,
+                                            stub_modules,  stub_destroy};
 
 re_dbg_backend_t *re_dbg_backend_win_create(re_arena_t *a) {
     re_dbg_backend_t *b = (re_dbg_backend_t *)re_arena_alloc(a, sizeof(*b));
@@ -106,7 +106,7 @@ re_dbg_backend_t *re_dbg_backend_win_create(re_arena_t *a) {
 
 #else /* _WIN32 */
 
-#include "features/debug/re_dbg_win_priv.h"
+#    include "features/debug/re_dbg_win_priv.h"
 
 static re_err_code_t win_build_cmd(char *dst, size_t cap, const char *path, const char *args) {
     size_t pi = 0;
@@ -150,8 +150,8 @@ static re_err_code_t win_launch(re_dbg_backend_t *b, const char *path, const cha
     si.cb = sizeof(si);
     memset(&pi, 0, sizeof(pi));
     re_dbg_win_enable_debug_priv();
-    if (!CreateProcessA(NULL, cmd, NULL, NULL, FALSE,
-                        DEBUG_ONLY_THIS_PROCESS | CREATE_NEW_CONSOLE, NULL, NULL, &si, &pi))
+    if (!CreateProcessA(NULL, cmd, NULL, NULL, FALSE, DEBUG_ONLY_THIS_PROCESS | CREATE_NEW_CONSOLE,
+                        NULL, NULL, &si, &pi))
         return RE_E_IO;
     CloseHandle(pi.hThread);
     CloseHandle(pi.hProcess);
@@ -280,10 +280,9 @@ static void win_destroy(re_dbg_backend_t *b) {
 }
 
 static const re_dbg_backend_vtbl_t kVtbl = {
-    win_launch,           win_attach,          win_detach,           win_kill,
-    re_dbg_win_wait,      re_dbg_win_cont,     win_step,             win_get_regs,
-    win_set_regs,         win_read,            win_write,            re_dbg_win_enum_threads,
-    win_modules,          win_destroy};
+    win_launch,  win_attach,   win_detach,   win_kill, re_dbg_win_wait, re_dbg_win_cont,
+    win_step,    win_get_regs, win_set_regs, win_read, win_write,       re_dbg_win_enum_threads,
+    win_modules, win_destroy};
 
 re_dbg_backend_t *re_dbg_backend_win_create(re_arena_t *a) {
     re_dbg_backend_t *b = (re_dbg_backend_t *)re_arena_alloc(a, sizeof(*b));
