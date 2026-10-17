@@ -8,11 +8,11 @@
 #include "features/sess/re_dbg_lock.h"
 #include "utils/cfg/re_theme.h"
 #include "utils/tui/re_screen.h"
+#include "cli/screen/keys/re_keys.h"
 #include "cli/screen/re_cpu.h"
 #include "cli/screen/re_draw.h"
 #include "cli/screen/re_focus.h"
 #include "cli/screen/re_input.h"
-#include "cli/screen/keys/re_keys.h"
 #include "cli/screen/re_term.h"
 #include "mcp/re_mcp_side.h"
 
