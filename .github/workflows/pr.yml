@@ -66,6 +66,22 @@ jobs:
           ./dist-ci/antinomia-0.0.0-ci-linux-x86_64 version
           ./dist-ci/antinomia-0.0.0-ci-linux-x86_64 privacy
 
+      - name: Phase 1 workflow from packaged binary
+        run: |
+          chmod +x scripts/phase1_release_smoke.sh
+          scripts/phase1_release_smoke.sh \
+            --archive dist-ci/antinomia-0.0.0-ci-linux-x86_64.tar.gz \
+            --inferior build/clang-release/bin/loop_inferior
+
+      - name: CI-bounded soak (random step/BP)
+        run: |
+          chmod +x scripts/soak_fuzz.sh
+          scripts/soak_fuzz.sh \
+            --antinomia build/clang-release/bin/antinomia \
+            --inferior build/clang-release/bin/loop_inferior \
+            --seconds 90 \
+            --seed 1
+
   windows:
     name: Windows x86_64 (clang-cl-release)
     runs-on: windows-2022

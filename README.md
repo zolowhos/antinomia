@@ -196,6 +196,9 @@ $ scripts/package_release.sh --os linux --version v0.1.0 \
 
 See [docs/release-checklist.md](docs/release-checklist.md) for the reproducible
 tag → archive → verify steps (archives, bare binaries, symbols stubs, `SHA256SUMS`).
+Changelog: [CHANGELOG.md](CHANGELOG.md). Five-minute x64dbg tutorial:
+[docs/x64dbg-5min.md](docs/x64dbg-5min.md). Clean-VM Phase 1 checklist:
+[docs/clean-vm.md](docs/clean-vm.md). Soak: [docs/soak.md](docs/soak.md).
 Windows Authenticode / SmartScreen notes: [docs/windows-signing.md](docs/windows-signing.md).
 Terminal ANSI matrix: [docs/terminal-matrix.md](docs/terminal-matrix.md).
 

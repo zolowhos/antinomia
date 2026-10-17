@@ -300,6 +300,14 @@ if(UNIX AND NOT APPLE)
             -DANTINOMIA=$<TARGET_FILE:antinomia>
             -DINFERIOR=$<TARGET_FILE:loop_inferior>
             -P ${CMAKE_CURRENT_SOURCE_DIR}/run_phase3_gate_side.cmake)
+    # Phase 4 gate: CI-bounded soak (full 1h: docs/soak.md).
+    add_test(NAME soak_fuzz
+        COMMAND ${CMAKE_COMMAND}
+            -DANTINOMIA=$<TARGET_FILE:antinomia>
+            -DINFERIOR=$<TARGET_FILE:loop_inferior>
+            -DSOAK_SCRIPT=${CMAKE_SOURCE_DIR}/scripts/soak_fuzz.sh
+            -P ${CMAKE_CURRENT_SOURCE_DIR}/run_soak_fuzz.cmake)
+    set_tests_properties(soak_fuzz PROPERTIES TIMEOUT 120)
 else()
     add_test(NAME debug COMMAND re_test_debug)
     add_test(NAME debug_p2 COMMAND re_test_debug_p2)

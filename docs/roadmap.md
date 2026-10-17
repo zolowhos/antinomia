@@ -58,10 +58,17 @@ themes/keybindings (`docs/theme-keys.md`), performance and soak hardening, and d
 - [backend-caps.md](backend-caps.md) — dual-OS `RE_DBG_CAP_*` matrix
 - [yama-ptrace.md](yama-ptrace.md) — Linux Yama / attach FAQ
 - [x64dbg-migration.md](x64dbg-migration.md) — x64dbg → antinomia alias table
+- [x64dbg-5min.md](x64dbg-5min.md) — 5-minute tutorial for x64dbg users
+- [clean-vm.md](clean-vm.md) — release-binary Phase 1 checklist
+- [soak.md](soak.md) — CI-bounded + full 1h crash-free soak
+- Root [CHANGELOG.md](../CHANGELOG.md) — tagged release notes
 
 Trust: telemetry-free `privacy` tool + `--seed` (`docs/privacy.md`), MCP plugin
 SDK example (`docs/plugin-sdk.md`), Windows signing notes
 (`docs/windows-signing.md`), terminal ANSI matrix (`docs/terminal-matrix.md`).
+
+**Gate:** tagged GitHub Release with linux-x86_64 + windows-x86_64 artifacts,
+changelog, tutorial, soak evidence, clean-VM Phase 1 path.
 
 ## Architecture invariants
 
