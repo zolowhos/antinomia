@@ -82,6 +82,7 @@ static bool try_under(char *dst, size_t cap, const char *root, const char *file)
     return try_path(dst, cap, path);
 }
 
+#if !defined(_WIN32)
 static bool try_home_config(char *dst, size_t cap, const char *file) {
     const char *home = getenv("HOME");
     char root[RE_CFG_PATH_MAX];
@@ -94,6 +95,7 @@ static bool try_home_config(char *dst, size_t cap, const char *file) {
         return false;
     return try_under(dst, cap, root, file);
 }
+#endif
 
 bool re_cfg_find(const char *env_name, const char *base_json, const char *base_ini, char *dst,
                  size_t cap) {
