@@ -250,8 +250,8 @@ static bool parse_u64(const char *s, uint64_t *out) {
 static bool takes_value(re_str_t a) {
     return re_str_eq_cstr(a, "--format") || re_str_eq_cstr(a, "--limit") ||
            re_str_eq_cstr(a, "--offset") || re_str_eq_cstr(a, "--cursor") ||
-           re_str_eq_cstr(a, "--off") || re_str_eq_cstr(a, "--len") ||
-           re_str_eq_cstr(a, "--rva") || re_str_eq_cstr(a, "--seed");
+           re_str_eq_cstr(a, "--off") || re_str_eq_cstr(a, "--len") || re_str_eq_cstr(a, "--rva") ||
+           re_str_eq_cstr(a, "--seed");
 }
 
 static const char *glued_value(re_str_t a) {
