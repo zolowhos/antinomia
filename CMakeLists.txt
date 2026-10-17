@@ -120,12 +120,14 @@ add_executable(antinomia
     src/cli/cmds/re_cmds_guide.c
     src/cli/cmds/ai/re_cmds_ai.c
     src/cli/screen/re_input.c
+    src/cli/screen/keys/re_keys.c
     src/cli/screen/re_focus.c
     src/cli/screen/re_draw.c
     src/cli/screen/re_term.c
     src/cli/screen/re_gui.c
     src/cli/screen/re_cpu.c
     src/cli/screen/re_cpu_panes.c
+    src/cli/screen/re_cpu_paint.c
     src/mcp/re_mcp.cpp
     src/mcp/re_mcp_tools.cpp
     src/mcp/re_mcp_side.cpp)

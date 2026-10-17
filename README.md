@@ -53,8 +53,12 @@ Three ways in, and the first is usually what you want:
 | **`antinomia shell`** | A prompt, for driving the debug commands one at a time |
 
 Inside the view: <kbd>Tab</kbd> / <kbd>Shift-Tab</kbd> cycles pane focus, click selects a
-pane, <kbd>q</kbd> or <kbd>Esc</kbd> leaves. Panes bind to session state and degrade when
-regs/mem/disasm backends are still stubs.
+pane, <kbd>q</kbd> or <kbd>Esc</kbd> leaves. x64dbg-ish defaults that do not fight the TUI:
+<kbd>F9</kbd>/<kbd>F5</kbd> run, <kbd>F7</kbd> step into, <kbd>F8</kbd> step over,
+<kbd>F2</kbd> toggle BP at RIP, <kbd>F12</kbd> pause. Themes and keybindings load from
+`theme.json`/`keys.json` (or `.ini`) via `ANTINOMIA_THEME` / `ANTINOMIA_KEYS`, the cwd,
+or `$XDG_CONFIG_HOME/antinomia/` (Windows: `%APPDATA%/antinomia/`). See
+[`docs/theme-keys.md`](docs/theme-keys.md) and [`docs/examples/`](docs/examples/).
 
 ## Building
 
@@ -186,6 +190,19 @@ See [docs/phase3-gate.md](docs/phase3-gate.md) for CI vs interactive coverage.
 `docs/plugin-abi.md`. Local AI helpers on the same command table:
 `explain`, `suggest_bp`, `summarize_ex` (aliases `ai.explain` / `ai.suggest_bp` /
 `ai.ex`).
+
+## Releases
+
+Tagged `v*` releases build dual-OS packages via `.github/workflows/release.yml`
+(`clang-release` / `clang-cl-release`). Locally:
+
+```console
+$ scripts/package_release.sh --os linux --version v0.1.0 \
+    --bin build/clang-release/bin/antinomia --out dist --with-symbols-stub
+```
+
+See [docs/release-checklist.md](docs/release-checklist.md) for the reproducible
+tag → archive → verify steps (archives, bare binaries, symbols stubs, `SHA256SUMS`).
 
 ## Development
 

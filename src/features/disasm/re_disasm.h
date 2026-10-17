@@ -1,4 +1,4 @@
-// re_disasm.h - x86-64 decode helpers and a small instruction cache.
+// re_disasm.h - x86-64 decode helpers and a multi-slot instruction cache.
 // Module: feature (C11).
 // Owns: one-instruction decode, multi-line walk, and write-side invalidation.
 // Depends: re_err. Capstone is optional later; this native path is always linked.
@@ -17,6 +17,8 @@ extern "C" {
 #define RE_DISASM_TEXT_MAX 64
 #define RE_DISASM_COMMENT_MAX 48
 #define RE_DISASM_CACHE_N 64
+#define RE_DISASM_CACHE_SLOTS 4
+#define RE_DISASM_CACHE_BYTES 256
 
 enum {
     RE_DISASM_F_CALL = 1u << 0,
@@ -43,6 +45,22 @@ typedef struct {
     uint64_t base;
     size_t span;
     size_t n;
+    uint32_t used; /* LRU stamp */
+    uint8_t raw[RE_DISASM_CACHE_BYTES];
+    re_disasm_insn_t lines[RE_DISASM_CACHE_N];
+} re_disasm_slot_t;
+
+typedef struct {
+    re_disasm_slot_t slots[RE_DISASM_CACHE_SLOTS];
+    uint32_t clock;
+    uint32_t hits;
+    uint32_t misses;
+    uint32_t invalidations;
+    /* Mirror of the most recently filled/hit slot for existing callers. */
+    bool valid;
+    uint64_t base;
+    size_t span;
+    size_t n;
     re_disasm_insn_t lines[RE_DISASM_CACHE_N];
 } re_disasm_cache_t;
 
@@ -59,9 +77,12 @@ void re_disasm_enrich(re_disasm_insn_t *insn);
 void re_disasm_cache_clear(re_disasm_cache_t *c);
 void re_disasm_cache_invalidate(re_disasm_cache_t *c, uint64_t addr, size_t n);
 
-// Fill cache from a memory window. On hit with matching base/span, copies cache.
+// Fill or hit a slot from a memory window. Matching base/span/bytes is a hit.
 re_err_code_t re_disasm_cache_fill(re_disasm_cache_t *c, uint64_t addr, const uint8_t *buf,
                                    size_t n, size_t max_n);
+
+void re_disasm_cache_stats(const re_disasm_cache_t *c, uint32_t *hits, uint32_t *misses,
+                           uint32_t *invalidations);
 
 #ifdef __cplusplus
 }

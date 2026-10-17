@@ -32,7 +32,17 @@ extern "C" {
 #define RE_KEY_ESCAPE (RE_KEY_BASE + 13u)
 #define RE_KEY_BACKSPACE (RE_KEY_BASE + 14u)
 #define RE_KEY_F1 (RE_KEY_BASE + 20u) // F1..F12 are contiguous from here
-#define RE_KEY_F12 (RE_KEY_BASE + 31u)
+#define RE_KEY_F2 (RE_KEY_F1 + 1u)
+#define RE_KEY_F3 (RE_KEY_F1 + 2u)
+#define RE_KEY_F4 (RE_KEY_F1 + 3u)
+#define RE_KEY_F5 (RE_KEY_F1 + 4u)
+#define RE_KEY_F6 (RE_KEY_F1 + 5u)
+#define RE_KEY_F7 (RE_KEY_F1 + 6u)
+#define RE_KEY_F8 (RE_KEY_F1 + 7u)
+#define RE_KEY_F9 (RE_KEY_F1 + 8u)
+#define RE_KEY_F10 (RE_KEY_F1 + 9u)
+#define RE_KEY_F11 (RE_KEY_F1 + 10u)
+#define RE_KEY_F12 (RE_KEY_F1 + 11u)
 #define RE_KEY_RESIZE (RE_KEY_BASE + 40u)
 #define RE_KEY_MAX RE_KEY_BASE + 64u
 

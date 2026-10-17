@@ -49,3 +49,7 @@ __pycache__/
 # local agent tooling; the rule gate reads tracked files only
 /.freebuff/
 /.opencode/
+
+# release packaging smoke output
+dist/
+dist-*/

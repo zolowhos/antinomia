@@ -139,6 +139,11 @@ void re_tui_styled(re_strbuf_t *dst, const re_tui_t *t, re_style_t style, const 
 // The escape that turns a style on, or an empty string for none and for a style
 // this table does not know. A painter emits a reset first, then this.
 const char *re_tui_style_on(re_style_t style);
+
+// Install a theme slot. on/off must outlive the next reset or set of this slot.
+void re_tui_style_set(re_style_t style, const char *on, const char *off);
+void re_tui_styles_reset(void);
+
 void re_tui_fill(re_strbuf_t *dst, const re_tui_t *t, size_t n, const char *with);
 
 // Write s clipped to a column budget, with a one character ellipsis when it does not

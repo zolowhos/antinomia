@@ -37,6 +37,20 @@ jobs:
       - name: Test
         run: ctest --preset clang-release --output-on-failure
 
+      - name: Package smoke (linux archive + symbols stub)
+        run: |
+          chmod +x scripts/package_release.sh
+          scripts/package_release.sh \
+            --os linux \
+            --version "0.0.0-ci" \
+            --bin build/clang-release/bin/antinomia \
+            --out dist-ci \
+            --with-symbols-stub
+          test -f dist-ci/antinomia-0.0.0-ci-linux-x86_64.tar.gz
+          test -f dist-ci/antinomia-0.0.0-ci-linux-x86_64-symbols.tar.gz
+          tar -tzf dist-ci/antinomia-0.0.0-ci-linux-x86_64.tar.gz | grep -q '/antinomia$'
+          ./dist-ci/antinomia-0.0.0-ci-linux-x86_64 version
+
   windows:
     name: Windows x86_64 (clang-cl-release)
     runs-on: windows-2022
@@ -67,3 +81,17 @@ jobs:
       - name: Test
         shell: bash
         run: ctest --preset clang-cl-release --output-on-failure
+
+      - name: Package smoke (windows archive + symbols stub)
+        shell: bash
+        run: |
+          chmod +x scripts/package_release.sh
+          scripts/package_release.sh \
+            --os windows \
+            --version "0.0.0-ci" \
+            --bin build/clang-cl-release/bin/antinomia.exe \
+            --out dist-ci \
+            --with-symbols-stub
+          test -f dist-ci/antinomia-0.0.0-ci-windows-x86_64.zip
+          test -f dist-ci/antinomia-0.0.0-ci-windows-x86_64-symbols.zip
+          ./dist-ci/antinomia-0.0.0-ci-windows-x86_64.exe version
