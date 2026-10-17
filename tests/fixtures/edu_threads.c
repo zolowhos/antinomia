@@ -67,8 +67,7 @@ static void *worker_main(void *arg) {
 int main(void) {
     int i;
 
-    printf("edu_threads: educational BP-storm lite (%d threads, MIT, safe)\n",
-           EDU_THREAD_N);
+    printf("edu_threads: educational BP-storm lite (%d threads, MIT, safe)\n", EDU_THREAD_N);
     fflush(stdout);
 
 #if defined(_WIN32)
