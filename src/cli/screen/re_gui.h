@@ -1,7 +1,7 @@
-// re_gui.h - the full screen debugger front end welcome view.
+// re_gui.h - the full screen debugger front end with antistrefo chrome.
 // Module: cli (C11).
-// Owns: the interactive empty CPU-like welcome loop for Phase 0.
-// Depends: re_term, re_input, re_focus, re_draw, re_screen, re_layout.
+// Owns: the interactive CPU TUI loop entry (menus, buttons, panes).
+// Depends: re_term, re_input, re_focus, re_draw, re_screen, re_gui_menu.
 #pragma once
 
 #ifdef __cplusplus

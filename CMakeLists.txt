@@ -125,6 +125,7 @@ add_executable(antinomia
     src/cli/screen/re_draw.c
     src/cli/screen/re_term.c
     src/cli/screen/re_gui.c
+    src/cli/screen/menu/re_gui_menu.c
     src/cli/screen/re_cpu.c
     src/cli/screen/re_cpu_panes.c
     src/cli/screen/re_cpu_paint.c

@@ -55,7 +55,8 @@ add_test(NAME screen COMMAND re_test_screen)
 add_executable(re_test_cpu test_cpu.c
     ${CMAKE_SOURCE_DIR}/src/cli/screen/re_cpu.c
     ${CMAKE_SOURCE_DIR}/src/cli/screen/re_cpu_panes.c
-    ${CMAKE_SOURCE_DIR}/src/cli/screen/re_cpu_paint.c)
+    ${CMAKE_SOURCE_DIR}/src/cli/screen/re_cpu_paint.c
+    ${CMAKE_SOURCE_DIR}/src/cli/screen/menu/re_gui_menu.c)
 target_include_directories(re_test_cpu PRIVATE ${CMAKE_SOURCE_DIR}/src)
 target_link_libraries(re_test_cpu PRIVATE re_core re_utils re_flags)
 if(MSVC)
