@@ -59,6 +59,10 @@ themes/keybindings (`docs/theme-keys.md`), performance and soak hardening, and d
 - [yama-ptrace.md](yama-ptrace.md) — Linux Yama / attach FAQ
 - [x64dbg-migration.md](x64dbg-migration.md) — x64dbg → antinomia alias table
 
+Trust: telemetry-free `privacy` tool + `--seed` (`docs/privacy.md`), MCP plugin
+SDK example (`docs/plugin-sdk.md`), Windows signing notes
+(`docs/windows-signing.md`), terminal ANSI matrix (`docs/terminal-matrix.md`).
+
 ## Architecture invariants
 
 - Opaque backend vtable — never leak OS APIs into CLI/MCP/TUI.

@@ -176,9 +176,13 @@ $ scripts/phase3_gate_demo.sh tui    # interactive TUI attach steps
 See [docs/phase3-gate.md](docs/phase3-gate.md) for CI vs interactive coverage.
 
 **Plugin ABI (frozen):** MCP is the plugin API - no in-process C SDK. See
-`docs/plugin-abi.md`. Local AI helpers on the same command table:
-`explain`, `suggest_bp`, `summarize_ex` (aliases `ai.explain` / `ai.suggest_bp` /
-`ai.ex`).
+`docs/plugin-abi.md` and the SDK guide [`docs/plugin-sdk.md`](docs/plugin-sdk.md)
+(example: `docs/examples/mcp_plugin.py`). Local AI helpers on the same command
+table: `explain`, `suggest_bp`, `summarize_ex` (aliases `ai.explain` /
+`ai.suggest_bp` / `ai.ex`).
+
+**Privacy:** no telemetry. Confirm with `antinomia privacy` (or `trust`);
+analysis accepts deterministic `--seed` — see [`docs/privacy.md`](docs/privacy.md).
 
 ## Releases
 
@@ -192,6 +196,8 @@ $ scripts/package_release.sh --os linux --version v0.1.0 \
 
 See [docs/release-checklist.md](docs/release-checklist.md) for the reproducible
 tag → archive → verify steps (archives, bare binaries, symbols stubs, `SHA256SUMS`).
+Windows Authenticode / SmartScreen notes: [docs/windows-signing.md](docs/windows-signing.md).
+Terminal ANSI matrix: [docs/terminal-matrix.md](docs/terminal-matrix.md).
 
 ## Development
 

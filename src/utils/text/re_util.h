@@ -13,6 +13,7 @@ extern "C" {
 #include "utils/algo/re_crc.h"
 #include "utils/algo/re_hash.h"
 #include "utils/algo/re_regex.h"
+#include "utils/algo/re_seed.h"
 #include "utils/algo/re_sort.h"
 #include "utils/cfg/re_cfg.h"
 #include "utils/cfg/re_theme.h"

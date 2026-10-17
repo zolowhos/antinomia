@@ -105,14 +105,17 @@ static const re_cmd_t kCommands[] = {
     {"explain", "explain insn at addr or RIP (local AI helper)", "explain [addr]", re_cmd_explain,
      false, false, true},
     {"ai.explain", "alias for explain", "ai.explain [addr]", re_cmd_explain, false, false, true},
-    {"suggest_bp", "suggest BP sites on interesting imports", "suggest_bp [--limit N]",
+    {"suggest_bp", "suggest BP sites on interesting imports", "suggest_bp [--limit N] [--seed N]",
      re_cmd_suggest_bp, false, false, true},
-    {"ai.suggest_bp", "alias for suggest_bp", "ai.suggest_bp [--limit N]", re_cmd_suggest_bp, false,
-     false, true},
+    {"ai.suggest_bp", "alias for suggest_bp", "ai.suggest_bp [--limit N] [--seed N]",
+     re_cmd_suggest_bp, false, false, true},
     {"summarize_ex", "summarize exception/signal (last or code)", "summarize_ex [code]",
      re_cmd_summarize_ex, false, false, true},
     {"ai.ex", "alias for summarize_ex", "ai.ex [code]", re_cmd_summarize_ex, false, false, true},
     {"exsum", "alias for summarize_ex", "exsum [code]", re_cmd_summarize_ex, false, false, true},
+    {"privacy", "confirm telemetry-free build and analysis seed policy", "privacy [--seed N]",
+     re_cmd_privacy, false, false, true},
+    {"trust", "alias for privacy", "trust [--seed N]", re_cmd_privacy, false, false, true},
     {"threads", "list threads", "threads", re_cmd_threads, false, false, true},
     {"thread", "switch current thread", "thread <tid>", re_cmd_thread, false, false, true},
     {"switch", "alias for thread", "switch <tid>", re_cmd_thread, false, false, true},
@@ -247,7 +250,8 @@ static bool parse_u64(const char *s, uint64_t *out) {
 static bool takes_value(re_str_t a) {
     return re_str_eq_cstr(a, "--format") || re_str_eq_cstr(a, "--limit") ||
            re_str_eq_cstr(a, "--offset") || re_str_eq_cstr(a, "--cursor") ||
-           re_str_eq_cstr(a, "--off") || re_str_eq_cstr(a, "--len") || re_str_eq_cstr(a, "--rva");
+           re_str_eq_cstr(a, "--off") || re_str_eq_cstr(a, "--len") || re_str_eq_cstr(a, "--rva") ||
+           re_str_eq_cstr(a, "--seed");
 }
 
 static const char *glued_value(re_str_t a) {
@@ -265,6 +269,8 @@ static const char *glued_value(re_str_t a) {
         return a.p + 6;
     if (re_str_starts_cstr(a, "--rva="))
         return a.p + 6;
+    if (re_str_starts_cstr(a, "--seed="))
+        return a.p + 7;
     return NULL;
 }
 
@@ -294,7 +300,10 @@ static bool apply_flag(re_ctx_t *ctx, re_str_t a, const char *val, re_err_t *err
         ctx->len = n;
     else if (re_str_starts_cstr(a, "--off") || re_str_starts_cstr(a, "--rva"))
         ctx->off = n;
-    else
+    else if (re_str_starts_cstr(a, "--seed")) {
+        ctx->seed = n;
+        ctx->seed_set = true;
+    } else
         return false;
     return true;
 }
@@ -305,6 +314,8 @@ bool re_cmd_parse(re_ctx_t *ctx, int argc, char **argv, int *first_positional, r
     ctx->offset = 0;
     ctx->off = 0;
     ctx->len = 256;
+    ctx->seed = 0;
+    ctx->seed_set = false;
     ctx->no_color = false;
     int pos = argc;
     for (int i = 0; i < argc; i++) {

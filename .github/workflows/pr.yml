@@ -37,6 +37,20 @@ jobs:
       - name: Test
         run: ctest --preset clang-release --output-on-failure
 
+      - name: ANSI / terminal matrix smoke
+        run: |
+          chmod +x scripts/ansi_matrix_smoke.sh
+          env -u NO_COLOR TERM=xterm-256color scripts/ansi_matrix_smoke.sh \
+            build/clang-release/bin/antinomia \
+            build/clang-release/bin/re_test_ansi
+          NO_COLOR=1 TERM=dumb scripts/ansi_matrix_smoke.sh \
+            build/clang-release/bin/antinomia
+
+      - name: MCP plugin example smoke
+        run: |
+          python3 docs/examples/mcp_plugin.py \
+            --antinomia build/clang-release/bin/antinomia
+
       - name: Package smoke (linux archive + symbols stub)
         run: |
           chmod +x scripts/package_release.sh
@@ -50,6 +64,7 @@ jobs:
           test -f dist-ci/antinomia-0.0.0-ci-linux-x86_64-symbols.tar.gz
           tar -tzf dist-ci/antinomia-0.0.0-ci-linux-x86_64.tar.gz | grep -q '/antinomia$'
           ./dist-ci/antinomia-0.0.0-ci-linux-x86_64 version
+          ./dist-ci/antinomia-0.0.0-ci-linux-x86_64 privacy
 
   windows:
     name: Windows x86_64 (clang-cl-release)
@@ -82,6 +97,13 @@ jobs:
         shell: bash
         run: ctest --preset clang-cl-release --output-on-failure
 
+      - name: Privacy + ANSI unit smoke
+        shell: bash
+        run: |
+          ./build/clang-cl-release/bin/antinomia.exe privacy
+          ./build/clang-cl-release/bin/antinomia.exe privacy --seed 42
+          ./build/clang-cl-release/bin/re_test_ansi.exe
+
       - name: Package smoke (windows archive + symbols stub)
         shell: bash
         run: |
@@ -95,3 +117,4 @@ jobs:
           test -f dist-ci/antinomia-0.0.0-ci-windows-x86_64.zip
           test -f dist-ci/antinomia-0.0.0-ci-windows-x86_64-symbols.zip
           ./dist-ci/antinomia-0.0.0-ci-windows-x86_64.exe version
+          ./dist-ci/antinomia-0.0.0-ci-windows-x86_64.exe privacy

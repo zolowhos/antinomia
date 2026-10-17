@@ -72,6 +72,25 @@ static void test_err_json(void) {
 #endif
 }
 
+static void test_seed_shuffle(void) {
+    uint32_t a[8], b[8], c[8];
+    re_rng_t ra, rb, rc;
+    size_t i;
+    for (i = 0; i < 8; i++) {
+        a[i] = (uint32_t)i;
+        b[i] = (uint32_t)i;
+        c[i] = (uint32_t)i;
+    }
+    re_rng_init(&ra, 42);
+    re_rng_init(&rb, 42);
+    re_rng_init(&rc, 7);
+    re_rng_shuffle_u32(&ra, a, 8);
+    re_rng_shuffle_u32(&rb, b, 8);
+    re_rng_shuffle_u32(&rc, c, 8);
+    RE_CHECK(memcmp(a, b, sizeof(a)) == 0);
+    RE_CHECK(memcmp(a, c, sizeof(a)) != 0);
+}
+
 int main(void) {
     re_crc_init();
     test_bits();
@@ -79,5 +98,6 @@ int main(void) {
     test_arena();
     test_str();
     test_err_json();
+    test_seed_shuffle();
     return re_test_report("utils");
 }

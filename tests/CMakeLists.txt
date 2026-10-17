@@ -34,6 +34,15 @@ if(MSVC)
 endif()
 add_test(NAME tui COMMAND re_test_tui)
 
+add_executable(re_test_ansi test_ansi.c)
+target_link_libraries(re_test_ansi PRIVATE re_utils re_flags)
+if(MSVC)
+    set_property(TARGET re_test_ansi
+        PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+    target_compile_definitions(re_test_ansi PRIVATE _CRT_SECURE_NO_WARNINGS)
+endif()
+add_test(NAME ansi COMMAND re_test_ansi)
+
 add_executable(re_test_screen test_screen.c)
 target_link_libraries(re_test_screen PRIVATE re_utils re_flags)
 if(MSVC)
@@ -308,6 +317,11 @@ add_test(NAME smoke_version
     COMMAND ${CMAKE_COMMAND}
         -DANTINOMIA=$<TARGET_FILE:antinomia>
         -P ${CMAKE_CURRENT_SOURCE_DIR}/run_smoke_version.cmake)
+
+add_test(NAME smoke_privacy
+    COMMAND ${CMAKE_COMMAND}
+        -DANTINOMIA=$<TARGET_FILE:antinomia>
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/run_smoke_privacy.cmake)
 
 add_test(NAME smoke_status
     COMMAND ${CMAKE_COMMAND}
