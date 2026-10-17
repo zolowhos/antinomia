@@ -8,6 +8,7 @@
 #include "utils/mem/re_arena.h"
 #include "utils/text/re_strbuf.h"
 #include "utils/tui/re_screen.h"
+#include "cli/screen/menu/re_gui_menu.h"
 #include "cli/screen/re_cpu.h"
 
 #include <string.h>
@@ -111,10 +112,57 @@ static void test_paint_zones(void) {
     re_arena_free(&a);
 }
 
+static void test_chrome_menus(void) {
+    re_arena_t a;
+    re_strbuf_t out;
+    re_screen_t s;
+    re_cpu_view_t v;
+    re_gui_menu_ctx_t mc;
+    size_t focus = 0;
+    bool repaint = false, quit = false, color = true;
+    int open = -1;
+    uint8_t zone = RE_SCREEN_ZONE_NONE, nitems = 0, btn_zone = RE_SCREEN_ZONE_NONE, btn_n = 0;
+    re_act_t pending = RE_ACT_NONE;
+    re_arena_init(&a, 0);
+    re_strbuf_init(&out, &a);
+    RE_CHECK(re_screen_init(&s, &a, &out, 40, 100));
+    re_cpu_init(&v);
+    re_cpu_paint(&s, &v);
+    mc.focus = &focus;
+    mc.n_panes = (size_t)RE_CPU_PANE_COUNT;
+    mc.repaint = &repaint;
+    mc.quit = &quit;
+    mc.color = &color;
+    mc.open = &open;
+    mc.bar = RE_SCREEN_ZONE_NONE;
+    mc.zone = &zone;
+    mc.nitems = &nitems;
+    mc.pending = &pending;
+    mc.log_fn = NULL;
+    mc.log_user = NULL;
+    mc.path = "antinomia";
+    mc.mark = "antinomia 0.1.0";
+    mc.btn_zone = &btn_zone;
+    mc.btn_n = &btn_n;
+    re_gui_chrome_draw(&s, &mc);
+    RE_CHECK(mc.bar != RE_SCREEN_ZONE_NONE);
+    RE_CHECK(btn_zone != RE_SCREEN_ZONE_NONE);
+    RE_CHECK(btn_n == 5);
+    re_strbuf_clear(&out);
+    re_screen_dump(&s, &out);
+    RE_CHECK(strstr(out.p, "File") != NULL);
+    RE_CHECK(strstr(out.p, "Edit") != NULL);
+    RE_CHECK(strstr(out.p, "Help") != NULL);
+    RE_CHECK(strstr(out.p, "Run") != NULL);
+    RE_CHECK(strstr(out.p, "disasm") != NULL);
+    re_arena_free(&a);
+}
+
 int main(void) {
     test_focus_cycles();
     test_refresh_detached();
     test_bps_and_log();
     test_paint_zones();
+    test_chrome_menus();
     return re_test_report("cpu");
 }

@@ -1,8 +1,10 @@
 // re_cpu_paint.c - incremental CPU pane layout and screen compose.
 // Module: cli (C11).
 // Owns: re_cpu_paint and per-pane rect layout. No terminal I/O.
-// Depends: re_cpu.h, re_screen. Cell-level diff stays in re_draw.
+// Depends: re_cpu.h, re_gui_menu (chrome height), re_screen. Cell-level diff stays in re_draw.
 #include "cli/screen/re_cpu.h"
+
+#include "cli/screen/menu/re_gui_menu.h"
 
 typedef struct {
     uint16_t y;
@@ -55,32 +57,36 @@ static void layout_rects(uint16_t rows, uint16_t cols, re_cpu_rect_t out[RE_CPU_
     uint16_t top_h;
     uint16_t mid_h;
     uint16_t bot_h;
+    uint16_t y0 = RE_GUI_CHROME_TOP;
+    uint16_t body;
     uint16_t y1;
     uint16_t y2;
-    if (rows < 14u)
-        rows = 14u;
+    if (rows < 16u)
+        rows = 16u;
     if (cols < 60u)
         cols = 60u;
     if (q < 8u)
         q = 8u;
-    top_h = (uint16_t)((rows - 2u) * 36u / 100u);
+    /* Menu + button chrome on top, status on the bottom edge. */
+    body = (uint16_t)(rows - RE_GUI_CHROME_TOP - 1u);
+    top_h = (uint16_t)(body * 36u / 100u);
     if (top_h < 4u)
         top_h = 4u;
-    mid_h = (uint16_t)((rows - 2u) * 32u / 100u);
+    mid_h = (uint16_t)(body * 32u / 100u);
     if (mid_h < 4u)
         mid_h = 4u;
-    bot_h = (uint16_t)(rows - 2u - top_h - mid_h);
+    bot_h = (uint16_t)(body - top_h - mid_h);
     if (bot_h < 3u) {
         bot_h = 3u;
-        if (top_h + mid_h + bot_h + 2u > rows) {
+        if (top_h + mid_h + bot_h > body) {
             mid_h = 4u;
-            top_h = (uint16_t)(rows - 2u - mid_h - bot_h);
+            top_h = (uint16_t)(body - mid_h - bot_h);
         }
     }
-    y1 = (uint16_t)(1u + top_h);
+    y1 = (uint16_t)(y0 + top_h);
     y2 = (uint16_t)(y1 + mid_h);
-    out[RE_CPU_PANE_DISASM] = (re_cpu_rect_t){1, 0, mid_x, top_h};
-    out[RE_CPU_PANE_REGS] = (re_cpu_rect_t){1, mid_x, (uint16_t)(cols - mid_x), top_h};
+    out[RE_CPU_PANE_DISASM] = (re_cpu_rect_t){y0, 0, mid_x, top_h};
+    out[RE_CPU_PANE_REGS] = (re_cpu_rect_t){y0, mid_x, (uint16_t)(cols - mid_x), top_h};
     out[RE_CPU_PANE_DUMP] = (re_cpu_rect_t){y1, 0, mid_x, mid_h};
     out[RE_CPU_PANE_STACK] = (re_cpu_rect_t){y1, mid_x, (uint16_t)(cols - mid_x), mid_h};
     out[RE_CPU_PANE_MAPS] = (re_cpu_rect_t){y2, 0, q, bot_h};
@@ -107,8 +113,6 @@ void re_cpu_paint(re_screen_t *s, re_cpu_view_t *v) {
         re_screen_clear(s);
         for (i = 0; i < (unsigned)RE_CPU_PANE_COUNT; i++)
             v->zones[i] = RE_SCREEN_ZONE_NONE;
-        re_screen_put_run(s, 0, 1, s->cols > 2u ? (uint16_t)(s->cols - 2u) : 0u,
-                          "antinomia - CPU view", (uint8_t)RE_ST_TITLE, RE_SCREEN_ZONE_NONE);
     }
     layout_rects(s->rows, s->cols, R);
     if (mask & (1u << (unsigned)RE_CPU_PANE_DISASM))
