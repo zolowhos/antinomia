@@ -12,7 +12,7 @@
 #include "cli/screen/re_draw.h"
 #include "cli/screen/re_focus.h"
 #include "cli/screen/re_input.h"
-#include "cli/screen/re_keys.h"
+#include "cli/screen/keys/re_keys.h"
 #include "cli/screen/re_term.h"
 #include "mcp/re_mcp_side.h"
 

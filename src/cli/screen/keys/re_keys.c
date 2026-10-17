@@ -2,7 +2,7 @@
 // Module: cli (C11).
 // Owns: re_keys.h. F-keys for debug; Tab/Esc/q stay TUI-native.
 // Depends: re_keys.h, re_jr, re_buf, re_str.
-#include "cli/screen/re_keys.h"
+#include "cli/screen/keys/re_keys.h"
 
 #include "utils/json/re_jr.h"
 #include "utils/mem/re_arena.h"

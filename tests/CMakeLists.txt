@@ -14,7 +14,7 @@ endif()
 add_test(NAME utils COMMAND re_test_utils)
 
 add_executable(re_test_cfg test_cfg.c
-    ${CMAKE_SOURCE_DIR}/src/cli/screen/re_keys.c
+    ${CMAKE_SOURCE_DIR}/src/cli/screen/keys/re_keys.c
     ${CMAKE_SOURCE_DIR}/src/cli/screen/re_input.c)
 target_include_directories(re_test_cfg PRIVATE ${CMAKE_SOURCE_DIR}/src)
 target_link_libraries(re_test_cfg PRIVATE re_utils re_flags)

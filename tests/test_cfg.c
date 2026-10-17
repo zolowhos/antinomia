@@ -8,7 +8,7 @@
 #include "utils/cfg/re_theme.h"
 #include "utils/tui/re_tui.h"
 #include "cli/screen/re_input.h"
-#include "cli/screen/re_keys.h"
+#include "cli/screen/keys/re_keys.h"
 
 #include <string.h>
 
