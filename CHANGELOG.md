@@ -8,6 +8,30 @@
 All notable changes for tagged releases are recorded here. Schema remains
 `antinomia/1`. Artifact layout: `docs/release-checklist.md`.
 
+## [v0.1.1] - 2026-10-17
+
+Patch release on `main` tip after v0.1.0. Schema stays `antinomia/1`.
+
+### TUI (antistrefo alignment)
+
+- Align CPU TUI chrome with antistrefo menus and buttons (`re_gui_menu`, paint)
+- README brand image update
+
+### Educational fixtures
+
+- Add educational debug fixtures and headless E2E smoke (`edu_threads`, related)
+- Format-gate fixes for fixture sources
+
+### Artifacts (expected on the GitHub Release)
+
+| File | Role |
+|---|---|
+| `antinomia-v0.1.1-linux-x86_64.tar.gz` | Linux archive |
+| `antinomia-v0.1.1-windows-x86_64.zip` | Windows archive |
+| `SHA256SUMS` | Digests |
+
+Bare binaries and symbols stubs may also be attached by the release workflow.
+
 ## [v0.1.0] - 2026-10-17
 
 Phase 4 gate release. Base: Wave 2 tip `c6db597` on `main`, plus this gate's
