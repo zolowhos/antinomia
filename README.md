@@ -1,5 +1,5 @@
 <div align="center">
-<img src="Antistrefo.png" width="50%">
+<img src="antinomia.png" width="50%">
 <img src="Banner.png" width="50%">
 </div>
 
