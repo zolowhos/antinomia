@@ -4,6 +4,12 @@
 // Depends: re_gui.h, re_gui_menu, re_cpu, term, input, focus, draw, keys, theme.
 #include "cli/screen/re_gui.h"
 
+#include "features/debug/re_dbg.h"
+#include "features/sess/re_dbg_lock.h"
+#include "utils/cfg/re_theme.h"
+#include "utils/tui/re_screen.h"
+#include "utils/tui/re_tui.h"
+#include "utils/tui/re_ui.h"
 #include "cli/screen/keys/re_keys.h"
 #include "cli/screen/menu/re_gui_menu.h"
 #include "cli/screen/re_cpu.h"
@@ -11,13 +17,7 @@
 #include "cli/screen/re_focus.h"
 #include "cli/screen/re_input.h"
 #include "cli/screen/re_term.h"
-#include "features/debug/re_dbg.h"
-#include "features/sess/re_dbg_lock.h"
 #include "mcp/re_mcp_side.h"
-#include "utils/cfg/re_theme.h"
-#include "utils/tui/re_screen.h"
-#include "utils/tui/re_tui.h"
-#include "utils/tui/re_ui.h"
 
 #include <stdio.h>
 

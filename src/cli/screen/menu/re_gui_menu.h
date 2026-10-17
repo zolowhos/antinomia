@@ -7,9 +7,9 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-#include "cli/screen/keys/re_keys.h"
 #include "utils/tui/re_screen.h"
 #include "utils/tui/re_ui.h"
+#include "cli/screen/keys/re_keys.h"
 
 #include <stdbool.h>
 #include <stddef.h>

@@ -20,7 +20,7 @@ static size_t g_narg;
 static const char *const kBar[] = {"File", "Edit", "Jump", "Search", "Options", "Help"};
 static const char *const kBtns[] = {"Run", "Step", "Over", "Pause", "BP"};
 static const re_act_t kBtnAct[] = {RE_ACT_RUN, RE_ACT_STEP_INTO, RE_ACT_STEP_OVER, RE_ACT_PAUSE,
-                                  RE_ACT_TOGGLE_BP};
+                                   RE_ACT_TOGGLE_BP};
 
 static bool menu_owns_zone(const re_gui_menu_ctx_t *c, int menu, uint8_t zone) {
     uint8_t z0;
@@ -186,8 +186,8 @@ static uint16_t bracket_item(re_screen_t *s, uint16_t y, uint16_t x, uint16_t li
     if (x >= limit)
         return x;
     re_screen_put(s, y, x, "<", (uint8_t)RE_ST_NONE, zone);
-    x = re_screen_put_run(s, y, (uint16_t)(x + 1u), limit, label ? label : "",
-                          (uint8_t)RE_ST_NONE, zone);
+    x = re_screen_put_run(s, y, (uint16_t)(x + 1u), limit, label ? label : "", (uint8_t)RE_ST_NONE,
+                          zone);
     if (x < limit) {
         re_screen_put(s, y, x, ">", (uint8_t)RE_ST_NONE, zone);
         x++;
@@ -221,8 +221,8 @@ static void draw_menu_row(re_screen_t *s, re_gui_menu_ctx_t *c) {
     }
     c->bar = first;
     if (c->path && *c->path && cx + 2u < mark_x)
-        cx = re_screen_put_run(s, 0, cx, mark_x, c->path, (uint8_t)RE_ST_LABEL,
-                               RE_SCREEN_ZONE_NONE);
+        cx =
+            re_screen_put_run(s, 0, cx, mark_x, c->path, (uint8_t)RE_ST_LABEL, RE_SCREEN_ZONE_NONE);
     if (mw && mark_x < last)
         (void)bracket_item(s, 0, mark_x, last, c->mark, RE_SCREEN_ZONE_NONE);
 }
