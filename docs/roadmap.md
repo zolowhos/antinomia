@@ -53,6 +53,9 @@ Installable archives (`scripts/package_release.sh`, tagged Release workflow), op
 symbols package stubs, reproducible checklist in `docs/release-checklist.md`,
 themes/keybindings, performance and soak hardening, docs (command ref, expression
 grammar, Yama FAQ in `docs/yama-ptrace.md`), x64dbg user migration aliases.
+Trust: telemetry-free `privacy` tool + `--seed` (`docs/privacy.md`), MCP plugin
+SDK example (`docs/plugin-sdk.md`), Windows signing notes
+(`docs/windows-signing.md`), terminal ANSI matrix (`docs/terminal-matrix.md`).
 
 ## Architecture invariants
 

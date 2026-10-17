@@ -1,11 +1,12 @@
 // re_cmds_ai.c - local AI helper commands for MCP/CLI (explain/suggest/exsum).
 // Module: cli (C11).
-// Owns: explain / suggest_bp / summarize_ex JSON emitters.
-// Depends: re_cmds.h, re_ai, re_dbg, re_json. stdout via re_jw_flush.
+// Owns: explain / suggest_bp / summarize_ex / privacy JSON emitters.
+// Depends: re_cmds.h, re_ai, re_seed, re_dbg, re_json. stdout via re_jw_flush.
 #include "cli/cmds/re_cmds.h"
 
 #include "features/ai/re_ai.h"
 #include "features/debug/re_dbg.h"
+#include "utils/algo/re_seed.h"
 #include "utils/json/re_json.h"
 #include "utils/text/re_hex.h"
 #include "utils/text/re_str.h"
@@ -77,6 +78,30 @@ static bool parse_i32_local(const char *s, int32_t *out) {
     return true;
 }
 
+static void emit_seed_fields(re_jw_t *w, const re_ctx_t *ctx) {
+    re_jw_kbool(w, "deterministic", true);
+    re_jw_kbool(w, "seed_set", ctx->seed_set);
+    if (ctx->seed_set)
+        re_jw_ku64(w, "seed", ctx->seed);
+}
+
+static void shuffle_sites(re_ai_bp_site_t *sites, size_t n, uint64_t seed) {
+    uint32_t idx[RE_AI_BP_MAX];
+    re_ai_bp_site_t tmp[RE_AI_BP_MAX];
+    re_rng_t rng;
+    size_t i;
+    if (n < 2 || n > RE_AI_BP_MAX)
+        return;
+    for (i = 0; i < n; i++)
+        idx[i] = (uint32_t)i;
+    re_rng_init(&rng, seed);
+    re_rng_shuffle_u32(&rng, idx, n);
+    for (i = 0; i < n; i++)
+        tmp[i] = sites[idx[i]];
+    for (i = 0; i < n; i++)
+        sites[i] = tmp[i];
+}
+
 int re_cmd_explain(re_ctx_t *ctx, const char *path, int argc, char **argv) {
     re_dbg_session_t *s = sess(ctx);
     re_dbg_regs_t regs;
@@ -128,6 +153,7 @@ int re_cmd_explain(re_ctx_t *ctx, const char *path, int argc, char **argv) {
     re_jw_kcstr(&w, "detail", ex.detail);
     if (lines[0].comment[0])
         re_jw_kcstr(&w, "comment", lines[0].comment);
+    emit_seed_fields(&w, ctx);
     re_jw_obj_end(&w);
     re_jw_flush(&w, re_ctx_out(ctx));
     return 0;
@@ -151,6 +177,8 @@ int re_cmd_suggest_bp(re_ctx_t *ctx, const char *path, int argc, char **argv) {
         emit_err(ctx, "suggest_bp", c, "suggest_bp failed");
         return re_err_exit_code(c);
     }
+    if (ctx->seed_set)
+        shuffle_sites(sites, n, ctx->seed);
     lim = n;
     if (ctx->limit && ctx->limit < lim)
         lim = ctx->limit;
@@ -160,6 +188,7 @@ int re_cmd_suggest_bp(re_ctx_t *ctx, const char *path, int argc, char **argv) {
     re_jw_kcstr(&w, "tool", "suggest_bp");
     re_jw_kbool(&w, "ok", true);
     re_jw_ku64(&w, "count", lim);
+    emit_seed_fields(&w, ctx);
     re_jw_key(&w, "suggestions");
     re_jw_arr(&w);
     for (i = 0; i < lim; i++) {
@@ -211,6 +240,30 @@ int re_cmd_summarize_ex(re_ctx_t *ctx, const char *path, int argc, char **argv) 
     re_jw_kbool(&w, "from_event", sum.from_event);
     re_jw_kbool(&w, "first_chance", sum.first_chance);
     re_jw_khex(&w, "addr", sum.addr, 16);
+    emit_seed_fields(&w, ctx);
+    re_jw_obj_end(&w);
+    re_jw_flush(&w, re_ctx_out(ctx));
+    return 0;
+}
+
+int re_cmd_privacy(re_ctx_t *ctx, const char *path, int argc, char **argv) {
+    re_jw_t w;
+    (void)path;
+    (void)argc;
+    (void)argv;
+    re_jw_init(&w, ctx->arena);
+    re_jw_obj(&w);
+    re_jw_kcstr(&w, "schema", "antinomia/1");
+    re_jw_kcstr(&w, "tool", "privacy");
+    re_jw_kbool(&w, "ok", true);
+    re_jw_kbool(&w, "telemetry", false);
+    re_jw_kbool(&w, "analytics", false);
+    re_jw_kbool(&w, "network_phone_home", false);
+    re_jw_kbool(&w, "cloud_ai", false);
+    re_jw_kbool(&w, "local_analysis_only", true);
+    re_jw_kcstr(&w, "plugin_abi", "mcp-as-plugin");
+    re_jw_kcstr(&w, "docs", "docs/privacy.md");
+    emit_seed_fields(&w, ctx);
     re_jw_obj_end(&w);
     re_jw_flush(&w, re_ctx_out(ctx));
     return 0;

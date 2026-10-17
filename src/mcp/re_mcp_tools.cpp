@@ -112,6 +112,7 @@ flags:
     push_flag_i64(a, argv, &argc, "--offset", re_jr_i64(re_jr_get(args, "offset"), -1));
     push_flag_i64(a, argv, &argc, "--len", re_jr_i64(re_jr_get(args, "len"), -1));
     push_flag_i64(a, argv, &argc, "--off", re_jr_i64(re_jr_get(args, "off"), -1));
+    push_flag_i64(a, argv, &argc, "--seed", re_jr_i64(re_jr_get(args, "seed"), -1));
     {
         re_str_t fmt = re_jr_str(re_jr_get(args, "format"), "");
         if (fmt.n && argc + 1 < 15) {
@@ -165,6 +166,7 @@ void schema_common(re_strbuf_t *b, bool *first) {
     prop(b, first, "format", "string", "json or text");
     prop(b, first, "limit", "integer", "Row cap for paging (default 200)");
     prop(b, first, "offset", "integer", "Skip the first N rows");
+    prop(b, first, "seed", "integer", "Deterministic analysis seed (privacy/suggest_bp)");
     prop(b, first, "argv", "array", "Positional argv strings (overrides named fields)");
 }
 

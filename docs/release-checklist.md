@@ -101,14 +101,18 @@ cd antinomia-vX.Y.Z-windows-x86_64
 Smoke the Phase 1 loop from the release binary alone: launch fixture → BP →
 regs/dump → step → detach. Prefer the headless CLI/MCP path if no TTY.
 
-## Signing / SmartScreen (deferred)
+## Signing / SmartScreen
 
-Full Authenticode signing and SmartScreen reputation need org secrets and are
-out of Pack A automation. Until then:
+Full Authenticode signing needs org secrets (deferred automation). Operator
+checklist, SmartScreen first-run notes, and the separated run-as-admin helper
+policy live in **`docs/windows-signing.md`**.
+
+Until secrets exist:
 
 - Ship unsigned `clang-cl-release` PE with static CRT.
 - Document in the release body that Windows may show SmartScreen on first run.
 - Do not recommend disabling Defender; prefer `Unblock-File` after hash check.
+- Link `docs/windows-signing.md` from the release notes.
 
 ## Release notes template
 

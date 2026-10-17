@@ -36,6 +36,9 @@ reopens this gate.
 | Headless CI | CLI one-shot / script exit JSON (`antinomia/1`) |
 | AI helpers | Local deterministic tools (`explain`, `suggest_bp`, `summarize_ex`) on the same table |
 
+**SDK guide + example:** `docs/plugin-sdk.md` and `docs/examples/mcp_plugin.py`
+(Phase 4 Pack F).
+
 External helpers must:
 
 - Speak schema `antinomia/1` JSON (or MCP 2025-06-18 frames wrapping it).
