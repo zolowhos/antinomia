@@ -20,7 +20,7 @@ static re_err_code_t try_provider_line(re_sym_provider_t *p, re_arena_t *a, cons
 }
 
 re_err_code_t re_dbg_session_source(re_dbg_session_t *s, uint64_t addr, re_sym_line_t *out) {
-    re_dbg_module_t mods[128];
+    static re_dbg_module_t mods[RE_DBG_MAX_MODULES];
     size_t n = 0, i;
     re_err_code_t c;
     re_sym_provider_t *dwarf;
@@ -28,7 +28,7 @@ re_err_code_t re_dbg_session_source(re_dbg_session_t *s, uint64_t addr, re_sym_l
     if (!s || !out)
         return RE_E_USAGE;
     memset(out, 0, sizeof(*out));
-    c = re_dbg_session_enum_modules(s, mods, 128, &n);
+    c = re_dbg_session_enum_modules(s, mods, RE_DBG_MAX_MODULES, &n);
     if (c != RE_OK)
         return c;
     dwarf = re_sym_dwarf_create(&s->arena);

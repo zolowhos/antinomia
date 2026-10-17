@@ -264,10 +264,12 @@ static re_err_code_t win_detach(re_dbg_backend_t *b) {
         return RE_E_USAGE;
     pid = w->pid;
     DebugSetProcessKillOnExit(FALSE);
-    if (w->pending && !re_dbg_win_continue(w, DBG_CONTINUE))
-        return RE_E_IO;
+    if (w->pending && !re_dbg_win_continue(w, DBG_CONTINUE)) {
+        /* Process may already be gone; still try to drop the debug port. */
+        w->pending = false;
+    }
     w->stashed = false;
-    if (!DebugActiveProcessStop(pid))
+    if (!DebugActiveProcessStop(pid) && !w->saw_exit)
         return RE_E_IO;
     re_dbg_win_reset_state(w);
     return RE_OK;

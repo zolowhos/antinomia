@@ -114,6 +114,16 @@ if(MSVC)
 endif()
 add_test(NAME perf_p4 COMMAND re_test_perf_p4)
 
+add_executable(re_test_robust_p4 test_robust_p4.c)
+target_include_directories(re_test_robust_p4 PRIVATE ${CMAKE_SOURCE_DIR}/src)
+target_link_libraries(re_test_robust_p4 PRIVATE re_core re_utils re_flags)
+if(MSVC)
+    set_property(TARGET re_test_robust_p4
+        PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+    target_compile_definitions(re_test_robust_p4 PRIVATE _CRT_SECURE_NO_WARNINGS)
+endif()
+add_test(NAME robust_p4 COMMAND re_test_robust_p4)
+
 add_executable(re_test_debug test_debug.c)
 target_link_libraries(re_test_debug PRIVATE re_core re_utils re_flags)
 if(MSVC)

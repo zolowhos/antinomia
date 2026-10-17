@@ -24,6 +24,7 @@
 
 #    define RE_DBG_LINUX_MAX_TIDS 64
 #    define RE_DBG_LINUX_MAX_EV 8
+#    define RE_DBG_LINUX_MAX_MOD RE_DBG_MAX_MODULES
 #    define RE_DBG_LINUX_OPTS                                                                 \
         (PTRACE_O_TRACECLONE | PTRACE_O_TRACEEXEC | PTRACE_O_TRACEEXIT | PTRACE_O_TRACEFORK | \
          PTRACE_O_TRACEVFORK)
@@ -35,6 +36,8 @@ typedef struct {
     bool our_child;
     bool stopped;
     bool stepping;
+    bool exiting; /* PTRACE_EVENT_EXIT seen for main; waiting for WIFEXITED */
+    int32_t exit_code;
     int last_status;
     int pass_sig; /* signal delivered on next PTRACE_CONT; 0 = swallow */
     re_err_t last_err;

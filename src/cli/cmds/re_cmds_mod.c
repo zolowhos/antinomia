@@ -6,6 +6,7 @@
 
 #include "features/debug/re_dbg.h"
 #include "utils/json/re_json.h"
+#include "utils/mem/re_arena.h"
 #include "utils/text/re_str.h"
 #include "utils/text/re_strbuf.h"
 
@@ -51,15 +52,22 @@ static void emit_err(re_ctx_t *ctx, const char *tool, re_err_code_t code, const 
 }
 
 int re_cmd_modules(re_ctx_t *ctx, const char *path, int argc, char **argv) {
-    re_dbg_module_t mods[128];
+    re_dbg_module_t *mods;
     size_t n = 0, i, start, lim;
     re_err_code_t c;
     re_jw_t w;
     bool trunc;
+    bool backend_trunc;
     (void)path;
     (void)argc;
     (void)argv;
-    c = re_dbg_session_enum_modules(sess(ctx), mods, 128, &n);
+    mods = (re_dbg_module_t *)re_arena_alloc(ctx->arena, RE_DBG_MAX_MODULES * sizeof(*mods));
+    if (!mods) {
+        emit_err(ctx, "modules", RE_E_NOMEM, "modules buffer alloc failed");
+        return re_err_exit_code(RE_E_NOMEM);
+    }
+    memset(mods, 0, RE_DBG_MAX_MODULES * sizeof(*mods));
+    c = re_dbg_session_enum_modules(sess(ctx), mods, RE_DBG_MAX_MODULES, &n);
     if (c != RE_OK) {
         emit_err(ctx, "modules", c,
                  c == RE_E_USAGE ? "modules requires an attached target" : "modules failed");
@@ -72,12 +80,15 @@ int re_cmd_modules(re_ctx_t *ctx, const char *path, int argc, char **argv) {
     if (lim > ctx->limit)
         lim = ctx->limit;
     trunc = start + lim < n;
+    backend_trunc = (n >= RE_DBG_MAX_MODULES);
     re_jw_init(&w, ctx->arena);
     re_jw_obj(&w);
     re_jw_kcstr(&w, "schema", "antinomia/1");
     re_jw_kcstr(&w, "tool", "modules");
     re_jw_kbool(&w, "ok", true);
     re_jw_ku64(&w, "count", n);
+    re_jw_ku64(&w, "capacity", RE_DBG_MAX_MODULES);
+    re_jw_kbool(&w, "backend_truncated", backend_trunc);
     re_jw_ku64(&w, "offset", start);
     re_jw_ku64(&w, "limit", lim);
     emit_page_cursor(&w, ctx->arena, start + lim, trunc);

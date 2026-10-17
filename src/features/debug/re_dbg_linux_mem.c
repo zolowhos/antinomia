@@ -124,8 +124,6 @@ re_err_code_t re_dbg_linux_write_mem(re_dbg_backend_t *b, uint64_t addr, const v
     return poke_bytes(st, tid, addr, src, n);
 }
 
-#    define RE_DBG_LINUX_MAX_MOD 128
-
 typedef struct {
     uint64_t base;
     uint64_t end;

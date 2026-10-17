@@ -162,7 +162,7 @@ re_err_code_t re_dbg_session_enum_modules(re_dbg_session_t *s, re_dbg_module_t *
 re_err_code_t re_dbg_session_bt(re_dbg_session_t *s, re_dbg_frame_t *out, size_t cap,
                                 size_t *n_out) {
     re_dbg_regs_t regs;
-    re_dbg_module_t mods[128];
+    static re_dbg_module_t mods[RE_DBG_MAX_MODULES];
     size_t n_mod = 0, n = 0, i;
     re_err_code_t c;
     if (n_out)
@@ -183,7 +183,7 @@ re_err_code_t re_dbg_session_bt(re_dbg_session_t *s, re_dbg_frame_t *out, size_t
         c = dump_rsp(s->backend, regs.rip, regs.rsp, out, cap, &n);
     if (c != RE_OK)
         return c;
-    (void)re_dbg_session_enum_modules(s, mods, 128, &n_mod);
+    (void)re_dbg_session_enum_modules(s, mods, RE_DBG_MAX_MODULES, &n_mod);
     if (out) {
         for (i = 0; i < n; i++)
             annotate_frame(s, &out[i], mods, n_mod);
