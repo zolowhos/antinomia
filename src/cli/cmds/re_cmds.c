@@ -110,6 +110,7 @@ int re_cmd_status(re_ctx_t *ctx, const char *path, int argc, char **argv) {
     re_jw_kbool(&w, "first_chance", s->last_event.first_chance);
     re_jw_obj_end(&w);
     re_jw_ku64(&w, "caps", re_dbg_session_caps(s).bits);
+    re_jw_ku64(&w, "events_coalesced", s->events_coalesced);
     re_jw_obj_end(&w);
     re_jw_flush(&w, re_ctx_out(ctx));
     return 0;

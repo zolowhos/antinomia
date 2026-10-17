@@ -42,6 +42,9 @@ typedef enum {
     RE_CPU_PANE_COUNT
 } re_cpu_pane_t;
 
+#define RE_CPU_DIRTY_ALL ((1u << (unsigned)RE_CPU_PANE_COUNT) - 1u)
+#define RE_CPU_DIRTY_STATUS (1u << 31)
+
 typedef struct {
     char text[RE_CPU_LINE_CAP];
 } re_cpu_line_t;
@@ -111,6 +114,24 @@ typedef struct {
     char status_left[160];
     char status_right[64];
     const char *path;
+
+    /* Phase 4: incremental fill/paint. dirty is a pane bitmask (+ STATUS). */
+    uint32_t dirty;
+    uint32_t last_filled;
+    bool paint_full;
+    bool have_snap;
+    bool snap_attached;
+    uint32_t snap_pid;
+    uint32_t snap_tid;
+    uint64_t snap_rip;
+    uint64_t snap_rsp;
+    uint64_t snap_dump;
+    re_dbg_event_kind_t snap_kind;
+    uint64_t snap_addr;
+    size_t snap_bps;
+    size_t snap_log;
+    size_t snap_trace;
+    re_cpu_pane_t snap_focus;
 } re_cpu_view_t;
 
 void re_cpu_init(re_cpu_view_t *v);
@@ -125,8 +146,12 @@ void re_cpu_fill_trace(re_cpu_view_t *v, re_dbg_session_t *s);
 void re_cpu_focus_next(re_cpu_view_t *v);
 void re_cpu_focus_prev(re_cpu_view_t *v);
 bool re_cpu_focus_zone(re_cpu_view_t *v, uint8_t zone);
+void re_cpu_mark_dirty(re_cpu_view_t *v, re_cpu_pane_t pane);
+void re_cpu_mark_dirty_all(re_cpu_view_t *v);
+bool re_cpu_pane_dirty(const re_cpu_view_t *v, re_cpu_pane_t pane);
 
-// Compose the CPU panes onto a cleared screen. Zones follow pane enum order.
+// Compose the CPU panes onto a screen. Only dirty panes are rewritten after the
+// first full paint; cell-level re_draw still diffs the terminal output.
 void re_cpu_paint(re_screen_t *s, re_cpu_view_t *v);
 
 #ifdef __cplusplus

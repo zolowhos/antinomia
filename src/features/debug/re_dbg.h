@@ -255,8 +255,9 @@ typedef struct re_dbg_session {
     size_t notes_n;
     re_dbg_trace_rec_t traces[RE_DBG_TRACE_MAX];
     size_t trace_n;
-    uint32_t eval_hit_count; /* $hitcount during conditional BP eval */
-    uint64_t follow_dump;    /* maps follow -> dump default address */
+    uint32_t eval_hit_count;   /* $hitcount during conditional BP eval */
+    uint64_t follow_dump;      /* maps follow -> dump default address */
+    uint32_t events_coalesced; /* soft events dropped by wait coalesce */
 } re_dbg_session_t;
 
 re_dbg_backend_t *re_dbg_backend_create(re_arena_t *a);

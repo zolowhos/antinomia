@@ -182,12 +182,15 @@ static void gui_loop(re_arena_t *arena, re_draw_t *draw, re_screen_t *frame, re_
         if (!re_term_wait(term, &ev, 250u)) {
             uint16_t nr = 0, nc = 0;
             re_term_size(&nr, &nc);
-            if (nr != frame->rows || nc != frame->cols)
+            if (nr != frame->rows || nc != frame->cols) {
                 resize_frame(arena, draw, frame);
+                re_cpu_mark_dirty_all(cpu);
+            }
             continue;
         }
         if (ev.kind == RE_EV_RESIZE) {
             resize_frame(arena, draw, frame);
+            re_cpu_mark_dirty_all(cpu);
             continue;
         }
         if (handle_key(cpu, focus, session, keys, &ev, &quit))
