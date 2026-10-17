@@ -96,6 +96,19 @@ static bool decode_mouse(const uint8_t *b, size_t len, const uint32_t *p, size_t
 // function key numbers are not contiguous in the protocol, so each group is mapped onto
 // the contiguous range the key names use. False for a number this table does not know,
 // which is the honest answer for a terminal with more keys than the view has commands.
+static bool decode_fn_tilde(uint32_t p0, re_ev_t *out) {
+    /* CSI n~ function keys: 11-15 F1-F5, 17-21 F6-F10, 23-24 F11-F12. */
+    static const uint32_t kCode[12] = {11, 12, 13, 14, 15, 17, 18, 19, 20, 21, 23, 24};
+    size_t i;
+    for (i = 0; i < 12u; i++) {
+        if (kCode[i] != p0)
+            continue;
+        out->key = RE_KEY_F1 + (uint32_t)i;
+        return true;
+    }
+    return false;
+}
+
 static bool decode_tilde(uint32_t p0, re_ev_t *out) {
     switch (p0) {
         case 1:
@@ -118,28 +131,13 @@ static bool decode_tilde(uint32_t p0, re_ev_t *out) {
         case 6:
             out->key = RE_KEY_PGDN;
             break;
-        case 11:
-        case 15:
-            out->key = RE_KEY_F1;
-            break;
-        case 17:
-        case 18:
-        case 19:
-        case 20:
-        case 21:
-            out->key = RE_KEY_F1 + (p0 - 10u);
-            break;
-        case 23:
-        case 24:
-            out->key = RE_KEY_F12;
-            break;
         default:
-            return false;
+            return decode_fn_tilde(p0, out);
     }
     return true;
 }
 
-// The single letter finals: the arrows, Home, End and shift-tab.
+// The single letter finals: the arrows, Home, End, shift-tab, and SS3 F1-F4.
 static bool decode_letter(uint8_t fin, re_ev_t *out) {
     switch (fin) {
         case 'A':
@@ -162,6 +160,18 @@ static bool decode_letter(uint8_t fin, re_ev_t *out) {
             break;
         case 'Z':
             out->key = RE_KEY_STAB;
+            break;
+        case 'P':
+            out->key = RE_KEY_F1;
+            break;
+        case 'Q':
+            out->key = RE_KEY_F2;
+            break;
+        case 'R':
+            out->key = RE_KEY_F3;
+            break;
+        case 'S':
+            out->key = RE_KEY_F4;
             break;
         default:
             return false;
@@ -232,7 +242,10 @@ static size_t decode_utf8(const uint8_t *b, size_t n, re_ev_t *out) {
 // are indistinguishable without a timing rule this decoder does not have, and Alt is
 // assumed because a bare Escape still leaves the view when it is the same number.
 static size_t decode_escape(const uint8_t *b, size_t n, re_ev_t *out) {
-    uint8_t nxt = b[1];
+    uint8_t nxt;
+    if (n < 2)
+        return 0;
+    nxt = b[1];
     if (nxt == '[' || nxt == 'O') {
         size_t len = seq_len(b, n);
         if (!len)

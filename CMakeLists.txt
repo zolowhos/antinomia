@@ -120,6 +120,7 @@ add_executable(antinomia
     src/cli/cmds/re_cmds_guide.c
     src/cli/cmds/ai/re_cmds_ai.c
     src/cli/screen/re_input.c
+    src/cli/screen/re_keys.c
     src/cli/screen/re_focus.c
     src/cli/screen/re_draw.c
     src/cli/screen/re_term.c

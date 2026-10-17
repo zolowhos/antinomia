@@ -14,6 +14,8 @@ extern "C" {
 #include "utils/algo/re_hash.h"
 #include "utils/algo/re_regex.h"
 #include "utils/algo/re_sort.h"
+#include "utils/cfg/re_cfg.h"
+#include "utils/cfg/re_theme.h"
 #include "utils/json/re_jr.h"
 #include "utils/json/re_json.h"
 #include "utils/mem/re_arena.h"

@@ -13,6 +13,18 @@ if(MSVC)
 endif()
 add_test(NAME utils COMMAND re_test_utils)
 
+add_executable(re_test_cfg test_cfg.c
+    ${CMAKE_SOURCE_DIR}/src/cli/screen/re_keys.c
+    ${CMAKE_SOURCE_DIR}/src/cli/screen/re_input.c)
+target_include_directories(re_test_cfg PRIVATE ${CMAKE_SOURCE_DIR}/src)
+target_link_libraries(re_test_cfg PRIVATE re_utils re_flags)
+if(MSVC)
+    set_property(TARGET re_test_cfg
+        PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+    target_compile_definitions(re_test_cfg PRIVATE _CRT_SECURE_NO_WARNINGS)
+endif()
+add_test(NAME cfg COMMAND re_test_cfg)
+
 add_executable(re_test_tui test_tui.c)
 target_link_libraries(re_test_tui PRIVATE re_utils re_flags)
 if(MSVC)

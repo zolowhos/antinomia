@@ -37,7 +37,7 @@ void re_cpu_init(re_cpu_view_t *v) {
     memset(v, 0, sizeof(*v));
     v->focus = RE_CPU_PANE_DISASM;
     v->dump_addr = 0;
-    copy_cstr(v->status_right, sizeof(v->status_right), "tab focus  q quit");
+    copy_cstr(v->status_right, sizeof(v->status_right), "tab|F9 run|F7/8|F2 bp|q");
 }
 
 void re_cpu_set_bps(re_cpu_view_t *v, const re_cpu_bp_t *bps, size_t n) {
@@ -231,9 +231,19 @@ static void fill_dump(re_cpu_view_t *v, re_dbg_session_t *s) {
     }
 }
 
-static void fill_bps(re_cpu_view_t *v) {
-    size_t i;
+static void fill_bps(re_cpu_view_t *v, re_dbg_session_t *s) {
+    re_dbg_bp_info_t list[RE_CPU_BP_MAX];
+    size_t n = 0, i;
     v->n_bp_lines = 0;
+    if (s && re_dbg_session_bp_list(s, list, RE_CPU_BP_MAX, &n) == RE_OK && n > 0) {
+        v->n_bps = 0;
+        for (i = 0; i < n && i < RE_CPU_BP_MAX; i++) {
+            v->bps[i].addr = list[i].addr;
+            v->bps[i].enabled = list[i].enabled;
+            v->bps[i].note[0] = 0;
+            v->n_bps++;
+        }
+    }
     if (!v->n_bps) {
         line_set(&v->bp_lines[v->n_bp_lines++], "(no breakpoints)");
         return;
@@ -263,7 +273,7 @@ static void fill_status(re_cpu_view_t *v) {
     (void)snprintf(v->status_left, sizeof(v->status_left), "pid=%u tid=%u event=%s @ %016llx  %s",
                    (unsigned)v->pid, (unsigned)v->tid, re_dbg_event_kind_str(v->last_kind),
                    (unsigned long long)v->last_addr, path);
-    copy_cstr(v->status_right, sizeof(v->status_right), "tab focus  q quit");
+    copy_cstr(v->status_right, sizeof(v->status_right), "tab|F9 run|F7/8|F2 bp|q");
 }
 
 void re_cpu_fill_watches(re_cpu_view_t *v, re_dbg_session_t *s) {
@@ -308,7 +318,7 @@ void re_cpu_refresh(re_cpu_view_t *v, re_dbg_session_t *s) {
     re_cpu_fill_callstack(v, s);
     re_cpu_fill_maps(v, s);
     re_cpu_fill_threads(v, s);
-    fill_bps(v);
+    fill_bps(v, s);
     fill_graph(v, s);
     re_cpu_fill_trace(v, s);
     re_cpu_fill_watches(v, s);
