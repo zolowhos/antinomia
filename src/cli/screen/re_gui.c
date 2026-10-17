@@ -1,16 +1,18 @@
 // re_gui.c - full-screen CPU view bound to the global debug session.
 // Module: cli (C11).
 // Owns: the interactive TUI loop, focus cycling, and frame refresh.
-// Depends: re_gui.h, re_cpu, term, input, focus, draw, screen, re_dbg.
+// Depends: re_gui.h, re_cpu, term, input, focus, draw, keys, theme, screen, re_dbg.
 #include "cli/screen/re_gui.h"
 
 #include "features/debug/re_dbg.h"
 #include "features/sess/re_dbg_lock.h"
+#include "utils/cfg/re_theme.h"
 #include "utils/tui/re_screen.h"
 #include "cli/screen/re_cpu.h"
 #include "cli/screen/re_draw.h"
 #include "cli/screen/re_focus.h"
 #include "cli/screen/re_input.h"
+#include "cli/screen/re_keys.h"
 #include "cli/screen/re_term.h"
 #include "mcp/re_mcp_side.h"
 
@@ -32,26 +34,71 @@ bool re_gui_wants_file(const char *arg) {
 #endif
 }
 
-static bool handle_key(re_cpu_view_t *cpu, re_focus_t *focus, const re_ev_t *ev, bool *quit) {
+static re_err_code_t toggle_bp_at(re_dbg_session_t *session, uint64_t addr, const char **msg) {
+    re_dbg_bp_info_t list[32];
+    size_t n = 0, i;
+    bool found = false;
+    if (!addr)
+        return RE_E_USAGE;
+    (void)re_dbg_session_bp_list(session, list, 32, &n);
+    for (i = 0; i < n; i++) {
+        if (list[i].addr == addr) {
+            found = true;
+            break;
+        }
+    }
+    *msg = found ? "bc" : "bp";
+    return found ? re_dbg_session_bp_clear(session, addr) : re_dbg_session_bp_set(session, addr);
+}
+
+static void session_act(re_cpu_view_t *cpu, re_dbg_session_t *session, re_act_t act) {
+    re_err_code_t c = RE_OK;
+    const char *msg = re_keys_act_name(act);
+    uint64_t addr = cpu->rip ? cpu->rip : session->last_event.addr;
+    re_dbg_lock_acquire();
+    if (act == RE_ACT_RUN)
+        c = re_dbg_session_cont(session);
+    else if (act == RE_ACT_STEP_INTO)
+        c = re_dbg_session_step(session);
+    else if (act == RE_ACT_STEP_OVER)
+        c = re_dbg_session_step_over(session);
+    else if (act == RE_ACT_PAUSE)
+        c = re_dbg_session_pause(session);
+    else if (act == RE_ACT_TOGGLE_BP)
+        c = toggle_bp_at(session, addr, &msg);
+    re_dbg_lock_release();
+    if (c == RE_OK)
+        re_cpu_log_push(cpu, msg);
+    else
+        re_cpu_log_push(cpu, "key: unsupported");
+}
+
+static bool handle_key(re_cpu_view_t *cpu, re_focus_t *focus, re_dbg_session_t *session,
+                       const re_keys_t *keys, const re_ev_t *ev, bool *quit) {
+    re_act_t act;
     if (ev->kind != RE_EV_KEY)
         return false;
-    if (ev->key == 'q' || ev->key == 'Q' || ev->key == RE_KEY_ESCAPE) {
+    act = re_keys_match(keys, ev);
+    if (act == RE_ACT_NONE)
+        return false;
+    if (act == RE_ACT_QUIT) {
         *quit = true;
         return true;
     }
-    if (ev->key == RE_KEY_TAB) {
+    if (act == RE_ACT_FOCUS_NEXT) {
         re_cpu_focus_next(cpu);
         if (cpu->zones[cpu->focus])
             re_focus_set(focus, cpu->zones[cpu->focus]);
         return true;
     }
-    if (ev->key == RE_KEY_STAB) {
+    if (act == RE_ACT_FOCUS_PREV) {
         re_cpu_focus_prev(cpu);
         if (cpu->zones[cpu->focus])
             re_focus_set(focus, cpu->zones[cpu->focus]);
         return true;
     }
-    return false;
+    session_act(cpu, session, act);
+    return true;
 }
 
 static void handle_click(re_cpu_view_t *cpu, re_focus_t *focus, const re_screen_t *frame,
@@ -126,7 +173,8 @@ static void note_mcp_endpoint(re_cpu_view_t *cpu) {
 }
 
 static void gui_loop(re_arena_t *arena, re_draw_t *draw, re_screen_t *frame, re_focus_t *focus,
-                     re_cpu_view_t *cpu, re_dbg_session_t *session, re_term_t *term) {
+                     re_cpu_view_t *cpu, re_dbg_session_t *session, re_term_t *term,
+                     const re_keys_t *keys) {
     bool quit = false;
     while (!quit) {
         re_ev_t ev;
@@ -142,10 +190,22 @@ static void gui_loop(re_arena_t *arena, re_draw_t *draw, re_screen_t *frame, re_
             resize_frame(arena, draw, frame);
             continue;
         }
-        if (handle_key(cpu, focus, &ev, &quit))
+        if (handle_key(cpu, focus, session, keys, &ev, &quit))
             continue;
         handle_click(cpu, focus, frame, &ev);
     }
+}
+
+static void load_ux(re_theme_t *theme, re_keys_t *keys, re_cpu_view_t *cpu) {
+    if (re_theme_autoload(theme))
+        re_cpu_log_push(cpu, "theme loaded");
+    else
+        re_cpu_log_push(cpu, "theme default");
+    if (re_keys_autoload(keys))
+        re_cpu_log_push(cpu, "keys loaded");
+    else
+        re_cpu_log_push(cpu, "keys x64dbg-ish");
+    re_cpu_log_push(cpu, "F9 run F7/F8 step F2 bp F12 pause");
 }
 
 int re_cmd_gui(re_ctx_t *ctx, const char *path, int argc, char **argv) {
@@ -156,6 +216,8 @@ int re_cmd_gui(re_ctx_t *ctx, const char *path, int argc, char **argv) {
     re_focus_t focus;
     re_cpu_view_t cpu;
     re_dbg_session_t *session;
+    re_theme_t theme;
+    re_keys_t keys;
     uint16_t rows = 24, cols = 80;
     (void)argc;
     (void)argv;
@@ -176,11 +238,13 @@ int re_cmd_gui(re_ctx_t *ctx, const char *path, int argc, char **argv) {
     }
     re_focus_init(&focus);
     re_cpu_init(&cpu);
+    load_ux(&theme, &keys, &cpu);
     note_mcp_endpoint(&cpu);
     re_dbg_lock_set_owner(true);
-    gui_loop(&arena, &draw, &frame, &focus, &cpu, session, &term);
+    gui_loop(&arena, &draw, &frame, &focus, &cpu, session, &term, &keys);
     re_dbg_lock_set_owner(false);
     re_mcp_side_stop();
+    re_tui_styles_reset();
     re_term_close(&term);
     re_arena_free(&arena);
     return 0;

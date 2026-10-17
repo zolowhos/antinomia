@@ -42,7 +42,7 @@ typedef struct {
     const char *off;
 } style_t;
 
-static const style_t kStyles[RE_ST_CALL + 1] = {
+static const style_t kDefaultStyles[RE_ST_CALL + 1] = {
     {"", ""},                  // none
     {"\x1b[1;7m", "\x1b[0m"},  // title, inverted
     {"\x1b[1m", "\x1b[0m"},    // head, bold
@@ -61,6 +61,16 @@ static const style_t kStyles[RE_ST_CALL + 1] = {
     {"\x1b[31m", "\x1b[0m"},   // number, red
     {"\x1b[1;32m", "\x1b[0m"}, // call, bold green
 };
+
+static style_t kStyles[RE_ST_CALL + 1];
+static int kStylesReady;
+
+static void styles_ensure(void) {
+    if (kStylesReady)
+        return;
+    memcpy(kStyles, kDefaultStyles, sizeof(kStyles));
+    kStylesReady = 1;
+}
 
 bool re_tui_is_tty(void) {
     return RE_ISATTY(RE_FILENO(stdout)) != 0;
@@ -204,12 +214,27 @@ void re_tui_init(re_tui_t *t, re_strbuf_t *out, re_strbuf_t *scratch, bool color
 }
 
 const char *re_tui_style_on(re_style_t style) {
+    styles_ensure();
     if ((unsigned)style > (unsigned)RE_ST_CALL)
         return "";
     return kStyles[style].on;
 }
 
+void re_tui_style_set(re_style_t style, const char *on, const char *off) {
+    styles_ensure();
+    if ((unsigned)style > (unsigned)RE_ST_CALL)
+        return;
+    kStyles[style].on = on ? on : "";
+    kStyles[style].off = off ? off : "\x1b[0m";
+}
+
+void re_tui_styles_reset(void) {
+    memcpy(kStyles, kDefaultStyles, sizeof(kStyles));
+    kStylesReady = 1;
+}
+
 void re_tui_styled(re_strbuf_t *dst, const re_tui_t *t, re_style_t style, const char *s) {
+    styles_ensure();
     if (!t->color || style == RE_ST_NONE || (unsigned)style > (unsigned)RE_ST_CALL) {
         re_strbuf_puts(dst, s ? s : "");
         return;

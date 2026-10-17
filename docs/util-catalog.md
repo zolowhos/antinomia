@@ -57,6 +57,8 @@ and the helper will be needed twice or loops over bytes, add it here first.
 | `re_layout_*` | the reference screen arrangement, expressed as a struct and composed | `re_layout.h` |
 | `re_console_*` | fixed ring of short GUI console lines with scrollback | `re_console.h` |
 | `re_ui_*` | hover and click bindings over screen zones | `re_ui.h` |
+| `re_cfg_*` | UX config path search, style-name lookup, SGR escape builder | `re_cfg.h` |
+| `re_theme_*` | loadable TUI themes (ini/json SGR); apply into `re_tui` style slots | `re_theme.h` |
 
 ## Aggregator
 

@@ -58,7 +58,7 @@ strong reason.
     docs/roadmap.md      Phase 0-4 pointer
     scripts/check.py     the gate
     scripts/format.ps1   format wrapper
-    src/utils/<cat>/      shared utilities, grouped: text mem algo sys json tui
+    src/utils/<cat>/      shared utilities, grouped: text mem algo sys json tui cfg
     src/features/debug/   session + opaque OS backend vtable
     src/cli/             argv dispatch, TUI (C++17 / C11)
     src/mcp/             MCP stdio server (C++17)
