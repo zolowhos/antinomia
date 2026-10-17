@@ -178,6 +178,9 @@ jobs:
           body: |
             Clang/LLVM primary release builds of **antinomia**.
 
+            Changelog: `CHANGELOG.md`. Tutorial: `docs/x64dbg-5min.md`.
+            Clean VM: `docs/clean-vm.md`. Soak: `docs/soak.md`.
+
             ## Downloads
             - **Linux x86_64 archive**: `antinomia-${{ env.RELEASE_TAG }}-linux-x86_64.tar.gz` (preset `clang-release`)
             - **Linux x86_64 binary**: `antinomia-${{ env.RELEASE_TAG }}-linux-x86_64`
@@ -200,3 +203,6 @@ jobs:
             ```
             On Windows, expand the zip and run `antinomia.exe version` (SmartScreen
             may warn on unsigned first runs until Authenticode lands).
+
+            Phase 1 clean-VM loop: `docs/clean-vm.md`. Full 1h soak:
+            `SOAK_SECONDS=3600 scripts/soak_fuzz.sh` (`docs/soak.md`).

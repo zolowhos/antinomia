@@ -83,6 +83,9 @@ README documents the reserved layout (`debug/`, `pdb/`).
 
 ## Verify on a clean machine
 
+Full third-party checklist: **`docs/clean-vm.md`**. Tutorial for x64dbg users:
+**`docs/x64dbg-5min.md`**. Changelog: **`CHANGELOG.md`**. Soak: **`docs/soak.md`**.
+
 ```console
 # Linux
 tar -xzf antinomia-vX.Y.Z-linux-x86_64.tar.gz
@@ -100,6 +103,7 @@ cd antinomia-vX.Y.Z-windows-x86_64
 
 Smoke the Phase 1 loop from the release binary alone: launch fixture → BP →
 regs/dump → step → detach. Prefer the headless CLI/MCP path if no TTY.
+CI automates the Linux package path via `scripts/phase1_release_smoke.sh`.
 
 ## Signing / SmartScreen
 
@@ -114,6 +118,19 @@ Until secrets exist:
 - Do not recommend disabling Defender; prefer `Unblock-File` after hash check.
 - Link `docs/windows-signing.md` from the release notes.
 
+## Tag cut (zolowhos)
+
+```console
+git checkout main && git pull
+git tag -a v0.1.0 <sha> -m "antinomia v0.1.0"
+git push origin v0.1.0
+# release.yml attaches linux + windows archives to the GitHub Release
+```
+
+If the push tag permission is unavailable from CI bots, cut the annotated tag
+from a zolowhos workstation after merging the gate PR. Rebuild assets with
+Actions → Release → `workflow_dispatch` and the tag name.
+
 ## Release notes template
 
 ```text
@@ -124,4 +141,8 @@ optional symbols stubs; SHA256SUMS.
 
 Presets: clang-release / clang-cl-release. Capstone default off.
 Checklist: docs/release-checklist.md
+Changelog: CHANGELOG.md
+Tutorial: docs/x64dbg-5min.md
+Clean VM: docs/clean-vm.md
+Soak: docs/soak.md
 ```
