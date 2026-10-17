@@ -11,14 +11,16 @@ __attribute__((visibility("default")))
 #endif
 volatile int antinomia_watch = 0;
 
+/* noinline+used: clang-release LTO otherwise inlines touch into main and
+ * software BPs on the exported symbol never fire (phase1 / edu smokes). */
 #if defined(__GNUC__)
-__attribute__((visibility("default")))
+__attribute__((visibility("default"), noinline, used))
 #endif
 void antinomia_marker(void) {
 }
 
 #if defined(__GNUC__)
-__attribute__((visibility("default")))
+__attribute__((visibility("default"), noinline, used))
 #endif
 void antinomia_touch(void) {
     antinomia_watch = 0x5a;

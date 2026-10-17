@@ -308,6 +308,13 @@ if(UNIX AND NOT APPLE)
             -DSOAK_SCRIPT=${CMAKE_SOURCE_DIR}/scripts/soak_fuzz.sh
             -P ${CMAKE_CURRENT_SOURCE_DIR}/run_soak_fuzz.cmake)
     set_tests_properties(soak_fuzz PROPERTIES TIMEOUT 120)
+    # Educational fixtures: headless E2E launch/BP/regs/step/detach|kill.
+    add_test(NAME edu_fixture_smoke
+        COMMAND ${CMAKE_COMMAND} -E env
+            "ANTINOMIA=$<TARGET_FILE:antinomia>"
+            "RE_FIXTURE_BIN=$<TARGET_FILE_DIR:edu_hello_spin>"
+            bash ${CMAKE_SOURCE_DIR}/scripts/edu_fixture_smoke.sh)
+    set_tests_properties(edu_fixture_smoke PROPERTIES TIMEOUT 120)
 else()
     add_test(NAME debug COMMAND re_test_debug)
     add_test(NAME debug_p2 COMMAND re_test_debug_p2)
@@ -319,6 +326,12 @@ else()
         COMMAND ${CMAKE_COMMAND} -E echo
             "skipped until Windows step/regs land; see docs/yama-ptrace.md")
     set_tests_properties(DISABLED_debug_launch_bp_step_detach PROPERTIES DISABLED TRUE)
+    # Educational PE fixtures build + fixture_edu_* smokes; live headless E2E
+    # waits on the same Windows step/regs gap (docs/edu-fixtures.md).
+    add_test(NAME DISABLED_edu_fixture_smoke
+        COMMAND ${CMAKE_COMMAND} -E echo
+            "skipped until Windows live debug; see docs/edu-fixtures.md")
+    set_tests_properties(DISABLED_edu_fixture_smoke PROPERTIES DISABLED TRUE)
 endif()
 
 add_test(NAME smoke_version

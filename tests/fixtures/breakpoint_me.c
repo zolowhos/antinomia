@@ -16,13 +16,16 @@
 
 #if defined(_WIN32)
 #    define RE_FIXTURE_EXPORT __declspec(dllexport)
+#    define RE_FIXTURE_NOINLINE __declspec(noinline)
 #else
 #    define RE_FIXTURE_EXPORT __attribute__((visibility("default")))
+#    define RE_FIXTURE_NOINLINE __attribute__((noinline, used))
 #endif
 
 volatile int g_breakpoint_hits;
 
-RE_FIXTURE_EXPORT void breakpoint_me(void) {
+/* noinline: keep the software-BP symbol as a real call under Release/LTO. */
+RE_FIXTURE_EXPORT RE_FIXTURE_NOINLINE void breakpoint_me(void) {
     g_breakpoint_hits++;
 }
 
