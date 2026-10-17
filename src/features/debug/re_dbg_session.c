@@ -6,7 +6,7 @@
 #include "features/debug/re_dbg.h"
 #include "features/debug/re_dbg_bp.h"
 #include "features/disasm/re_disasm_annot.h"
-#include "features/sess/re_dbg_lock.h"
+#include "features/sess/re_dbg_coalesce.h"
 #include "features/trace/re_dbg_trace.h"
 
 #include <string.h>
@@ -308,96 +308,9 @@ re_err_code_t re_dbg_session_pause(re_dbg_session_t *s) {
     return note(s, RE_OK, NULL);
 }
 
-/* Returns true when a soft-BP rearm STEP was swallowed and the inferior resumed. */
-static bool post_event(re_dbg_session_t *s, re_dbg_event_t *ev) {
-    bool consumed = false;
-    bool ours = false;
-    if (!ev)
-        return false;
-    if (s->bps && ev->kind == RE_DBG_EV_BREAKPOINT) {
-        ours = re_dbg_bp_on_hit(s->bps, s->backend, ev->tid, &ev->addr);
-        if (ours)
-            (void)re_dbg_session_cond_on_break(s, ev);
-    }
-    if (s->advbp && (ev->kind == RE_DBG_EV_BREAKPOINT || ev->kind == RE_DBG_EV_STEP)) {
-        if (re_dbg_advbp_on_break(s->advbp, s->backend, ev->tid, &ev->addr))
-            ev->kind = RE_DBG_EV_BREAKPOINT;
-    }
-    if (s->bps && ev->kind == RE_DBG_EV_STEP) {
-        (void)re_dbg_bp_after_step(s->bps, s->backend, &consumed);
-        if (consumed)
-            ev->kind = RE_DBG_EV_NONE;
-    }
-    if (ev->kind == RE_DBG_EV_EXCEPTION)
-        (void)re_dbg_ex_filter(s->bps, s->backend, ev);
-    return consumed;
-}
-
-static bool load_bp_should_stop(re_dbg_session_t *s, re_dbg_event_t *ev) {
-    re_dbg_module_t mods[64];
-    size_t n = 0, i;
-    if (!s->advbp || !re_dbg_advbp_has_load(s->advbp))
-        return true;
-    if (ev->kind == RE_DBG_EV_BREAK && re_dbg_advbp_is_rendezvous(s->advbp, ev->addr)) {
-        ev->kind = RE_DBG_EV_LOAD_MODULE;
-        return true;
-    }
-    if (ev->kind != RE_DBG_EV_LOAD_MODULE)
-        return true;
-    if (re_dbg_session_enum_modules(s, mods, 64, &n) != RE_OK)
-        return true;
-    for (i = 0; i < n; i++) {
-        if (mods[i].base == ev->addr && re_dbg_advbp_load_matches(s->advbp, mods[i].path))
-            return true;
-    }
-    return !re_dbg_advbp_has_load(s->advbp);
-}
-
 re_err_code_t re_dbg_session_wait_event(re_dbg_session_t *s, re_dbg_event_t *ev,
                                         uint32_t timeout_ms) {
-    re_dbg_event_t local;
-    re_err_code_t c = need_backend(s);
-    if (c != RE_OK)
-        return c;
-    if (!ev)
-        ev = &local;
-    memset(ev, 0, sizeof(*ev));
-    if (!s->backend->vt->wait_event)
-        return note(s, RE_E_UNSUPPORTED, "wait_event is not available on this backend");
-    for (;;) {
-        bool skipped;
-        /* Unlock across the OS wait so MCP can queue without stalling it. */
-        re_dbg_lock_before_wait();
-        c = s->backend->vt->wait_event(s->backend, ev, timeout_ms);
-        re_dbg_lock_after_wait();
-        if (c != RE_OK)
-            return note(s, c, "wait_event failed or is not implemented");
-        skipped = post_event(s, ev);
-        if (ev->kind != RE_DBG_EV_NONE && !load_bp_should_stop(s, ev)) {
-            if (s->backend->vt->cont)
-                (void)s->backend->vt->cont(s->backend);
-            continue;
-        }
-        if (ev->kind != RE_DBG_EV_NONE)
-            break;
-        /* Rearm STEP was swallowed and inferior resumed; wait for a real stop. */
-        if (skipped)
-            continue;
-        if (timeout_ms != 0)
-            break;
-    }
-    s->last_event = *ev;
-    if (ev->pid)
-        s->pid = ev->pid;
-    /* Do not adopt THREAD_CREATE tids: Linux auto-continues the new thread, so
-     * GETREGS on that tid races with ESRCH. Prefer stop events / prior tid. */
-    if (ev->tid && ev->kind != RE_DBG_EV_THREAD_CREATE && ev->kind != RE_DBG_EV_THREAD_EXIT)
-        s->tid = ev->tid;
-    /* Pack G: when recording, capture insn stream + regs on step/break stops. */
-    if (s->trace && s->trace->recording &&
-        (ev->kind == RE_DBG_EV_STEP || ev->kind == RE_DBG_EV_BREAKPOINT))
-        (void)re_dbg_session_trace_capture(s);
-    return note(s, RE_OK, NULL);
+    return re_dbg_coalesce_wait(s, ev, timeout_ms);
 }
 
 re_err_code_t re_dbg_session_get_regs(re_dbg_session_t *s, uint32_t tid, re_dbg_regs_t *out) {
