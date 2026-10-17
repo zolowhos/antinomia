@@ -80,50 +80,39 @@ presets: `clang-release`, `clang-debug`, `clang-asan`, `clang-cl-release`,
 Windows builds are covered by CI (`clang-cl-release` on `windows-2022`).
 
 Linux attach needs a workable Yama `ptrace_scope` (launch works on the common
-default of `1`). See [`docs/yama-ptrace.md`](docs/yama-ptrace.md).
+default of `1`). FAQ: [`docs/yama-ptrace.md`](docs/yama-ptrace.md).
 
 ## Commands
 
 Every command also works as a plain command, so nothing is locked inside a session.
-Phase 0 stubs return clear not-implemented JSON and still exercise the backend
-vtable so both OSes link.
+The same table feeds argv, the TUI bar, and MCP `tools/list`.
+
+**Full reference:** [`docs/commands.md`](docs/commands.md) ·
+**Expressions:** [`docs/expression-grammar.md`](docs/expression-grammar.md) ·
+**Caps matrix:** [`docs/backend-caps.md`](docs/backend-caps.md) ·
+**x64dbg aliases:** [`docs/x64dbg-migration.md`](docs/x64dbg-migration.md)
 
 | Command | What it answers |
 |---|---|
-| `gui [file]` | Full screen empty debugger view, in the terminal |
+| `gui [file]` | Full screen debugger view in the terminal |
 | `shell` | Line oriented prompt for driving the debug commands |
-| `status` | Session status: attached flag, pid, backend stub name |
-| `launch <file>` | Launch a target under the debugger (stub) |
-| `attach <pid>` | Attach to a running process (stub) |
-| `detach` | Detach from the current target (stub) |
-| `wait_event` | Wait for the next debug event (stub) |
-| `cont` | Continue execution (stub) |
-| `step` | Single step (stub) |
-| `regs` | Read GPRs + RIP/RSP/RFLAGS |
-| `set_regs` | Write GPRs as `name=value` pairs |
-| `d [addr]` | Hex dump at address (default RIP) |
-| `u [addr]` | Disassemble at address (default RIP); comments for strings/modules |
-| `graph` / `cfg` | Function-local control-flow graph (basic blocks) |
-| `find` / `search` | Search memory for hex / `"str"` / `u32:value` patterns |
-| `mem_read` | Read target memory as hex |
-| `mem_write` | Write hex bytes; invalidates disasm cache |
-| `a` / `asm` | Assemble at address and patch memory |
-| `patchlist` | List live memory patches |
-| `patchwrite` / `writeback` | Write patches back to PE/ELF (`*.patched`) |
-| `threads` | List threads (stub) |
-| `modules` / `lm` | List loaded modules (maps / load events) |
-| `sym` | Resolve `module:symbol` via PE export / ELF dynsym |
-| `bt` | Stack walk v0 (frame pointer or RSP dump) |
-| `script` / `source` | Run a file of debugger commands |
-| `headless` | Same as script; JSON summary includes `exit` for CI |
-| `triage-live` | Live triage: modules, entry, interesting imports, anti-debug |
+| `status` / `caps` | Session status; backend capability bits |
+| `init` / `launch <file>` | Launch a target under the debugger |
+| `attach <pid>` | Attach to a running process (see Yama FAQ) |
+| `detach` / `kill` | Detach or kill the current target |
+| `run` / `g` / `cont` | Continue execution |
+| `sti` / `t` / `step` | Step into |
+| `sto` / `p` | Step over |
+| `pause` | Interrupt the target |
+| `bp` / `bc` / `bplist` / `bph` / `bpm` | Software / hardware / DR-backed memory BPs |
+| `expr` / `?` / `watch` | Evaluate expressions; watches |
+| `regs` / `set_regs` | Read / write GPRs + RIP/RSP/RFLAGS |
+| `d` / `u` / `maps` / `bt` | Dump, disasm, memory map, call stack |
+| `modules` / `lm` / `sym` / `src` | Modules and symbols |
+| `script` / `headless` / `state` | Scripts and agent snapshots |
+| `triage-live` | Live triage: modules, entry, imports, anti-debug |
 | ida-mcp shims | Optional honest aliases — see `docs/ida-mcp-shims.md` |
-| `note` / `notes` | Session notes with `{rax}` / `{$var}` formatting |
-| `log` | Append or list log lines (`{rax}` format; BP logs join this ring) |
-| `traces` | List/clear trace records with `--limit` / `--offset` paging |
-| `help` | Print usage |
-| `version` | Print version and schema |
-| `mcp` | Run the MCP server over stdio |
+| `help` / `version` / `mcp` | Usage, version+schema, MCP server |
 
 ### Flags
 
