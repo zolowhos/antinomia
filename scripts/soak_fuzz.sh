@@ -12,6 +12,7 @@ SEED="${SOAK_SEED:-1}"
 ROUNDS_CAP="${SOAK_ROUNDS:-0}"
 SYM_BP="loop_inferior:antinomia_touch"
 SYM_MARK="loop_inferior:antinomia_marker"
+SYM_WATCH="loop_inferior:antinomia_watch"
 
 usage() {
   cat >&2 <<'EOF'
@@ -71,15 +72,19 @@ write_round_script() {
           ;;
         2)
           echo "bp ${SYM_BP}"
+          echo "bph ${SYM_WATCH} 4 w"
           echo "run"
           echo "wait_event 3000"
+          echo "regs"
           echo "sti"
           ;;
         3)
           echo "bp ${SYM_BP}"
+          echo "bph ${SYM_WATCH} 4 w"
           echo "run"
           echo "wait_event 3000"
           echo "sto"
+          echo "wait_event 2000"
           ;;
         4)
           echo "regs"
