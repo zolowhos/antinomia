@@ -16,13 +16,16 @@
 
 #if defined(_WIN32)
 #    define RE_FIXTURE_EXPORT __declspec(dllexport)
+#    define RE_FIXTURE_NOINLINE __declspec(noinline)
 #else
 #    define RE_FIXTURE_EXPORT __attribute__((visibility("default")))
+#    define RE_FIXTURE_NOINLINE __attribute__((noinline, used))
 #endif
 
 volatile unsigned long g_ticks;
 
-RE_FIXTURE_EXPORT void tick(void) {
+/* noinline: keep the step/BP tick symbol callable under Release/LTO. */
+RE_FIXTURE_EXPORT RE_FIXTURE_NOINLINE void tick(void) {
     g_ticks++;
 }
 
