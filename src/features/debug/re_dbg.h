@@ -132,6 +132,8 @@ typedef struct {
 #define RE_DBG_NOTE_MAX 32
 #define RE_DBG_NOTE_LEN 96
 #define RE_DBG_TRACE_MAX 256
+/* Backend + CLI enum_modules capacity (Chrome/Electron-class DLL counts). */
+#define RE_DBG_MAX_MODULES 512
 
 /* Trace record v0 (Pack I paging surface; Pack G fills richer streams). */
 typedef struct {
@@ -257,7 +259,9 @@ typedef struct re_dbg_session {
     size_t trace_n;
     uint32_t eval_hit_count;   /* $hitcount during conditional BP eval */
     uint64_t follow_dump;      /* maps follow -> dump default address */
-    uint32_t events_coalesced; /* soft events dropped by wait coalesce */
+    uint32_t events_coalesced; /* soft + BP-storm events dropped by wait coalesce */
+    uint32_t bp_storms;        /* same-addr multi-thread BP hits collapsed */
+    int32_t exit_code;         /* set when last_event is EXIT; valid after detach */
 } re_dbg_session_t;
 
 re_dbg_backend_t *re_dbg_backend_create(re_arena_t *a);

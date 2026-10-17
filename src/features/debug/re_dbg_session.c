@@ -41,6 +41,8 @@ static void clear_target(re_dbg_session_t *s) {
     s->tid = 0;
     s->path[0] = s->replay_path[0] = 0;
     s->offline_replay = false;
+    s->exit_code = 0;
+    s->bp_storms = 0;
     memset(&s->last_event, 0, sizeof(s->last_event));
 }
 
@@ -79,8 +81,11 @@ static re_err_code_t need_attached(re_dbg_session_t *s) {
     re_err_code_t c = need_backend(s);
     if (c != RE_OK)
         return c;
-    if (!s->attached)
+    if (!s->attached) {
+        if (s->last_event.kind == RE_DBG_EV_EXIT)
+            return note(s, RE_E_USAGE, "inferior exited");
         return note(s, RE_E_USAGE, "not attached");
+    }
     return RE_OK;
 }
 

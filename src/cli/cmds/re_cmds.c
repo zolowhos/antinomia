@@ -12,7 +12,6 @@
 
 #include <stdlib.h>
 #include <string.h>
-
 static re_dbg_session_t *sess(re_ctx_t *ctx) {
     if (ctx->session)
         return ctx->session;
@@ -111,6 +110,8 @@ int re_cmd_status(re_ctx_t *ctx, const char *path, int argc, char **argv) {
     re_jw_obj_end(&w);
     re_jw_ku64(&w, "caps", re_dbg_session_caps(s).bits);
     re_jw_ku64(&w, "events_coalesced", s->events_coalesced);
+    re_jw_ku64(&w, "bp_storms", s->bp_storms);
+    re_jw_ki64(&w, "exit_code", s->exit_code);
     re_jw_obj_end(&w);
     re_jw_flush(&w, re_ctx_out(ctx));
     return 0;
@@ -157,7 +158,6 @@ int re_cmd_kill(re_ctx_t *ctx, const char *path, int argc, char **argv) {
     return finish(ctx, "kill", re_dbg_session_kill(sess(ctx)),
                   "kill is not implemented yet; waiting on OS backends");
 }
-
 int re_cmd_wait_event(re_ctx_t *ctx, const char *path, int argc, char **argv) {
     re_dbg_event_t ev;
     re_err_code_t c;

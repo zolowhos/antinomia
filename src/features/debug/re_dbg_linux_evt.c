@@ -72,13 +72,18 @@ static void handle_exit_event(re_dbg_linux_t *st, pid_t tid) {
     unsigned long code = 0;
     (void)ptrace(PTRACE_GETEVENTMSG, tid, NULL, &code);
     if (tid == st->pid) {
-        re_dbg_linux_q_push(st, RE_DBG_EV_EXIT, tid, 0, (int32_t)code);
-    } else {
-        re_dbg_linux_tid_del(st, tid);
-        re_dbg_linux_q_push(st, RE_DBG_EV_THREAD_EXIT, tid, 0, 0);
+        /* Collapse PTRACE_EVENT_EXIT + WIFEXITED into one EXIT: resume so the
+         * real reaping wait delivers a single event (avoids double-exit races). */
+        st->exiting = true;
+        st->exit_code = (int32_t)code;
         (void)ptrace(PTRACE_CONT, tid, NULL, NULL);
         st->stopped = false;
+        return;
     }
+    re_dbg_linux_tid_del(st, tid);
+    re_dbg_linux_q_push(st, RE_DBG_EV_THREAD_EXIT, tid, 0, 0);
+    (void)ptrace(PTRACE_CONT, tid, NULL, NULL);
+    st->stopped = false;
 }
 
 static void decode_sigtrap(re_dbg_linux_t *st, pid_t tid, int status) {
@@ -166,9 +171,18 @@ static re_err_code_t wait_one(re_dbg_linux_t *st, uint32_t timeout_ms) {
         }
         if (WIFEXITED(status) || WIFSIGNALED(status)) {
             int32_t code = WIFEXITED(status) ? WEXITSTATUS(status) : -WTERMSIG(status);
-            re_dbg_linux_q_push(st, RE_DBG_EV_EXIT, w, 0, code);
-            if (w == st->pid)
+            if (w == st->pid) {
+                if (st->exiting)
+                    code = st->exit_code;
+                re_dbg_linux_q_push(st, RE_DBG_EV_EXIT, w, 0, code);
                 st->attached = false;
+                st->exiting = false;
+                st->exit_code = code;
+                st->stopped = false;
+            } else {
+                /* Non-main tid reaped after PTRACE_EVENT_EXIT + CONT. */
+                re_dbg_linux_q_push(st, RE_DBG_EV_THREAD_EXIT, w, 0, 0);
+            }
             re_dbg_linux_tid_del(st, w);
             return RE_OK;
         }
@@ -207,7 +221,7 @@ re_err_code_t re_dbg_linux_cont(re_dbg_backend_t *b) {
     if (!st)
         return RE_E_INTERNAL;
     if (!st->attached)
-        return re_dbg_linux_fail(st, RE_E_USAGE, "not attached");
+        return re_dbg_linux_fail(st, RE_E_USAGE, "inferior exited");
     pid_t tid = st->cur_tid > 0 ? st->cur_tid : st->pid;
     sig = st->pass_sig;
     st->pass_sig = 0;

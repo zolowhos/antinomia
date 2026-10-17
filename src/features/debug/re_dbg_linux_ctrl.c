@@ -200,11 +200,14 @@ re_err_code_t re_dbg_linux_detach(re_dbg_backend_t *b) {
     re_dbg_linux_t *st = re_dbg_linux(b);
     if (!st)
         return RE_E_INTERNAL;
-    if (!st->attached)
-        return re_dbg_linux_fail(st, RE_E_USAGE, "not attached");
+    /* Idempotent after EXIT / ESRCH: session may still call detach. */
+    if (!st->attached) {
+        re_dbg_linux_clear(st);
+        return RE_OK;
+    }
     pid_t pid = st->pid;
     if (ptrace(PTRACE_DETACH, st->cur_tid > 0 ? st->cur_tid : pid, NULL, NULL) != 0) {
-        if (ptrace(PTRACE_DETACH, pid, NULL, NULL) != 0)
+        if (errno != ESRCH && ptrace(PTRACE_DETACH, pid, NULL, NULL) != 0 && errno != ESRCH)
             return re_dbg_linux_fail_errno(st, "PTRACE_DETACH");
     }
     re_dbg_linux_clear(st);
@@ -215,8 +218,10 @@ re_err_code_t re_dbg_linux_kill(re_dbg_backend_t *b) {
     re_dbg_linux_t *st = re_dbg_linux(b);
     if (!st)
         return RE_E_INTERNAL;
-    if (!st->attached)
-        return re_dbg_linux_fail(st, RE_E_USAGE, "not attached");
+    if (!st->attached) {
+        re_dbg_linux_clear(st);
+        return RE_OK;
+    }
     pid_t pid = st->pid;
     bool child = st->our_child;
     if (kill(pid, SIGKILL) != 0 && errno != ESRCH)
