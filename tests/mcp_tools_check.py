@@ -58,6 +58,7 @@ REQUIRED = [
     "explain",
     "suggest_bp",
     "summarize_ex",
+    "privacy",
     "replay.open",
     "replay.close",
     "replay.query",

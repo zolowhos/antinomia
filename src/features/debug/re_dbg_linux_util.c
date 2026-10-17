@@ -31,6 +31,15 @@ re_err_code_t re_dbg_linux_fail(re_dbg_linux_t *st, re_err_code_t code, const ch
 re_err_code_t re_dbg_linux_fail_errno(re_dbg_linux_t *st, const char *what) {
     char buf[RE_ERR_MSG_MAX];
     int e = errno;
+    if (e == ESRCH) {
+        /* Inferior (or tid) vanished mid-op: clear attach so session races stop. */
+        if (st) {
+            st->attached = false;
+            st->stopped = false;
+            st->exiting = false;
+        }
+        return re_dbg_linux_fail(st, RE_E_IO, "inferior exited");
+    }
     if (e == EPERM || e == EACCES) {
         snprintf(buf, sizeof(buf),
                  "%s denied (errno %d); check Yama ptrace_scope in "

@@ -46,8 +46,9 @@ void print_usage() {
             continue;
         std::fprintf(stderr, "  %-28s %s\n", table[i].usage, table[i].summary);
     }
-    std::fprintf(stderr, "\n  global flags: --format json|text  --limit N  --offset N\n");
+    std::fprintf(stderr, "\n  global flags: --format json|text  --limit N  --offset N  --seed N\n");
     std::fprintf(stderr, "  every response carries schema \"%s\"\n", kSchema);
+    std::fprintf(stderr, "  privacy: no telemetry; see docs/privacy.md\n");
 }
 
 int report_error(const re_err_t &err) {

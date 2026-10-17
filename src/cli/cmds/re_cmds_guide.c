@@ -19,7 +19,7 @@
 #    include <unistd.h>
 #endif
 
-#define RE_TRIAGE_MOD_MAX 64u
+#define RE_TRIAGE_MOD_MAX 256u
 #define RE_TRIAGE_IMPORT_MAX 24u
 
 static re_dbg_session_t *sess(re_ctx_t *ctx) {

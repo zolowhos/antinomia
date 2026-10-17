@@ -283,10 +283,19 @@ re_err_code_t re_dbg_win_set_pass(re_dbg_backend_t *b, bool pass, int32_t code) 
 
 re_err_code_t re_dbg_win_cont(re_dbg_backend_t *b) {
     re_dbg_win_impl_t *w = re_dbg_win_impl(b);
-    if (!w || !w->pending)
+    if (!w)
+        return RE_E_INTERNAL;
+    if (!w->active)
+        return RE_E_USAGE; /* inferior already exited / reset */
+    if (!w->pending)
         return RE_E_USAGE;
-    if (!re_dbg_win_continue(w, w->cont_status))
+    if (!re_dbg_win_continue(w, w->cont_status)) {
+        if (w->saw_exit) {
+            re_dbg_win_reset_state(w);
+            return RE_OK;
+        }
         return RE_E_IO;
+    }
     w->stashed = false;
     if (w->saw_exit)
         re_dbg_win_reset_state(w);

@@ -10,7 +10,7 @@
 #include <windows.h>
 
 #define RE_DBG_WIN_MAX_THR 64
-#define RE_DBG_WIN_MAX_MOD 128
+#define RE_DBG_WIN_MAX_MOD RE_DBG_MAX_MODULES
 
 typedef struct {
     DWORD tid;

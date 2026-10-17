@@ -40,6 +40,7 @@ and the helper will be needed twice or loops over bytes, add it here first.
 | `re_bswap*` | byte swap for the big endian ELF and Mach-O readers | `re_bits.h` |
 | `re_crc_*` | CRC-16/X-25 and CRC-32/IEEE, call `re_crc_init` once | `re_crc.h` |
 | `re_hash_*` | MD5 and SHA-256, one shot or streaming | `re_hash.h` |
+| `re_rng_*` | seeded LCG + index shuffle for deterministic `--seed` analysis | `re_seed.h` |
 
 ## Search, paths and diagnostics
 

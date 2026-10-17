@@ -31,6 +31,8 @@ typedef struct re_ctx {
     size_t offset;
     uint64_t off;
     uint64_t len;
+    uint64_t seed;
+    bool seed_set;
     bool no_color;
     void *stream;
     // Borrowed long-lived debug session, or NULL for a one-shot command.

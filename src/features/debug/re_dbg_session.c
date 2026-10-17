@@ -41,6 +41,8 @@ static void clear_target(re_dbg_session_t *s) {
     s->tid = 0;
     s->path[0] = s->replay_path[0] = 0;
     s->offline_replay = false;
+    s->exit_code = 0;
+    s->bp_storms = 0;
     memset(&s->last_event, 0, sizeof(s->last_event));
 }
 
@@ -79,8 +81,11 @@ static re_err_code_t need_attached(re_dbg_session_t *s) {
     re_err_code_t c = need_backend(s);
     if (c != RE_OK)
         return c;
-    if (!s->attached)
+    if (!s->attached) {
+        if (s->last_event.kind == RE_DBG_EV_EXIT)
+            return note(s, RE_E_USAGE, "inferior exited");
         return note(s, RE_E_USAGE, "not attached");
+    }
     return RE_OK;
 }
 
@@ -192,26 +197,39 @@ re_err_code_t re_dbg_session_attach(re_dbg_session_t *s, uint32_t pid) {
     return note(s, RE_OK, NULL);
 }
 
-re_err_code_t re_dbg_session_detach(re_dbg_session_t *s) {
-    re_err_code_t c = need_backend(s);
-    if (c != RE_OK)
-        return c;
-    if (s->attached && s->bps)
-        (void)re_dbg_bp_disarm_all(s->bps, s->backend);
-    if (s->attached && s->advbp)
-        (void)re_dbg_advbp_disarm_all(s->advbp, s->backend);
-    if (!s->backend->vt->detach)
-        return note(s, RE_E_UNSUPPORTED, "detach is not available on this backend");
-    save_db_if_dirty(s);
-    c = s->backend->vt->detach(s->backend);
-    if (c != RE_OK)
-        return note(s, c, "detach failed or is not implemented");
+static void wipe_target_state(re_dbg_session_t *s) {
     clear_target(s);
     re_disasm_cache_clear(&s->disasm_cache);
     if (s->bps)
         re_dbg_bps_clear(s->bps);
     if (s->advbp)
         re_dbg_advbp_clear(s->advbp);
+}
+
+re_err_code_t re_dbg_session_detach(re_dbg_session_t *s) {
+    re_err_code_t c = need_backend(s);
+    if (c != RE_OK)
+        return c;
+    if (!s->backend->vt->detach)
+        return note(s, RE_E_UNSUPPORTED, "detach is not available on this backend");
+    /* Never attached: keep RE_E_USAGE. After EXIT: drop leftover debug port. */
+    if (!s->attached) {
+        if (s->last_event.kind != RE_DBG_EV_EXIT)
+            return note(s, RE_E_USAGE, "not attached");
+        save_db_if_dirty(s);
+        (void)s->backend->vt->detach(s->backend);
+        wipe_target_state(s);
+        return note(s, RE_OK, NULL);
+    }
+    if (s->bps)
+        (void)re_dbg_bp_disarm_all(s->bps, s->backend);
+    if (s->advbp)
+        (void)re_dbg_advbp_disarm_all(s->advbp, s->backend);
+    save_db_if_dirty(s);
+    c = s->backend->vt->detach(s->backend);
+    if (c != RE_OK)
+        return note(s, c, "detach failed or is not implemented");
+    wipe_target_state(s);
     return note(s, RE_OK, NULL);
 }
 
@@ -221,16 +239,19 @@ re_err_code_t re_dbg_session_kill(re_dbg_session_t *s) {
         return c;
     if (!s->backend->vt->kill)
         return note(s, RE_E_UNSUPPORTED, "kill is not available on this backend");
+    if (!s->attached) {
+        if (s->last_event.kind != RE_DBG_EV_EXIT)
+            return note(s, RE_E_USAGE, "not attached");
+        save_db_if_dirty(s);
+        (void)s->backend->vt->kill(s->backend);
+        wipe_target_state(s);
+        return note(s, RE_OK, NULL);
+    }
     save_db_if_dirty(s);
     c = s->backend->vt->kill(s->backend);
     if (c != RE_OK)
         return note(s, c, "kill failed or is not implemented");
-    clear_target(s);
-    re_disasm_cache_clear(&s->disasm_cache);
-    if (s->bps)
-        re_dbg_bps_clear(s->bps);
-    if (s->advbp)
-        re_dbg_advbp_clear(s->advbp);
+    wipe_target_state(s);
     return note(s, RE_OK, NULL);
 }
 

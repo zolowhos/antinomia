@@ -453,7 +453,7 @@ static re_err_code_t resolve_one(re_dbg_session_t *s, const re_dbg_module_t *m, 
 
 re_err_code_t re_dbg_session_resolve(re_dbg_session_t *s, const char *query, uint64_t *addr_out,
                                      re_dbg_symbol_t *info_out) {
-    re_dbg_module_t mods[128];
+    static re_dbg_module_t mods[RE_DBG_MAX_MODULES];
     size_t n = 0, i;
     char mod[64];
     const char *sym;
@@ -481,7 +481,7 @@ re_err_code_t re_dbg_session_resolve(re_dbg_session_t *s, const char *query, uin
     }
     if (!sym[0])
         return RE_E_USAGE;
-    c = re_dbg_session_enum_modules(s, mods, 128, &n);
+    c = re_dbg_session_enum_modules(s, mods, RE_DBG_MAX_MODULES, &n);
     if (c != RE_OK)
         return c;
     exp = re_sym_export_create(&s->arena);
