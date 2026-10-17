@@ -60,9 +60,7 @@ static void test_exit_clears_attached(void) {
     ev.pid = 4242;
     ev.tid = 4242;
     ev.code = 7;
-    /* Drive apply via coalesce_wait with a stub: call wait on real backend
-     * would fail; instead verify session fields and need_attached path after
-     * manual apply through coalesce by simulating post-wait state. */
+    /* Simulate post-wait EXIT apply without a live inferior. */
     s.last_event = ev;
     s.exit_code = ev.code;
     s.attached = false;
@@ -71,10 +69,17 @@ static void test_exit_clears_attached(void) {
     RE_CHECK_EQ_U(re_dbg_session_cont(&s), RE_E_USAGE);
     RE_CHECK(strstr(s.last_err.msg, "inferior exited") != NULL ||
              strstr(s.last_err.msg, "not attached") != NULL);
-    /* Prefer the exit-specific message when last_event is EXIT. */
     s.last_event.kind = RE_DBG_EV_EXIT;
     RE_CHECK_EQ_U(re_dbg_session_step(&s), RE_E_USAGE);
     RE_CHECK(strstr(s.last_err.msg, "inferior exited") != NULL);
+    /* Never attached: USAGE. After EXIT: detach OK (idempotent). */
+    re_dbg_session_free(&s);
+    re_dbg_session_init(&s);
+    RE_CHECK_EQ_U(re_dbg_session_detach(&s), RE_E_USAGE);
+    RE_CHECK_EQ_U(re_dbg_session_kill(&s), RE_E_USAGE);
+    s.last_event.kind = RE_DBG_EV_EXIT;
+    s.exit_code = 0;
+    RE_CHECK_EQ_U(re_dbg_session_detach(&s), RE_OK);
     re_dbg_session_free(&s);
 }
 

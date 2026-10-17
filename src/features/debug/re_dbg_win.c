@@ -260,13 +260,8 @@ static re_err_code_t win_attach(re_dbg_backend_t *b, uint32_t pid) {
 static re_err_code_t win_detach(re_dbg_backend_t *b) {
     re_dbg_win_impl_t *w = re_dbg_win_impl(b);
     DWORD pid;
-    if (!w)
-        return RE_E_INTERNAL;
-    /* Idempotent after EXIT: session may still call detach. */
-    if (!w->active) {
-        re_dbg_win_reset_state(w);
-        return RE_OK;
-    }
+    if (!w || !w->active)
+        return RE_E_USAGE;
     pid = w->pid;
     DebugSetProcessKillOnExit(FALSE);
     if (w->pending && !re_dbg_win_continue(w, DBG_CONTINUE)) {
@@ -282,12 +277,8 @@ static re_err_code_t win_detach(re_dbg_backend_t *b) {
 
 static re_err_code_t win_kill(re_dbg_backend_t *b) {
     re_dbg_win_impl_t *w = re_dbg_win_impl(b);
-    if (!w)
-        return RE_E_INTERNAL;
-    if (!w->active) {
-        re_dbg_win_reset_state(w);
-        return RE_OK;
-    }
+    if (!w || !w->active)
+        return RE_E_USAGE;
     DebugSetProcessKillOnExit(TRUE);
     if (w->process)
         TerminateProcess(w->process, 1);
