@@ -1,35 +1,59 @@
-# yama-ptrace.md - Linux Yama and ptrace attach requirements for antinomia.
+# yama-ptrace.md - Linux Yama / attach FAQ for antinomia.
 # Module: docs (Markdown).
-# Owns: attach and CI guidance for ptrace_scope and CAP_SYS_PTRACE.
-# Depends: none. Companion to Phase 1 process-control backends.
+# Owns: ptrace_scope FAQ, launch vs attach, privilege JSON, CI guidance.
+# Depends: Linux backend attach/launch; companion to docs/backend-caps.md.
+
+# Linux Yama / attach FAQ
 
 antinomia drives inferiors through the Linux `ptrace` API (`PTRACE_TRACEME` on
 launch, `PTRACE_SEIZE` / `PTRACE_ATTACH` on attach). The kernel Yama LSM can
-deny attach even when the binary is otherwise correct.
+deny attach even when the binary is otherwise correct. Windows attach uses
+`SeDebugPrivilege` — see the short note at the end.
 
-## What to check
+## Quick answers
 
-| Setting | Path | Typical meaning |
-|---|---|---|
-| Yama scope | `/proc/sys/kernel/yama/ptrace_scope` | 0 = classic; 1 = restricted attach (default on many distros); 2/3 = admin-only |
-| Capability | `CAP_SYS_PTRACE` | Needed for some cross-uid attach cases; not required for same-uid launch |
+### Why does `attach <pid>` fail with privilege / EPERM?
 
-Read the current value:
+Yama `ptrace_scope` is almost always the cause on modern distros. Read it:
 
 ```console
 $ cat /proc/sys/kernel/yama/ptrace_scope
 ```
 
-## Launch vs attach
+| Value | Meaning for antinomia |
+|---|---|
+| `0` | Classic: same-uid attach allowed |
+| `1` | Restricted (common default): attach only to descendants, or with `CAP_SYS_PTRACE` / root |
+| `2` / `3` | Admin-only / disabled — attach needs elevated privilege |
 
-- **Launch** (`init` / `launch`): the child calls `PTRACE_TRACEME` before `exec`.
-  Same-uid launch works under the common `ptrace_scope=1` default.
-- **Attach** (`attach <pid>`): subject to Yama. Scope `1` allows attaching only
-  to descendants (or with `CAP_SYS_PTRACE` / root). Scope `0` restores classic
-  same-uid attach.
+**Prefer `init` / `launch` for fixtures and CI.** Same-uid launch works under the
+usual `ptrace_scope=1` default because the child calls `PTRACE_TRACEME` before
+`exec`.
 
-When attach (or launch) is denied, antinomia returns `RE_E_PRIVILEGE` with
-structured JSON under schema `antinomia/1`:
+### Launch works but attach does not — is that a bug?
+
+Usually no. Launch and attach hit different Yama rules. Use launch when you
+control the binary; only attach when you must join an already-running process.
+
+### How do I temporarily allow same-uid attach on a throwaway VM?
+
+```console
+$ echo 0 | sudo tee /proc/sys/kernel/yama/ptrace_scope
+```
+
+Do **not** bake this into product images or CI without review. Prefer launch in
+automated tests.
+
+### Should I setuid or setcap the debugger?
+
+**No** for day-to-day developer binaries. Avoid `setuid` and avoid casually
+`setcap cap_sys_ptrace+ep` on workstation builds. Packaging notes may mention
+capabilities later; never recommend setuid in docs or scripts.
+
+### What does the JSON error look like?
+
+When attach (or launch) is denied, antinomia returns `RE_E_PRIVILEGE` under
+schema `antinomia/1`:
 
 | Field | Example | Meaning |
 |---|---|---|
@@ -39,25 +63,46 @@ structured JSON under schema `antinomia/1`:
 | `error.hint` | `"/proc/sys/kernel/yama/ptrace_scope"` | Stable remediation token |
 | `error.message` | prose | Human-readable detail |
 
-Stderr may also name `/proc/sys/kernel/yama/ptrace_scope` (never setuid the
-debugger). On Windows, `error.hint` is `"SeDebugPrivilege"`.
+Stderr may also name `/proc/sys/kernel/yama/ptrace_scope`. Agents should key off
+`error.code` + `error.hint`, not scrape prose.
 
-## CI and local tests
+### Does CI need a custom Yama setting?
 
-Linux PR CI runs headless fixture tests (launch -> entry break -> regs -> step ->
-detach) without a TTY. Those tests use **launch**, so they stay green on default
-Yama settings.
+No for the default Linux PR matrix. Headless fixture tests use **launch**
+(entry break → regs → step → detach) and stay green on `ptrace_scope=1`.
+Attach-heavy local tests are optional; if they fail with EPERM/EACCES, fall
+back to launch or use a disposable VM with scope `0`.
 
-If you enable attach-heavy local tests and see EPERM/EACCES:
+### What about AppArmor / SELinux?
 
-1. Prefer launching the fixture under the debugger instead of attaching.
-2. For a throwaway VM only: `echo 0 | sudo tee /proc/sys/kernel/yama/ptrace_scope`
-   (do not bake this into the product or CI images without review).
-3. Avoid `setuid` / `setcap cap_sys_ptrace+ep` on the developer workstation binary;
-   document a capability note only when packaging requires it.
+Distro MAC frameworks can add further denials. If Yama is `0` and attach still
+fails, check `dmesg` / audit logs for AppArmor or SELinux AVCs. antinomia does
+not ship policy profiles; document host policy in your environment.
+
+### Can agents detect attach support before trying?
+
+Yes. Query `caps` — `attach` is advertised when the live backend supports it
+([backend-caps.md](backend-caps.md)). A true `attach` bit does **not** bypass
+Yama; privilege denials still return `RE_E_PRIVILEGE`.
+
+## Launch vs attach (summary)
+
+| Path | Command | Yama `1` typical result |
+|---|---|---|
+| Launch | `init` / `launch` | Works (same-uid `PTRACE_TRACEME`) |
+| Attach descendant | `attach <child>` | Often works |
+| Attach unrelated same-uid | `attach <pid>` | Denied without `CAP_SYS_PTRACE` |
+| Cross-uid | `attach` | Needs capability / root |
 
 ## Windows note
 
-Windows Debug API attach uses `SeDebugPrivilege` for some targets. The Windows
-integration path for step/regs is enabled in CI only when the backend exposes
-those ops (see `debug_launch_bp_step_detach` test properties).
+Windows Debug API attach may require `SeDebugPrivilege`. Privilege denials use
+the same `RE_E_PRIVILEGE` shape with `error.hint` = `"SeDebugPrivilege"` and
+`error.platform` = `"windows"`. CI enables the Windows live step/regs path only
+when the backend exposes those ops.
+
+## Related
+
+- [backend-caps.md](backend-caps.md)
+- [commands.md](commands.md) — `init`, `attach`, `caps`
+- [x64dbg-migration.md](x64dbg-migration.md)

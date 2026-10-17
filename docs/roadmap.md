@@ -51,8 +51,13 @@ helpers `explain` / `suggest_bp` / `summarize_ex`.
 
 Installable archives (`scripts/package_release.sh`, tagged Release workflow), optional
 symbols package stubs, reproducible checklist in `docs/release-checklist.md`,
-themes/keybindings, performance and soak hardening, docs (command ref, expression
-grammar, Yama FAQ in `docs/yama-ptrace.md`), x64dbg user migration aliases.
+themes/keybindings (`docs/theme-keys.md`), performance and soak hardening, and docs:
+
+- [commands.md](commands.md) — full CLI/MCP/TUI command reference
+- [expression-grammar.md](expression-grammar.md) — BP/watch/`expr` language
+- [backend-caps.md](backend-caps.md) — dual-OS `RE_DBG_CAP_*` matrix
+- [yama-ptrace.md](yama-ptrace.md) — Linux Yama / attach FAQ
+- [x64dbg-migration.md](x64dbg-migration.md) — x64dbg → antinomia alias table
 
 ## Architecture invariants
 
