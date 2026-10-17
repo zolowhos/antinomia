@@ -187,6 +187,19 @@ See [docs/phase3-gate.md](docs/phase3-gate.md) for CI vs interactive coverage.
 `explain`, `suggest_bp`, `summarize_ex` (aliases `ai.explain` / `ai.suggest_bp` /
 `ai.ex`).
 
+## Releases
+
+Tagged `v*` releases build dual-OS packages via `.github/workflows/release.yml`
+(`clang-release` / `clang-cl-release`). Locally:
+
+```console
+$ scripts/package_release.sh --os linux --version v0.1.0 \
+    --bin build/clang-release/bin/antinomia --out dist --with-symbols-stub
+```
+
+See [docs/release-checklist.md](docs/release-checklist.md) for the reproducible
+tag → archive → verify steps (archives, bare binaries, symbols stubs, `SHA256SUMS`).
+
 ## Development
 
 ```console

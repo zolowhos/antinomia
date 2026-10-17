@@ -49,7 +49,10 @@ helpers `explain` / `suggest_bp` / `summarize_ex`.
 
 ### Phase 4
 
-Installable archives, themes/keybindings, performance and soak hardening, docs (command ref, expression grammar, Yama FAQ in `docs/yama-ptrace.md`), x64dbg user migration aliases.
+Installable archives (`scripts/package_release.sh`, tagged Release workflow), optional
+symbols package stubs, reproducible checklist in `docs/release-checklist.md`,
+themes/keybindings, performance and soak hardening, docs (command ref, expression
+grammar, Yama FAQ in `docs/yama-ptrace.md`), x64dbg user migration aliases.
 
 ## Architecture invariants
 
